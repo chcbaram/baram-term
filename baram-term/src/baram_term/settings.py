@@ -40,6 +40,9 @@ class Settings:
     auto_reconnect: bool = True
     # 포트 설정 창에서 고른 포트/직접 입력한 주소 (최근 것이 앞)
     recent_ports: list[str] = field(default_factory=list)
+    # 로그 저장 창의 마지막 폴더와 타임스탬프 선택
+    log_dir: str = ""
+    log_timestamps: bool = True
     # 포트별로 help 출력에서 배운 명령 목록 (Tab 자동완성)
     commands: dict[str, list[str]] = field(default_factory=dict)
 

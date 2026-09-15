@@ -10,6 +10,7 @@ from typing import Any, Callable
 from retroui import (
     App,
     Button,
+    CheckBox,
     ComboBox,
     Dialog,
     GroupBox,
@@ -33,6 +34,7 @@ from baram_term.outgoing import outgoing_bytes
 from baram_term.highlight import default_rules
 from baram_term.icon import make_icon
 from baram_term.i18n import tr
+from baram_term.logger import SessionLog, default_log_dir, log_filename
 from baram_term.logo import banner
 from baram_term.serial_port import DEMO_PORT, PortSettings, SerialPort, list_ports, open_device
 from baram_term import settings as config_store
@@ -96,6 +98,7 @@ class BaramTerm:
             opener=opener,
         )
         self.decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+        self.log: SessionLog | None = None
         self.local_echo = self.config.local_echo
         self.guard_controls = self.config.guard_controls
         self.auto_reconnect = self.config.auto_reconnect
@@ -158,6 +161,7 @@ class BaramTerm:
                         MenuItem(tr("menu.port.connect"), self.connect, shortcut="Ctrl-A R", key="R"),
                         MenuItem(tr("menu.port.disconnect"), self.disconnect, shortcut="Ctrl-A D", key="D"),
                         MenuItem(tr("menu.port.settings"), self.open_port_dialog, shortcut="Ctrl-A O", key="O"),
+                        MenuItem(tr("menu.port.log"), self.toggle_log, shortcut="Ctrl-A L", key="L"),
                         MenuItem.sep(),
                         MenuItem(tr("menu.port.quit"), self.quit, shortcut="Ctrl-A X", key="X"),
                     ],
@@ -211,6 +215,8 @@ class BaramTerm:
         color = "91" if error else "96"
         lead = "\r\n" if self.terminal.screen.cx else ""
         self.terminal.feed(f"{lead}\x1b[{color}m[baram-term] {text}\x1b[0m\r\n")
+        if self.log is not None:
+            self._log_call(self.log.note, text)
 
     def connect(self) -> None:
         if not self.settings.port:
@@ -309,10 +315,85 @@ class BaramTerm:
         self._save()
 
     def quit(self) -> None:
+        self.stop_log(notify=False)
         self._stop_reconnect()
         self._save()
         self.port.close()
         self.app.quit()
+
+    # ---- log file ------------------------------------------------------
+
+    def toggle_log(self) -> None:
+        if self.log is not None:
+            self.stop_log()
+        else:
+            self.open_log_dialog()
+
+    def open_log_dialog(self) -> Dialog:
+        folder = Path(self.config.log_dir) if self.config.log_dir else default_log_dir()
+        path_edit = LineEdit(str(folder / log_filename(self.settings.port)), min_size=(56, 1))
+        timestamps_box = CheckBox(tr("dialog.log.timestamps"), checked=self.config.log_timestamps)
+        body = VBox(
+            HBox(Label(tr("dialog.log.file"), min_size=(6, 1)), path_edit, spacing=1),
+            timestamps_box,
+            spacing=1,
+        )
+
+        def on_result(index: int) -> None:
+            if index == 0:
+                self.start_log(path_edit.text, timestamps_box.checked)
+
+        dialog = Dialog(tr("dialog.log.title"), body, (tr("button.start"), tr("button.cancel")), on_result=on_result)
+        dialog.path_edit, dialog.timestamps_box = path_edit, timestamps_box
+        dialog.open(self.app)
+        return dialog
+
+    def start_log(self, path: str, timestamps: bool) -> bool:
+        path = path.strip()
+        if not path:
+            return False
+        file = Path(path).expanduser()
+        s = self.settings
+        header = f"--- baram-term {__version__} · {s.port or '-'} {s.summary} · {time.strftime('%Y-%m-%d %H:%M:%S')}"
+        self.stop_log(notify=False)
+        try:
+            log = SessionLog(file, timestamps=timestamps, header=header)
+        except OSError as e:
+            self.notice(tr("notice.log_open_failed", error=e), error=True)
+            return False
+        self.config.log_dir = str(file.parent)
+        self.config.log_timestamps = timestamps
+        self._save()
+        self.log = log
+        self.notice(tr("notice.log_started", path=file))
+        self._update_status()
+        return True
+
+    def stop_log(self, notify: bool = True) -> None:
+        log, self.log = self.log, None
+        if log is None:
+            return
+        try:
+            log.close()
+        except (OSError, ValueError):
+            pass
+        if notify:
+            self.notice(tr("notice.log_stopped", path=log.path, lines=log.lines))
+            self._update_status()
+
+    def _log_call(self, write: Callable[[str], None], text: str) -> None:
+        try:
+            write(text)
+        except (OSError, ValueError) as e:
+            # 디스크가 차거나 USB 저장장치가 빠지면 기록을 멈추고 알린다 (터미널은 계속 동작)
+            log, self.log = self.log, None
+            if log is not None:
+                try:
+                    log.close()
+                except (OSError, ValueError):
+                    pass
+            self.notice(tr("notice.log_failed", error=e), error=True)
+            self._update_status()
 
     def _apply_echo(self, on: bool) -> None:
         self.local_echo = on
@@ -481,6 +562,7 @@ class BaramTerm:
                 "x": self.quit,
                 "q": self.quit,
                 "z": self.show_help,
+                "l": self.toggle_log,
             }.get(name)
             if action is not None:
                 action()
@@ -496,6 +578,8 @@ class BaramTerm:
         if data:
             text = self.decoder.decode(data)
             self.terminal.feed(text)
+            if self.log is not None:
+                self._log_call(self.log.feed, text)
             self.completer.on_text(text)
 
     def _on_port_error(self, message: str) -> None:
@@ -532,6 +616,8 @@ class BaramTerm:
             flags.append("ECHO")
         if self.terminal.show_timestamps:
             flags.append("TS")
+        if getattr(self, "log", None) is not None:
+            flags.append("LOG")
         if getattr(self, "_reconnect_timer", None) is not None:
             flags.append(tr("status.reconnecting"))
         self.st_flags.set_text(" ".join(flags))
@@ -542,4 +628,5 @@ class BaramTerm:
         try:
             self.app.run()
         finally:
+            self.stop_log(notify=False)
             self.port.close()
