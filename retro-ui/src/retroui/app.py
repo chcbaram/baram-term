@@ -794,7 +794,10 @@ class App:
 
         rects: list[pygame.Rect] = []
         if self._damage is not None:
-            clip = self._damage.intersect(self.buf.rect)
+            # 좌우로 한 칸씩 넓혀서 다시 그린다. 다시 그릴 영역의 경계에 2칸짜리 글자(한글 등)가
+            # 걸리면 CellBuffer.put 이 그 자리를 공백으로 바꿔 글자가 사라졌다
+            # (상태줄 오른쪽 안내가 "F10 메" 로 잘려 보였다). 화면 끝에서는 buf.rect 가 막아 준다
+            clip = self._damage.inset(-1, 0, -1, 0).intersect(self.buf.rect)
             self._damage = None
             if not clip.empty:
                 pal = self.theme.palette

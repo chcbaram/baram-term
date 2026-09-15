@@ -46,7 +46,5 @@ type_line("plot")
 # 켠 뒤로는 입력하지 않는다: 그래프 줄이 터미널에서 깨끗하게 빠진 모습이 남는다
 pump(11.5)
 
-term.app.invalidate()   # 전체 다시 그리기 (부분 갱신에서 줄 끝 한글이 빠지는 문제 회피)
-term.app.step()
 pygame.image.save(term.app.surface, out)
 print("saved", out, term.app.surface.get_size())

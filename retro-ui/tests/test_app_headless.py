@@ -5,6 +5,7 @@ import pygame
 import pytest
 
 from retroui import App, Button, CheckBox, GroupBox, HBox, Label, Signal, Spacer, VBox
+from retroui.core.geometry import Rect
 from retroui.input.events import Key, KeyEvent, Mod, MouseEvent
 from retroui.render.cellbuffer import Attr
 
@@ -167,3 +168,29 @@ def test_hover_highlights_button_and_checkbox(app):
     assert not b.hovered and cb.hovered
     assert app.buf.get(b.rect.x + 1, b.rect.y)[2] == button_bg
     assert app.buf.get(cb.rect.x, cb.rect.y)[2] != check_bg
+
+
+def test_partial_repaint_keeps_a_wide_char_at_its_edge():
+    """다시 그릴 영역의 경계에 걸린 2칸 글자가 사라지면 안 된다.
+
+    상태줄 오른쪽 안내가 폭이 남는데도 "F10 메" 로 잘려 보이던 문제.
+    CellBuffer.put 은 2칸 글자가 클립 오른쪽 끝에 걸치면 공백으로 바꾸는데,
+    그 클립이 화면 끝이 아니라 그때 다시 그리는 영역의 끝이었다.
+    """
+    try:
+        app = App(title="t", size=(20, 3), headless=True)
+    except (FileNotFoundError, ValueError) as e:
+        pytest.skip(str(e))
+    try:
+        label = Label("가나다")  # 6칸, 오른쪽 끝에 붙인다
+        app.set_root(VBox(HBox(Spacer(), label), Spacer()))
+        app.step()
+        row = app.buf.row_text(label.rect.y)
+        assert row.rstrip().endswith("가나다")
+
+        # 마지막 글자('다', 18~19열)를 반으로 가르는 영역만 다시 그린다
+        app.invalidate(Rect(0, label.rect.y, 19, 1))
+        app.step()
+        assert app.buf.row_text(label.rect.y).rstrip().endswith("가나다")
+    finally:
+        app.close()
