@@ -46,7 +46,12 @@ class Dialog(Popup):
         self.on_result = on_result
         self.result: int | None = None
         self.buttons = [Button(text, on_click=partial(self.finish, i)) for i, text in enumerate(buttons)]
-        self.add(VBox(body, HBox(Spacer(), *self.buttons, spacing=2), spacing=1, margin=1))
+        # 버튼 폭을 가장 긴 글자에 맞춰 같게: "OK" 와 "Cancel" 처럼 길이가 다르면 버튼 줄이 한쪽으로 쏠려 보인다
+        width = max((str_width(b.text) + 4 for b in self.buttons), default=0)
+        for b in self.buttons:
+            b.min_size = (width, 1)
+        # 버튼 줄은 가운데: 제목이 길어 창이 넓어지면 오른쪽 정렬 버튼은 한쪽으로 몰려 보인다
+        self.add(VBox(body, HBox(Spacer(), *self.buttons, Spacer(), spacing=2), spacing=1, margin=1))
 
     def _fit_margins(self) -> None:
         # 박스 버튼은 테두리 선을 셀 안쪽으로 당겨 그려(boxdraw.EDGE_INSET) 버튼 아래 칸이 이미 비어 보인다.

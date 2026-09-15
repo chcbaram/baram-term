@@ -19,6 +19,7 @@ import numpy as np
 import pygame
 
 from retroui.core.geometry import Rect
+from retroui.core.signal import Signal
 from retroui.core.wcwidth import str_width, truncate
 from retroui.input.events import Event, Key, KeyEvent, MouseEvent
 from retroui.render.cellbuffer import Attr
@@ -260,11 +261,15 @@ class LivePlot(PixelWidget):
         y_range: tuple[float, float] | None = None,
         update_hz: float = 30.0,
         antialias: bool = False,
+        header: bool = True,
         stretch: int = 1,
         **kw,
     ):
         super().__init__(stretch=stretch, **kw)
         self.title = title
+        # False 면 제목/범례 줄 없이 그래프만 그린다 (범례는 PlotLegend 로 다른 줄에)
+        self.header = header
+        self.series_changed = Signal()  # 시리즈가 추가/삭제되거나 보이기가 바뀔 때
         self.window = window  # x 단위 롤링 구간 (x 를 안 주면 샘플 개수)
         self.x_range = x_range
         self.y_range = y_range
@@ -285,7 +290,17 @@ class LivePlot(PixelWidget):
         self.series.append(s)
         self.invalidate()
         self.invalidate_pixels()
+        self.series_changed.emit()
         return s
+
+    def set_series_visible(self, series: Series, visible: bool) -> None:
+        if series.visible == visible:
+            return
+        series.visible = visible
+        self._auto.reset()  # 숨긴 시리즈 범위에 맞춰 넓어진 Y 축을 다시 잡는다
+        self.invalidate()
+        self.invalidate_pixels()
+        self.series_changed.emit()
 
     def set_paused(self, paused: bool) -> None:
         if paused == self.paused:
@@ -310,6 +325,15 @@ class LivePlot(PixelWidget):
         self._auto.reset()
         self.invalidate_pixels()
 
+    def clear_series(self) -> None:
+        """시리즈까지 모두 지운다 (데이터 원본이 바뀌어 이름 목록부터 다시 만들 때)."""
+        self.series.clear()
+        self._frozen = None
+        self._auto.reset()
+        self.invalidate()
+        self.invalidate_pixels()
+        self.series_changed.emit()
+
     # ---- layout / paint ------------------------------------------------
 
     def size_hint(self) -> SizeHint:
@@ -320,9 +344,10 @@ class LivePlot(PixelWidget):
 
     def pixel_rect(self) -> Rect:
         r = self.rect
+        top = 1 if self.header else 0
         if self._has_axes():
-            return Rect(r.x + _GUTTER, r.y + 1, r.w - _GUTTER, r.h - 2)
-        return Rect(r.x, r.y + 1, r.w, max(0, r.h - 1))
+            return Rect(r.x + _GUTTER, r.y + top, r.w - _GUTTER, r.h - 1 - top)
+        return Rect(r.x, r.y + top, r.w, max(0, r.h - top))
 
     def series_color(self, index: int, s: Series) -> RGB:
         pal = self.palette
@@ -335,19 +360,20 @@ class LivePlot(PixelWidget):
         r = self.rect
         p.fill(Rect(0, 0, r.w, r.h), " ", pal.fg, pal.bg)
 
-        title_fg = pal.border_focus if self.focused else pal.accent
-        x = p.text(0, 0, truncate(self.title, r.w), title_fg, pal.bg, Attr.BOLD)
-        if self.paused:
-            x = p.text(x + 1, 0, " PAUSED ", pal.bg, pal.warn)
+        if self.header:
+            title_fg = pal.border_focus if self.focused else pal.accent
+            x = p.text(0, 0, truncate(self.title, r.w), title_fg, pal.bg, Attr.BOLD)
+            if self.paused:
+                x = p.text(x + 1, 0, " PAUSED ", pal.bg, pal.warn)
 
-        legend = [(i, s) for i, s in enumerate(self.series) if s.name]
-        legend_w = sum(str_width(s.name) + 3 for _, s in legend)
-        lx = r.w - legend_w + 1
-        if legend and lx > x + 1:
-            for i, s in legend:
-                color = self.series_color(i, s)
-                p.put(lx, 0, "■", color, pal.bg)
-                lx = p.text(lx + 1, 0, s.name, color if s.visible else pal.disabled, pal.bg) + 2
+            legend = [(i, s) for i, s in enumerate(self.series) if s.name]
+            legend_w = sum(str_width(s.name) + 3 for _, s in legend)
+            lx = r.w - legend_w + 1
+            if legend and lx > x + 1:
+                for i, s in legend:
+                    color = self.series_color(i, s)
+                    p.put(lx, 0, "■", color, pal.bg)
+                    lx = p.text(lx + 1, 0, s.name, color if s.visible else pal.disabled, pal.bg) + 2
 
         super().paint(p)
         if self._has_axes():

@@ -27,6 +27,7 @@ from retroui.widgets import (
     MenuBar,
     MenuItem,
     PixelWidget,
+    PlotLegend,
     Popup,
     RingBuffer,
     ScrollBar,
@@ -44,6 +45,7 @@ from retroui.widgets import (
 __version__ = "0.0.1"
 
 __all__ = [
+    "PlotLegend",
     "EditableComboBox",
     "Link", "set_language",
     "FileDialog", "ListView",

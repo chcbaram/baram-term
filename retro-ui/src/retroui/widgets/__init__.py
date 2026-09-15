@@ -15,11 +15,13 @@ from retroui.widgets.listview import ListView
 from retroui.widgets.menu import Menu, MenuBar, MenuItem
 from retroui.widgets.pixel import PixelWidget
 from retroui.widgets.plot import LivePlot, RingBuffer, Series
+from retroui.widgets.plotlegend import PlotLegend
 from retroui.widgets.popup import Popup
 from retroui.widgets.scrollbar import ScrollBar
 from retroui.widgets.terminal import HighlightRule, Terminal, TerminalScreen
 
 __all__ = [
+    "PlotLegend",
     "EditableComboBox",
     "Link",
     "FileDialog", "ListView",

@@ -47,8 +47,10 @@ def test_down_opens_list_and_choice_sets_text(app):
     app.dispatch(KeyEvent(Key.DOWN, Mod.NONE, ""))
     popup = app.popups[-1]
     assert isinstance(popup, ListPopup) and popup.selected == 1 and cb.is_open
+    chosen = []
+    cb.chosen.connect(chosen.append)
     popup.choose(0)
-    assert cb.text == "9600" and not cb.is_open and app.focus is cb
+    assert cb.text == "9600" and not cb.is_open and app.focus is cb and chosen == ["9600"]
 
 
 def test_click_arrow_toggles_list(app):

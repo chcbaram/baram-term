@@ -45,3 +45,34 @@ def test_box_margin_per_side():
         assert box.margins == (2, 1, 0, 3)
     finally:
         app.close()
+
+
+@pytest.mark.parametrize("theme", ["mono", "dos_blue"])
+def test_dialog_buttons_share_the_widest_width(theme):
+    app = make_app(theme)
+    try:
+        app.set_root(VBox(Spacer()))
+        dialog = message_box(app, "Plot time window", "30 seconds", ("OK", "Cancel"))
+        app.screen_text()
+        ok, cancel = dialog.buttons
+        assert ok.rect.w == cancel.rect.w == len("Cancel") + 4
+        # 글자는 넓어진 버튼 가운데에
+        row = app.screen_text()[ok.rect.y + (1 if ok.rect.h == 3 else 0)]
+        text_x = row.index("OK", ok.rect.x)
+        assert text_x - ok.rect.x == (ok.rect.w - 2) // 2
+    finally:
+        app.close()
+
+
+def test_dialog_button_row_is_centered():
+    app = make_app("mono")
+    try:
+        app.set_root(VBox(Spacer()))
+        dialog = message_box(app, "A long dialog title here", "x", ("OK", "Cancel"))
+        app.screen_text()
+        ok, cancel = dialog.buttons
+        left = ok.rect.x - (dialog.rect.x + 1)
+        right = (dialog.rect.right - 1) - cancel.rect.right
+        assert abs(left - right) <= 1
+    finally:
+        app.close()

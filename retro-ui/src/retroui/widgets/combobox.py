@@ -272,6 +272,7 @@ class EditableComboBox(LineEdit):
         super().__init__(text, **kw)
         self.items = [str(i) for i in items]
         self.visible_rows = visible_rows
+        self.chosen = Signal()  # str: 목록에서 골랐을 때 (입력은 changed 로도 온다)
         self._popup: ListPopup | None = None
 
     @property
@@ -304,6 +305,7 @@ class EditableComboBox(LineEdit):
 
     def _chosen(self, index: int) -> None:
         self.set_text(self.items[index])
+        self.chosen.emit(self.items[index])
 
     def paint(self, p: Painter) -> None:
         # 글자 칸은 ▼ 두 칸을 뺀 폭으로 그린다 (LineEdit 는 rect 폭으로 스크롤/캐럿을 계산한다)

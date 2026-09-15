@@ -33,6 +33,9 @@ class FakeCliDevice:
         self.timeout = 0.05
         self.is_open = True
         self.log_interval = log_interval
+        self.plot_mode: str | None = None  # plot 명령: "tele" (>name:value) | "arduino" (name:value,...)
+        self.plot_interval = 0.05
+        self._last_plot = 0.0
         self.line = ""
         self.cursor = 0
         self.history: list[str] = []
@@ -47,6 +50,7 @@ class FakeCliDevice:
             "HELP": self._cmd_help,
             "INFO": self._cmd_info,
             "LOG": self._cmd_log,
+            "PLOT": self._cmd_plot,
             "SENSOR": self._cmd_sensor,
             "STATUS": self._cmd_status,
             "RESET": self._cmd_reset,
@@ -112,9 +116,12 @@ class FakeCliDevice:
         )
 
     def _tick(self) -> None:
+        now = self.clock()
+        if self.plot_mode and now - self._last_plot >= self.plot_interval:
+            self._last_plot = now
+            self._emit_above_prompt(self._plot_text(now - self._t0))
         if not self.log_interval:
             return
-        now = self.clock()
         if now - self._last_log < self.log_interval:
             return
         self._last_log = now
@@ -123,11 +130,23 @@ class FakeCliDevice:
         rpm = int(1200 + 300 * math.sin(t / 3.0))
         tag = "[E_]" if self._rng.random() < 0.1 else "[OK]"
         log = f"{tag} sensor temp={temp:.1f} rpm={rpm}"
-        # 입력 중인 줄을 지우고 로그를 찍은 뒤 프롬프트와 입력 중이던 글자를 다시 그린다
+        self._emit_above_prompt(log + "\r\n")
+
+    def _emit_above_prompt(self, text: str) -> None:
+        # 입력 중인 줄을 지우고 출력을 찍은 뒤 프롬프트와 입력 중이던 글자를 다시 그린다
         redraw = PROMPT + self.line
         if self.cursor < len(self.line):
             redraw += f"\x1b[{len(self.line) - self.cursor}D"
-        self._emit("\r\x1b[K" + log + "\r\n" + redraw)
+        self._emit("\r\x1b[K" + text + redraw)
+
+    def _plot_text(self, t: float) -> str:
+        ax = int(1000 * math.sin(t * 2.0))
+        ay = int(1000 * math.cos(t * 2.0))
+        az = 1000 + self._rng.randint(-30, 30)
+        temp = 34 + 2.0 * math.sin(t / 4.0)
+        if self.plot_mode == "arduino":
+            return f"ax:{ax},ay:{ay},az:{az},temp:{temp:.1f}\r\n"
+        return f">ax:{ax}\r\n>ay:{ay}\r\n>az:{az}\r\n>temp:{temp:.1f}\r\n"
 
     def _key(self, b: int) -> None:
         if self._esc:
@@ -223,6 +242,17 @@ class FakeCliDevice:
 
     def _cmd_log(self, args: list[str]) -> str:
         return self._boot_log()
+
+    def _cmd_plot(self, args: list[str]) -> str:
+        mode = args[0].lower() if args else "tele"
+        if mode == "off":
+            self.plot_mode = None
+            return "plot off\r\n"
+        if mode not in ("tele", "arduino"):
+            return "usage: plot [tele|arduino|off]\r\n"
+        self.plot_mode = mode
+        self._last_plot = self.clock()
+        return f"plot {mode} on\r\n"
 
     def _cmd_sensor(self, args: list[str]) -> str:
         lines = []

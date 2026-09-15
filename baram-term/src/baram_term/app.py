@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import codecs
-from dataclasses import replace
+import re
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Callable
 
@@ -22,6 +23,8 @@ from retroui import (
     LineEdit,
     Link,
     ListPopup,
+    LivePlot,
+    PlotLegend,
     Menu,
     MenuBar,
     MenuItem,
@@ -31,6 +34,7 @@ from retroui import (
     VBox,
     message_box,
 )
+from retroui.core.wcwidth import str_width
 from retroui.input.events import IS_MAC, Key, KeyEvent
 
 from baram_term import __version__
@@ -39,7 +43,8 @@ from baram_term.outgoing import outgoing_bytes
 from baram_term.highlight import default_rules
 from baram_term.icon import make_icon
 from baram_term.i18n import tr
-from baram_term.logger import SessionLog, default_log_dir, log_filename
+from baram_term.logger import LineCleaner, SessionLog, default_log_dir, log_filename
+from baram_term.plotdata import parse_line
 from baram_term.logo import banner
 from baram_term.search import SearchBar
 from baram_term.serial_port import DEMO_PORT, PortSettings, SerialPort, list_ports, open_device
@@ -65,6 +70,26 @@ def _baud_text_ok(text: str) -> bool:
 def _parse_baud(text: str) -> int | None:
     text = text.strip()
     return int(text) if text.isdigit() and int(text) > 0 else None
+
+
+PLOT_WINDOWS = ("1", "5", "10", "30", "60", "300")
+PLOT_WINDOW_MAX_S = 3600.0
+
+
+def _seconds_text_ok(text: str) -> bool:
+    return re.fullmatch(r"\d{0,5}(\.\d{0,3})?", text) is not None
+
+
+def _parse_seconds(text: str) -> float | None:
+    try:
+        value = float(text.strip())
+    except ValueError:
+        return None
+    return value if 0 < value <= PLOT_WINDOW_MAX_S else None
+
+
+def _format_seconds(value: float) -> str:
+    return str(int(value)) if float(value).is_integer() else f"{value:g}"
 
 # 복사/붙여넣기 단축키: macOS 는 Cmd, 그 외는 Ctrl+Shift (Ctrl+C/V 는 장치로 보내는 제어 문자라서)
 COPY_KEYS, PASTE_KEYS, SELECT_ALL_KEYS = (
@@ -140,7 +165,39 @@ class BaramTerm:
         if self.config.timestamps:
             self.terminal.set_show_timestamps(True)
         # 포트 이름은 상태줄에 있어서 테두리 제목은 두지 않는다
-        self.frame = GroupBox("", self.terminal, stretch=1)
+        self.frame = GroupBox("", self.terminal, stretch=2)
+        # 받은 줄의 그래프 값 (>name:value, Arduino 플로터 형식). 가로축은 받은 시각(초), 폭은 plot_window 초
+        self.plot = LivePlot(window=self.config.plot_window, update_hz=30, header=False)
+        self.plot.focusable = False  # 그래프를 눌러도 키보드 입력은 터미널에 남는다
+        # 윗줄: 왼쪽 범례(누르면 보이기/숨기기), 오른쪽 시작/정지 (Arduino IDE 플로터 배치)
+        self.plot_legend = PlotLegend(self.plot)
+        run_w = max(str_width(tr("plot.stop")), str_width(tr("plot.start"))) + 4  # 글자가 바뀌어도 폭 그대로
+        self.plot_run_button = Button(
+            tr("plot.stop"), on_click=self.toggle_plot_pause, style="solid", color="error", min_size=(run_w, 1)
+        )
+        plot_toolbar = HBox(self.plot_legend, self.plot_run_button, spacing=2)
+        # 아랫줄 오른쪽: 시간 폭 (Arduino IDE 플로터에서 설정 칸이 아래 오른쪽에 있는 배치)
+        self.plot_window_combo = EditableComboBox(
+            PLOT_WINDOWS,
+            _format_seconds(self.config.plot_window),
+            validator=_seconds_text_ok,
+            min_size=(8, 1),
+            on_change=self._plot_window_typed,
+            on_submit=self._plot_window_submitted,
+        )
+        self.plot_window_combo.chosen.connect(lambda _text: self.app.set_focus(self.terminal))
+        plot_footer = HBox(
+            Spacer(),
+            Label(tr("plot.window"), fg="dim"),
+            self.plot_window_combo,
+            Label(tr("dialog.plot_window.unit"), fg="dim"),
+            spacing=1,
+        )
+        self.plot_frame = GroupBox("", VBox(plot_toolbar, self.plot, plot_footer), stretch=1, visible=self.config.plot)
+        self._plot_lines = LineCleaner()
+        self._plot_series: dict[str, Any] = {}
+        self.plot_clock: Callable[[], float] = time.monotonic
+        self._plot_t0 = self.plot_clock()
 
         self.st_led = Label("○", bold=True)
         # 포트/속도는 누르면 바로 위에 목록이 열린다. 8N1 은 설정 항목이 여러 개라 포트 설정 창을 연다
@@ -163,7 +220,7 @@ class BaramTerm:
             self.st_flags, Spacer(), self.st_hint, spacing=1,
         )
         self.menu = self._build_menu()
-        self.app.set_root(VBox(self.menu, self.frame, status))
+        self.app.set_root(VBox(self.menu, self.frame, self.plot_frame, status))
         self.app.set_focus(self.terminal)
         self.app.add_key_filter(self._key_filter)
         self.app.add_shortcut("Primary+=", lambda: self.zoom(+1))
@@ -183,6 +240,9 @@ class BaramTerm:
         self.item_ts = MenuItem(tr("menu.view.timestamps"), lambda: self._apply_timestamps(self.item_ts.checked), key="N", checked=self.terminal.show_timestamps)
         self.item_complete = MenuItem(tr("menu.view.complete"), lambda: self._apply_complete(self.item_complete.checked), key="T", checked=self.completer.enabled)
         self.item_guard = MenuItem(tr("menu.view.guard"), lambda: self._apply_guard(self.item_guard.checked), key="G", checked=self.guard_controls)
+        self.item_plot = MenuItem(
+            tr("menu.view.plot"), lambda: self._apply_plot(self.item_plot.checked), shortcut="Ctrl-A G", key="P", checked=self.config.plot
+        )
         self.item_reconnect = MenuItem(tr("menu.view.reconnect"), lambda: self._apply_reconnect(self.item_reconnect.checked), key="A", checked=self.auto_reconnect)
         return MenuBar(
             [
@@ -215,6 +275,11 @@ class BaramTerm:
                         self.item_complete,
                         self.item_guard,
                         self.item_reconnect,
+                        MenuItem.sep(),
+                        self.item_plot,
+                        MenuItem(tr("menu.view.plot_pause"), self.toggle_plot_pause),
+                        MenuItem(tr("menu.view.plot_clear"), self.clear_plot),
+                        MenuItem(tr("menu.view.plot_window"), self.ask_plot_window),
                         MenuItem(tr("menu.view.clear"), self.clear, shortcut="Ctrl-A C", key="C"),
                         MenuItem.sep(),
                         MenuItem(tr("menu.view.bigger"), lambda: self.zoom(+1), shortcut="Primary+="),
@@ -350,6 +415,92 @@ class BaramTerm:
         self.port.close()
         self.app.quit()
 
+    # ---- plot ----------------------------------------------------------
+
+    # 시리즈마다 보관하는 샘플 수: 1kHz 로 10초를 받아도 폭 안의 점이 잘리지 않게
+    PLOT_CAPACITY = 16384
+    # 이름이 계속 바뀌는 데이터(카운터를 이름에 넣는 등)가 와도 범례와 색이 끝없이 늘지 않게
+    PLOT_MAX_SERIES = 12
+
+    def _apply_plot(self, on: bool) -> None:
+        self.item_plot.checked = on
+        self.plot_frame.visible = on
+        self._plot_lines = LineCleaner()  # 꺼져 있는 동안 받은 반쪽 줄을 이어 붙이지 않게
+        self._save()
+
+    def _feed_plot(self, text: str) -> None:
+        for line in self._plot_lines.feed(text):
+            values = parse_line(line)
+            if not values:
+                continue
+            # Teleplot 의 장치 시각은 쓰지 않는다: 형식마다 단위가 달라 받은 시각으로 통일한다
+            now = self.plot_clock() - self._plot_t0
+            for name, value in values:
+                series = self._plot_series.get(name)
+                if series is None:
+                    if len(self._plot_series) >= self.PLOT_MAX_SERIES:
+                        continue
+                    series = self.plot.add_series(name, capacity=self.PLOT_CAPACITY)
+                    self._plot_series[name] = series
+                series.append(value, now)
+
+    def toggle_plot_pause(self) -> None:
+        paused = not self.plot.paused
+        self.plot.set_paused(paused)
+        self.plot_run_button.set_text(tr("plot.start") if paused else tr("plot.stop"))
+        self.plot_run_button.set_color("ok" if paused else "error")
+        self.app.set_focus(self.terminal)  # 버튼을 눌러도 입력은 터미널로
+
+    def clear_plot(self) -> None:
+        self.plot.clear_series()
+        self._plot_series.clear()
+        self._plot_t0 = self.plot_clock()
+        self.app.set_focus(self.terminal)
+
+    def set_plot_window(self, seconds: float) -> None:
+        self.plot.window = seconds
+        self.plot.invalidate_pixels()
+        self.config.plot_window = seconds
+        # 메뉴 대화상자로 바꿨을 때 아래 칸도 맞춘다 (칸에서 입력 중인 "2." 같은 글자는 건드리지 않게 값으로 비교)
+        if _parse_seconds(self.plot_window_combo.text) != seconds:
+            self.plot_window_combo.set_text(_format_seconds(seconds), emit=False)
+        self._save()
+
+    def _plot_window_typed(self, text: str) -> None:
+        seconds = _parse_seconds(text)
+        if seconds is not None and seconds != self.plot.window:
+            self.set_plot_window(seconds)
+
+    def _plot_window_submitted(self, text: str) -> None:
+        if _parse_seconds(text) is None:
+            self.notice(tr("notice.bad_plot_window", text=text), error=True)
+            self.plot_window_combo.set_text(_format_seconds(self.plot.window), emit=False)
+        self.app.set_focus(self.terminal)
+
+    def ask_plot_window(self) -> Dialog:
+        combo = EditableComboBox(PLOT_WINDOWS, _format_seconds(self.plot.window), validator=_seconds_text_ok, min_size=(10, 1))
+
+        def done(index: int) -> None:
+            if index != 0:
+                return
+            seconds = _parse_seconds(combo.text)
+            if seconds is None:
+                self.notice(tr("notice.bad_plot_window", text=combo.text), error=True)
+                return
+            self.set_plot_window(seconds)
+
+        dialog = Dialog(
+            tr("dialog.plot_window.title"),
+            HBox(combo, Label(tr("dialog.plot_window.unit")), spacing=1),
+            (tr("button.ok"), tr("button.cancel")),
+            on_result=done,
+        )
+        dialog.combo = combo
+        dialog.open(self.app)
+        self.app.set_focus(combo)
+        combo.select_all()
+        return dialog
+
     # ---- search --------------------------------------------------------
 
     def open_search(self) -> None:
@@ -481,6 +632,7 @@ class BaramTerm:
                 s.port, s.baud, s.bytesize, s.parity, float(s.stopbits), s.flow
             )
         c.enter, c.backspace, c.rx_lf = s.enter, s.backspace, s.rx_lf
+        c.plot = self.plot_frame.visible
         c.local_echo = self.local_echo
         c.timestamps = self.terminal.show_timestamps
         c.completion = self.completer.enabled
@@ -739,6 +891,7 @@ class BaramTerm:
                 "z": self.show_help,
                 "l": self.toggle_log,
                 "/": self.open_search,
+                "g": lambda: self._apply_plot(not self.plot_frame.visible),
                 "f": self.open_search,
             }.get(name)
             if action is not None:
@@ -759,6 +912,8 @@ class BaramTerm:
             self.terminal.feed(text)
             if self.log is not None:
                 self._log_call(self.log.feed, text)
+            if self.plot_frame.visible:
+                self._feed_plot(text)
             self.completer.on_text(text)
 
     def _on_port_error(self, message: str) -> None:

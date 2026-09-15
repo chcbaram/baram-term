@@ -41,6 +41,8 @@ class Settings:
     completion: bool = True
     guard_controls: bool = True
     auto_reconnect: bool = True
+    plot: bool = False
+    plot_window: float = 10.0  # 그래프 가로 폭 (초)
     # 포트 설정 창에서 고른 포트/직접 입력한 주소 (최근 것이 앞)
     recent_ports: list[str] = field(default_factory=list)
     # 로그 저장 창의 마지막 폴더와 타임스탬프 선택

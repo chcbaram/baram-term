@@ -3,6 +3,7 @@
 style:
   fill : 배경색을 채운 한 줄 버튼 (Turbo Vision 스타일)
   box  : 테두리 박스 3줄 버튼
+  solid: color 로 채운 한 줄 버튼 (시작/정지처럼 눈에 띄어야 하는 버튼)
   None : 테마의 button_style 을 따른다
 """
 
@@ -54,8 +55,17 @@ def draw_mnemonic(p: Painter, x: int, y: int, text: str, idx: int | None, fg: RG
 class Button(Widget):
     focusable = True
 
-    def __init__(self, text: str, on_click: Callable[[], None] | None = None, *, style: str | None = None, **kw):
+    def __init__(
+        self,
+        text: str,
+        on_click: Callable[[], None] | None = None,
+        *,
+        style: str | None = None,
+        color: str | RGB | None = None,
+        **kw,
+    ):
         super().__init__(**kw)
+        self.fill_color = color  # solid 버튼 배경 (팔레트 이름 또는 RGB). None 이면 accent
         self.clicked = Signal()
         if on_click is not None:
             self.clicked.connect(on_click)
@@ -113,8 +123,32 @@ class Button(Widget):
         # 공간이 3줄보다 좁게 배치되면 box 대신 한 줄 버튼으로 그린다
         if self.effective_style == "box" and self.rect.h >= 3:
             self._paint_box(p)
+        elif self.effective_style == "solid":
+            self._paint_solid(p)
         else:
             self._paint_fill(p)
+
+    def set_color(self, color: str | RGB | None) -> None:
+        if color != self.fill_color:
+            self.fill_color = color
+            self.invalidate()
+
+    def _paint_solid(self, p: Painter) -> None:
+        pal = self.palette
+        w = self.rect.w
+        if not self.enabled:
+            bg = pal.disabled
+        else:
+            bg = self.color(self.fill_color if self.fill_color is not None else "accent")
+            if self.hovered and not self.pressed:
+                bg = lighten(bg)
+        fg = pal.bg  # 채운 배경 위에는 화면 바탕색 글자
+        attr = Attr.REVERSE if self.pressed else 0
+        p.fill(Rect(0, 0, w, self.rect.h), " ", fg, bg, attr)
+        if self.focused and w >= 2:
+            p.put(0, 0, "►", fg, bg, attr)
+            p.put(w - 1, 0, "◄", fg, bg, attr)
+        self._draw_label(p, 0, fg, bg, attr | Attr.BOLD)
 
     def _paint_fill(self, p: Painter) -> None:
         pal = self.palette
