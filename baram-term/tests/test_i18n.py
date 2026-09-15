@@ -35,3 +35,12 @@ def test_env_selects_language(monkeypatch):
     monkeypatch.setenv("BARAM_TERM_LANG", "ko")
     i18n.set_language(None)
     assert i18n.language() == "ko"
+
+
+def test_default_is_english_even_on_a_korean_system(monkeypatch):
+    """시스템 로케일이 한국어여도 기본은 영어다. 한국어는 파일 메뉴에서 골라 저장한다."""
+    monkeypatch.delenv("BARAM_TERM_LANG", raising=False)
+    monkeypatch.setenv("LANG", "ko_KR.UTF-8")
+    monkeypatch.setenv("LC_ALL", "ko_KR.UTF-8")
+    i18n.set_language(None)
+    assert i18n.language() == "en"

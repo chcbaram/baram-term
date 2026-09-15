@@ -1,13 +1,13 @@
 """Tiny message catalog: tr("key", **fmt) with JSON files in baram_term/locales.
 
-언어 선택 순서: set_language() > 환경 변수 BARAM_TERM_LANG > 시스템 로케일(ko* 면 ko) > en.
+언어 선택 순서: set_language() (실행 인자 --lang, 파일 메뉴에서 저장한 설정) > 환경 변수 BARAM_TERM_LANG > en.
+시스템 로케일은 보지 않는다: 기본은 영어이고, 한국어는 파일 메뉴에서 고른다.
 키가 현재 언어에 없으면 en, 그래도 없으면 키 문자열 그대로 보여준다 (빠진 번역이 화면에서 바로 보이게).
 """
 
 from __future__ import annotations
 
 import json
-import locale
 import os
 from importlib import resources
 
@@ -30,11 +30,9 @@ def _catalog(lang: str) -> dict[str, str]:
 
 
 def detect_language() -> str:
+    """설정·실행 인자로 고르지 않았을 때의 언어. 기본은 영어다 (한국어 윈도우에서도 영어로 시작)."""
     env = os.environ.get("BARAM_TERM_LANG", "").lower()
-    if env in LANGUAGES:
-        return env
-    names = [locale.getlocale()[0] or "", os.environ.get("LC_ALL", ""), os.environ.get("LANG", "")]
-    return "ko" if any(n.lower().startswith("ko") for n in names) else "en"
+    return env if env in LANGUAGES else "en"
 
 
 def set_language(lang: str | None) -> None:
