@@ -18,6 +18,9 @@ if TYPE_CHECKING:
     from retroui.widgets.plot import LivePlot, Series
 
 _GAP = 2
+# ■□ 는 동아시아 폭이 모호한 문자라 셀 격자는 1칸으로 세지만 D2Coding 등은 2칸 너비로 그린다.
+# 바로 뒤에 이름을 붙이면 첫 글자를 덮으므로 한 칸 띄운다
+_MARK_W = 2
 
 
 class PlotLegend(Widget):
@@ -36,7 +39,7 @@ class PlotLegend(Widget):
         self.invalidate()
 
     def size_hint(self) -> SizeHint:
-        w = sum(str_width(s.name) + 1 + _GAP for s in self.plot.series)
+        w = sum(str_width(s.name) + _MARK_W + _GAP for s in self.plot.series)
         return SizeHint(1, 1, max(1, w), 1, max_h=1)
 
     def paint(self, p: Painter) -> None:
@@ -46,14 +49,14 @@ class PlotLegend(Widget):
         self._spans = []
         x = 0
         for i, s in enumerate(self.plot.series):
-            item_w = str_width(s.name) + 1
+            item_w = str_width(s.name) + _MARK_W
             if x + item_w > w:
                 if x < w:
                     p.put(min(x, w - 1), 0, "…", pal.dim, pal.bg)
                 break
             color = self.plot.series_color(i, s) if s.visible else pal.disabled
             p.put(x, 0, "■" if s.visible else "□", color, pal.bg)
-            p.text(x + 1, 0, truncate(s.name, w - x - 1), color, pal.bg)
+            p.text(x + _MARK_W, 0, truncate(s.name, max(0, w - x - _MARK_W)), color, pal.bg)
             self._spans.append((x, x + item_w, s))
             x += item_w + _GAP
 

@@ -25,6 +25,7 @@ from retroui import (
     ListPopup,
     LivePlot,
     PlotLegend,
+    VSplit,
     Menu,
     MenuBar,
     MenuItem,
@@ -175,6 +176,8 @@ class BaramTerm:
         self.plot_run_button = Button(
             tr("plot.stop"), on_click=self.toggle_plot_pause, style="solid", color="error", min_size=(run_w, 1)
         )
+        # 누르는 동안 포커스(►◄ 표시)를 가져가지 않는다: 마우스용 버튼이고 입력은 터미널에 남아야 한다
+        self.plot_run_button.focusable = False
         plot_toolbar = HBox(self.plot_legend, self.plot_run_button, spacing=2)
         # 아랫줄 오른쪽: 시간 폭 (Arduino IDE 플로터에서 설정 칸이 아래 오른쪽에 있는 배치)
         self.plot_window_combo = EditableComboBox(
@@ -220,7 +223,17 @@ class BaramTerm:
             self.st_flags, Spacer(), self.st_hint, spacing=1,
         )
         self.menu = self._build_menu()
-        self.app.set_root(VBox(self.menu, self.frame, self.plot_frame, status))
+        # 터미널과 그래프 사이 경계(두 테두리 줄)를 마우스로 끌어 높이를 나눈다. 더블클릭은 기본 비율로
+        self.split = VSplit(
+            self.frame,
+            self.plot_frame,
+            ratio=self.config.plot_split,
+            default_ratio=Settings().plot_split,
+            min_top=5,
+            min_bottom=8,  # 범례 줄 + 가로축 눈금 줄 + 시간 폭 줄 + 테두리를 빼고도 그래프가 보이게
+            on_change=self._on_split_changed,
+        )
+        self.app.set_root(VBox(self.menu, self.split, status))
         self.app.set_focus(self.terminal)
         self.app.add_key_filter(self._key_filter)
         self.app.add_shortcut("Primary+=", lambda: self.zoom(+1))
@@ -443,6 +456,10 @@ class BaramTerm:
                     series = self.plot.add_series(name, capacity=self.PLOT_CAPACITY)
                     self._plot_series[name] = series
                 series.append(value, now)
+
+    def _on_split_changed(self, ratio: float) -> None:
+        self.config.plot_split = round(ratio, 4)
+        self._save()
 
     def toggle_plot_pause(self) -> None:
         paused = not self.plot.paused

@@ -189,14 +189,24 @@ def test_top_row_has_legend_and_run_button(bt):
     legend, button = bt.plot_legend, bt.plot_run_button
     assert legend.rect.y == button.rect.y and button.rect.right > legend.rect.x
     row = bt.app.screen_text()[legend.rect.y]
-    assert "■ax" in row and "■ay" in row and "STOP" in row
+    assert "■ ax" in row and "■ ay" in row and "STOP" in row
     assert bt.plot.pixel_rect().y == legend.rect.y + 1  # 그래프는 바로 다음 줄부터
 
 
 def test_run_button_toggles_and_keeps_terminal_focus(bt):
+    from retroui.input.events import MouseEvent
+
     bt._apply_plot(True)
     bt.app.step()
     width = bt.plot_run_button.rect.w
+    b = bt.plot_run_button
+    bt.app.dispatch(MouseEvent("down", 1, b.rect.x + 1, b.rect.y, 0, 0))
+    bt.app.step()
+    assert bt.app.focus is bt.terminal and "►" not in bt.app.screen_text()[b.rect.y]  # 누르고 있는 동안에도
+    bt.app.dispatch(MouseEvent("up", 1, b.rect.x + 1, b.rect.y, 0, 0))
+    assert bt.plot.paused
+    click(bt, bt.plot_run_button)
+    assert not bt.plot.paused
     click(bt, bt.plot_run_button)
     assert bt.plot.paused and bt.plot_run_button.text == "START" and bt.plot_run_button.fill_color == "ok"
     assert bt.app.focus is bt.terminal
@@ -245,3 +255,48 @@ def test_window_combo_sits_bottom_right_and_applies(bt):
     d.combo.set_text("30")
     d.finish(0)
     assert combo.text == "30" and bt.plot.window == 30.0
+
+
+def test_drag_boundary_resizes_plot_and_persists(tmp_path):
+    from retroui.input.events import MouseEvent
+
+    path = tmp_path / "settings.json"
+    term = make(config=Settings(), config_path=path)
+    try:
+        term._apply_plot(True)
+        term.app.step()
+        frame, plot_frame, split = term.frame, term.plot_frame, term.split
+        total = frame.rect.h + plot_frame.rect.h
+        assert frame.rect.h == round(total * 2 / 3)
+        y = split.split_y - 1  # 터미널 아래 테두리
+        assert term.app.cursor_name(frame, 5, y) == "resize_ns"
+
+        before = plot_frame.rect.h
+        term.app.dispatch(MouseEvent("down", 1, 5, y, 0, 0))
+        term.app.dispatch(MouseEvent("move", 0, 5, y - 6, 0, 0))
+        term.app.dispatch(MouseEvent("up", 1, 5, y - 6, 0, 0))
+        term.app.step()
+        assert plot_frame.rect.h == before + 6 and term.app.focus is term.terminal
+
+        term.app.dispatch(MouseEvent("down", 1, 5, split.split_y, 0, 0))
+        term.app.dispatch(MouseEvent("move", 0, 5, 0, 0, 0))
+        term.app.dispatch(MouseEvent("up", 1, 5, 0, 0, 0))
+        term.app.step()
+        assert frame.rect.h == 5  # 터미널 최소 높이
+        ratio = split.ratio
+    finally:
+        term.port.close()
+        term.app.close()
+
+    saved = store.load(path)[0]
+    assert saved.plot_split == round(ratio, 4)
+    again = make(config=saved, config_path=path)
+    try:
+        again.app.step()
+        assert again.frame.rect.h == 5
+        again._apply_plot(False)
+        again.app.step()
+        assert again.frame.rect.h == total  # 그래프를 끄면 터미널이 전부
+    finally:
+        again.port.close()
+        again.app.close()

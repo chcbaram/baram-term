@@ -31,6 +31,7 @@ from retroui.widgets import (
     Popup,
     RingBuffer,
     ScrollBar,
+    VSplit,
     Series,
     SizeHint,
     Spacer,
@@ -45,6 +46,7 @@ from retroui.widgets import (
 __version__ = "0.0.1"
 
 __all__ = [
+    "VSplit",
     "PlotLegend",
     "EditableComboBox",
     "Link", "set_language",

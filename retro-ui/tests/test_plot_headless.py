@@ -56,7 +56,7 @@ def test_title_legend_and_axis_labels(app):
     settle(app)
     lines = app.screen_text()
     assert lines[0].startswith("POS")
-    assert lines[0].rstrip().endswith("■act")
+    assert lines[0].rstrip().endswith("■ act")
     text = "\n".join(lines)
     assert "1.0" in text and "0.0" in text
 

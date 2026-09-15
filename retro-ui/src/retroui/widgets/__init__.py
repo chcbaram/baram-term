@@ -18,9 +18,11 @@ from retroui.widgets.plot import LivePlot, RingBuffer, Series
 from retroui.widgets.plotlegend import PlotLegend
 from retroui.widgets.popup import Popup
 from retroui.widgets.scrollbar import ScrollBar
+from retroui.widgets.split import VSplit
 from retroui.widgets.terminal import HighlightRule, Terminal, TerminalScreen
 
 __all__ = [
+    "VSplit",
     "PlotLegend",
     "EditableComboBox",
     "Link",

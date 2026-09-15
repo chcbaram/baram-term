@@ -367,13 +367,13 @@ class LivePlot(PixelWidget):
                 x = p.text(x + 1, 0, " PAUSED ", pal.bg, pal.warn)
 
             legend = [(i, s) for i, s in enumerate(self.series) if s.name]
-            legend_w = sum(str_width(s.name) + 3 for _, s in legend)
+            legend_w = sum(str_width(s.name) + 4 for _, s in legend)  # ■ + 띄움(■ 는 폰트에서 2칸 너비) + 이름 + 간격
             lx = r.w - legend_w + 1
             if legend and lx > x + 1:
                 for i, s in legend:
                     color = self.series_color(i, s)
                     p.put(lx, 0, "■", color, pal.bg)
-                    lx = p.text(lx + 1, 0, s.name, color if s.visible else pal.disabled, pal.bg) + 2
+                    lx = p.text(lx + 2, 0, s.name, color if s.visible else pal.disabled, pal.bg) + 2
 
         super().paint(p)
         if self._has_axes():

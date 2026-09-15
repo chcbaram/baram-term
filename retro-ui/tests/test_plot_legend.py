@@ -41,13 +41,13 @@ def test_legend_lists_series_and_click_toggles_visibility(app):
     plot.add_series("ay")
     app.step()
     row = app.screen_text()[0]
-    assert row.startswith("■ax  ■ay") and "STOP" in row
+    assert row.startswith("■ ax  ■ ay") and "STOP" in row  # 표시 뒤 한 칸: ■ 가 첫 글자를 덮지 않게
     assert legend.cursor == "hand" and len(changes) == 2
 
     click(app, legend.rect.x + 1, legend.rect.y)  # ■ax
     assert ax.visible is False and len(changes) == 3
     app.step()
-    assert app.screen_text()[0].startswith("□ax")
+    assert app.screen_text()[0].startswith("□ ax")
     click(app, legend.rect.x + 1, legend.rect.y)
     assert ax.visible is True
 

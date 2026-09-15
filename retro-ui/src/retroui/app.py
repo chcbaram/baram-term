@@ -609,7 +609,7 @@ class App:
                         w.hovered = state
                         w.invalidate()
                 self._hover = under
-                self._update_cursor(under)
+            self._update_cursor(self._capture if self._capture is not None else under, ev.cx, ev.cy)
             if self._capture is not None:
                 self._capture.on_event(ev)
             else:
@@ -660,11 +660,26 @@ class App:
         else:
             self._bubble(under, ev)
 
-    def _update_cursor(self, widget: Widget | None) -> None:
-        """누를 수 있는 글자(링크, 상태줄 항목) 위에서는 손가락 커서."""
+    _CURSORS = {"hand": "SYSTEM_CURSOR_HAND", "resize_ns": "SYSTEM_CURSOR_SIZENS"}
+
+    def cursor_name(self, widget: Widget | None, cx: int, cy: int) -> str | None:
+        """마우스 위치의 커서 이름. 누른 위젯의 cursor 속성, 또는 조상의 cursor_at(cx, cy) (분할 경계 등)."""
+        w = widget
+        while w is not None:
+            at = getattr(w, "cursor_at", None)
+            name = at(cx, cy) if at is not None else None
+            if name is None and w is widget:
+                name = getattr(w, "cursor", None)
+            if name is not None:
+                return name
+            w = w.parent
+        return None
+
+    def _update_cursor(self, widget: Widget | None, cx: int, cy: int) -> None:
+        """누를 수 있는 글자 위에서는 손가락, 분할 경계 위에서는 위아래 화살표."""
         if self.window is None:
             return
-        want = pygame.SYSTEM_CURSOR_HAND if getattr(widget, "cursor", None) == "hand" else pygame.SYSTEM_CURSOR_ARROW
+        want = getattr(pygame, self._CURSORS.get(self.cursor_name(widget, cx, cy) or "", "SYSTEM_CURSOR_ARROW"))
         if want != self._cursor:
             try:
                 pygame.mouse.set_cursor(want)
