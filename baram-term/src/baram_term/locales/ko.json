@@ -104,5 +104,6 @@
   "macro.tip_add": "새 매크로 등록",
   "dialog.macro.key": "키",
   "notice.macro_full": "매크로는 최대 {n}개입니다",
-  "macro.add": "매크로 추가"
+  "macro.add": "매크로 추가",
+  "menu.view.ascii_input": "터미널은 영문으로 입력"
 }

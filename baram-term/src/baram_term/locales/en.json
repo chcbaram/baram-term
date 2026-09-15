@@ -104,5 +104,6 @@
   "macro.tip_add": "add a macro",
   "dialog.macro.key": "Key",
   "notice.macro_full": "at most {n} macros",
-  "macro.add": "Add Macro"
+  "macro.add": "Add Macro",
+  "menu.view.ascii_input": "English-only terminal input"
 }

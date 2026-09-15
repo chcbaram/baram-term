@@ -51,6 +51,9 @@ class Settings:
     # F1~F12 매크로 막대: 보이기와 슬롯 12개 ("이름=명령", 빈 문자열이면 빈 칸)
     macro_bar: bool = False
     macros: list[str] = field(default_factory=list)
+    # 터미널 입력은 입력 언어(한글)와 무관하게 영문으로. 검색창·대화상자는 그대로 한글 입력.
+    # 기본 켜짐: 펌웨어 CLI 명령은 영문이라, 한글로 쓰다 터미널에 올 때마다 한/영을 바꾸는 게 불편했다
+    ascii_input: bool = True
     # 로그 저장 창의 마지막 폴더와 타임스탬프 선택
     log_dir: str = ""
     log_timestamps: bool = True

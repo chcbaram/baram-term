@@ -373,3 +373,19 @@ def test_empty_bar_shows_only_the_add_button():
     finally:
         term.port.close()
         term.app.close()
+
+
+def test_ascii_input_is_on_by_default():
+    assert Settings().ascii_input is True
+
+
+def test_ascii_input_option_toggles_the_terminal_ime(bt):
+    """보기 메뉴의 영문 입력 옵션 (기본 켜짐): 터미널 IME 를 바로 끄고 켜며, 설정에 남긴다."""
+    bt.app.set_focus(bt.terminal)
+    assert bt.terminal.ascii_input and bt.item_ascii.checked
+    assert not bt.app._text_input_active  # 기본: 영문 입력이라 IME 꺼짐
+    bt._apply_ascii_input(False)
+    assert not bt.terminal.ascii_input and not bt.item_ascii.checked and not bt.config.ascii_input
+    assert bt.app._text_input_active
+    bt._apply_ascii_input(True)
+    assert bt.config.ascii_input and not bt.app._text_input_active

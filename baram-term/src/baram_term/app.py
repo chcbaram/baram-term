@@ -161,6 +161,7 @@ class BaramTerm:
 
         self.terminal = Terminal(max_lines=5000, scrollbar=True)
         self.terminal.rules = default_rules()
+        self.terminal.ascii_input = self.config.ascii_input  # set_focus 전에: IME 켜기 여부를 이 값으로 정한다
         self.terminal.send.connect(self.send)
         self._apply_line_codes()
         self.completer = Completer(self)
@@ -274,6 +275,10 @@ class BaramTerm:
         self.item_plot_hide = MenuItem(
             tr("menu.view.plot_hide"), lambda: self._apply_plot_hide(self.item_plot_hide.checked), checked=self.plot_hide_lines
         )
+        self.item_ascii = MenuItem(
+            tr("menu.view.ascii_input"), lambda: self._apply_ascii_input(self.item_ascii.checked),
+            key="I", checked=self.config.ascii_input,
+        )
         self.item_macro = MenuItem(
             tr("menu.view.macro"), lambda: self._apply_macro_bar(self.item_macro.checked),
             shortcut="Ctrl-A M", key="M", checked=self.config.macro_bar,
@@ -311,6 +316,7 @@ class BaramTerm:
                         self.item_guard,
                         self.item_reconnect,
                         self.item_macro,
+                        self.item_ascii,
                         MenuItem.sep(),
                         self.item_plot,
                         self.item_plot_hide,
@@ -460,6 +466,13 @@ class BaramTerm:
     PLOT_MAX_SERIES = 12
 
     # ---- 매크로 막대 ----------------------------------------------------
+
+    def _apply_ascii_input(self, on: bool) -> None:
+        """터미널 입력을 입력 언어와 무관하게 영문으로 (미국 배열 물리 키 기준). 한글로 쓰다 와도 바로 명령을 친다."""
+        self.item_ascii.checked = on
+        self.terminal.ascii_input = on
+        self.app.refresh_text_input()  # 포커스가 터미널에 그대로 있어도 IME 를 바로 끄고 켠다
+        self._save()
 
     def _apply_macro_bar(self, on: bool) -> None:
         self.item_macro.checked = on
@@ -835,6 +848,7 @@ class BaramTerm:
         c.guard_controls = self.guard_controls
         c.auto_reconnect = self.auto_reconnect
         c.macro_bar = self.macro_bar.visible
+        c.ascii_input = self.terminal.ascii_input
         c.macros = list(self.macro_bar.macros)
         c.font_size = self.app.fonts.size
         c.cols, c.rows = self.app.cols, self.app.rows
