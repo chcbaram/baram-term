@@ -577,18 +577,33 @@ class BaramTerm:
         self._save()
 
     def _plot_line_ok(self, line: str) -> bool:
+        """이 줄을 그래프 값으로 받을지. 세션의 형식을 여기서 정한다."""
         if parse_line(line) is None:
             return False
         fmt = plot_format(line)
+        if fmt == self._plot_format:
+            return True
         if self._plot_format is None:
             self._plot_format = fmt
-        return fmt == self._plot_format
+            return True
+        if fmt == "tele":
+            # Arduino 형식은 평범한 로그와 구별이 안 된다: `temp=42.0 rpm=1200`(sensor),
+            # `History : 3`(status) 같은 줄이 형식을 채 가면 그 뒤 진짜 `>ax:-15` 가 전부 버려졌다.
+            # `>이름:값` 은 우연히 나오지 않으니 이쪽을 믿고 갈아탄다 (잘못 잡힌 시리즈는 버린다)
+            self._reset_plot_series()
+            self._plot_format = fmt
+            return True
+        return False
 
     def _feed_plot(self, text: str) -> None:
         self._add_plot_lines([line for line in self._plot_lines.feed(text) if self._plot_line_ok(line)])
 
     def _add_plot_lines(self, lines: list[str]) -> None:
         for line in lines:
+            # 한 묶음 안에서 형식이 바뀌었을 수 있다 (로그 줄이 채 간 형식을 진짜 그래프 줄이 되찾은 경우).
+            # 받기로 한 형식이 아닌 앞줄은 여기서 버린다
+            if plot_format(line) != self._plot_format:
+                continue
             values = parse_line(line)
             if not values:
                 continue
@@ -627,9 +642,12 @@ class BaramTerm:
         self.plot_run_button.set_color("ok" if paused else "error")
         self.app.set_focus(self.terminal)  # 버튼을 눌러도 입력은 터미널로
 
-    def clear_plot(self) -> None:
+    def _reset_plot_series(self) -> None:
         self.plot.clear_series()
         self._plot_series.clear()
+
+    def clear_plot(self) -> None:
+        self._reset_plot_series()
         self._plot_format = None
         self._plot_t0 = self.plot_clock()
         self.app.set_focus(self.terminal)

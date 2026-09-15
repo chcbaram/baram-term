@@ -343,13 +343,41 @@ def test_clear_button_clears_and_keeps_focus(bt):
     assert bt.plot.series == [] and bt.app.focus is bt.terminal
 
 
-def test_format_is_locked_until_clear(bt):
+def test_teleplot_format_is_locked_against_stray_lines(bt):
     bt._apply_plot(True)
     bt._feed_plot(">ax:1\r\np:34\r\n>ay:2\r\n")  # 잘린 ">temp:34" 가 "p:34" 로 온 경우
     assert sorted(bt._plot_series) == ["ax", "ay"]
     bt.clear_plot()
-    bt._feed_plot("p:34\r\n>ax:1\r\n")  # 지우면 새 형식으로 다시 시작
+    bt._feed_plot("p:34\r\n")  # 지우면 새 형식으로 다시 시작
     assert sorted(bt._plot_series) == ["p"]
+
+
+def test_a_teleplot_line_takes_the_format_back_from_a_log_line(bt):
+    """평범한 로그가 Arduino 형식으로 읽혀 형식을 채 가도, 진짜 그래프 줄이 되찾는다.
+
+    `sensor` 의 `temp=42.0 rpm=1200`, `status` 의 `History : 3` 이 그랬다.
+    그 뒤로 진짜 `>ax:-15` 가 전부 버려져 그래프가 비어 있었다.
+    """
+    bt._apply_plot(True)
+    bt._feed_plot("temp=42.0 rpm=1200\r\n")
+    assert bt._plot_format == "arduino" and sorted(bt._plot_series) == ["rpm", "temp"]
+    bt._feed_plot(">ax:-15\r\n>ay:7\r\n")
+    assert bt._plot_format == "tele"
+    assert sorted(bt._plot_series) == ["ax", "ay"]  # 잘못 잡힌 시리즈는 버린다
+
+
+def test_history_line_alone_does_not_block_the_plot(bt):
+    bt._apply_plot(True)
+    bt._feed_plot("History : 3\r\n>ax:1\r\n")
+    assert sorted(bt._plot_series) == ["ax"]
+
+
+def test_an_arduino_line_never_takes_over_teleplot(bt):
+    """반대 방향은 막는다: `>` 로 시작하는 줄은 우연히 나오지 않지만 Arduino 형식은 흔하다."""
+    bt._apply_plot(True)
+    bt._feed_plot(">ax:1\r\n")
+    bt._feed_plot("temp=42.0 rpm=1200\r\n")
+    assert bt._plot_format == "tele" and sorted(bt._plot_series) == ["ax"]
 
 
 def test_typed_echo_is_not_delayed_while_hiding_plot_lines(bt):
