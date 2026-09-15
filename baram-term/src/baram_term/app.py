@@ -18,6 +18,7 @@ from retroui import (
     HBox,
     Label,
     LineEdit,
+    Link,
     Menu,
     MenuBar,
     MenuItem,
@@ -47,6 +48,10 @@ BYTESIZES = ("8", "7", "6", "5")
 PARITIES = ("N", "E", "O", "M", "S")
 STOPBITS = ("1", "1.5", "2")
 FLOWS = ("none", "rtscts", "xonxoff")
+ENTER_CODES = {"cr": b"\r", "lf": b"\n", "crlf": b"\r\n"}
+BACKSPACE_CODES = {"bs": b"\x08", "del": b"\x7f"}
+RX_LF_MODES = ("crlf", "lf")
+REPO_URL = "https://github.com/chcbaram/baram-term"
 
 # 복사/붙여넣기 단축키: macOS 는 Cmd, 그 외는 Ctrl+Shift (Ctrl+C/V 는 장치로 보내는 제어 문자라서)
 COPY_KEYS, PASTE_KEYS, SELECT_ALL_KEYS = (
@@ -57,17 +62,6 @@ WINDOW_PADDING = 8
 # TX/RX 표시등을 켜 두는 시간. 상태줄 갱신 주기(100ms)보다 길어야 짧은 전송도 보인다
 _LED_HOLD_S = 0.15
 _NOT_CONNECTED_NOTICE_S = 2.0
-
-
-FILE_DIALOG_KEYS = (
-    "folder", "file", "name", "up", "new_folder", "save", "open", "ok", "cancel", "yes", "no",
-    "cannot_read", "not_found", "no_name", "mkdir_failed",
-)
-
-
-def file_dialog_text() -> dict[str, str]:
-    """retroui FileDialog 의 글자를 현재 언어로 ({error}, {path} 자리 표시자는 FileDialog 가 채운다)."""
-    return {key: tr(f"filedialog.{key}") for key in FILE_DIALOG_KEYS}
 
 
 def _human_rate(bps: float) -> str:
@@ -126,27 +120,30 @@ class BaramTerm:
         self.terminal = Terminal(max_lines=5000, scrollbar=True)
         self.terminal.rules = default_rules()
         self.terminal.send.connect(self.send)
+        self._apply_line_codes()
         self.completer = Completer(self)
         self.completer.enabled = self.config.completion
         self.completer.on_learned = self._on_commands_learned
         if self.config.timestamps:
             self.terminal.set_show_timestamps(True)
-        # 포트 이름은 오른쪽에: 왼쪽에 두면 바로 위 메뉴바와 붙어 메뉴의 일부처럼 읽힌다
-        self.frame = GroupBox(self._frame_title(), self.terminal, stretch=1, title_align="right")
+        # 포트 이름은 상태줄에 있어서 테두리 제목은 두지 않는다
+        self.frame = GroupBox("", self.terminal, stretch=1)
 
         self.st_led = Label("○", bold=True)
         self.st_port = Label("")
         self.st_serial = Label("", fg="dim")
         self.st_txrx = Label("TX· RX·")
         self.st_rate = Label("", fg="dim", min_size=(9, 1))
-        self.st_flags = Label("", fg="accent")
+        # 켜진 모드가 없으면 칸과 앞 구분선을 함께 숨긴다 (빈 칸 뒤에 │ 만 남지 않게)
+        self.st_flags = Label("", fg="accent", visible=False)
+        self.st_flags_sep = Label("│", fg="dim", visible=False)
         self.st_hint = Label(tr("status.hint"), fg="dim", align="right")
 
         def sep() -> Label:
             return Label("│", fg="dim")
 
         status = HBox(
-            self.st_led, self.st_port, sep(), self.st_serial, sep(), self.st_txrx, sep(), self.st_rate, sep(),
+            self.st_led, self.st_port, sep(), self.st_serial, sep(), self.st_txrx, sep(), self.st_rate, self.st_flags_sep,
             self.st_flags, Spacer(), self.st_hint, spacing=1,
         )
         self.menu = self._build_menu()
@@ -218,9 +215,6 @@ class BaramTerm:
             ]
         )
 
-    def _frame_title(self) -> str:
-        return self.settings.port or "baram-term"
-
     def _banner_info(self) -> list[str]:
         if self.settings.port:
             first = tr("banner.port", port=self.settings.port, serial=self.settings.summary)
@@ -260,7 +254,6 @@ class BaramTerm:
             self._update_status()
             return False
         self.decoder.reset()
-        self.frame.set_title(self._frame_title())
         self._load_commands()
         self._save()
         return True
@@ -382,7 +375,7 @@ class BaramTerm:
             filename=log_filename(self.settings.port),
             extra=timestamps_box,
             confirm_existing=tr("dialog.log.exists"),
-            text=file_dialog_text(),
+            text={"save": tr("button.start")},  # 로그는 저장이 아니라 기록 시작
             on_result=on_result,
         )
         dialog.timestamps_box = timestamps_box
@@ -450,6 +443,12 @@ class BaramTerm:
         self.notice(tr("notice.timestamps", state=tr("state.on" if on else "state.off")))
         self._update_status()
 
+    def _apply_line_codes(self) -> None:
+        s = self.settings
+        self.terminal.enter = ENTER_CODES.get(s.enter, b"\r")
+        self.terminal.backspace = BACKSPACE_CODES.get(s.backspace, b"\x08")
+        self.terminal.screen.lf_implies_cr = s.rx_lf != "lf"
+
     def _apply_reconnect(self, on: bool) -> None:
         self.item_reconnect.checked = on
         self.auto_reconnect = on
@@ -465,6 +464,7 @@ class BaramTerm:
             c.port, c.baud, c.bytesize, c.parity, c.stopbits, c.flow = (
                 s.port, s.baud, s.bytesize, s.parity, float(s.stopbits), s.flow
             )
+        c.enter, c.backspace, c.rx_lf = s.enter, s.backspace, s.rx_lf
         c.local_echo = self.local_echo
         c.timestamps = self.terminal.show_timestamps
         c.completion = self.completer.enabled
@@ -535,6 +535,15 @@ class BaramTerm:
         parity_cb = combo(PARITIES, s.parity)
         stop_cb = combo(STOPBITS, stop)
         flow_cb = combo(FLOWS, s.flow)
+        enter_keys, backspace_keys = tuple(ENTER_CODES), tuple(BACKSPACE_CODES)
+        enter_cb = ComboBox([k.upper() for k in enter_keys], index=enter_keys.index(s.enter) if s.enter in enter_keys else 0)
+        backspace_cb = ComboBox(
+            ["BS (0x08)", "DEL (0x7F)"], index=backspace_keys.index(s.backspace) if s.backspace in backspace_keys else 0
+        )
+        rx_lf_cb = ComboBox(
+            [tr("dialog.port.rx_lf.crlf"), tr("dialog.port.rx_lf.lf")],
+            index=RX_LF_MODES.index(s.rx_lf) if s.rx_lf in RX_LF_MODES else 0,
+        )
 
         def row(label_key: str, widget) -> HBox:
             return HBox(Label(tr(label_key), min_size=(12, 1)), widget, Spacer(), spacing=1)
@@ -547,6 +556,9 @@ class BaramTerm:
             row("dialog.port.parity", parity_cb),
             row("dialog.port.stopbits", stop_cb),
             row("dialog.port.flow", flow_cb),
+            row("dialog.port.enter", enter_cb),
+            row("dialog.port.backspace", backspace_cb),
+            row("dialog.port.rx_lf", rx_lf_cb),
         )
 
         def on_result(index: int) -> None:
@@ -561,12 +573,17 @@ class BaramTerm:
                 parity=parity_cb.text,
                 stopbits=float(stop_cb.text),
                 flow=flow_cb.text,
+                enter=enter_keys[enter_cb.index],
+                backspace=backspace_keys[backspace_cb.index],
+                rx_lf=RX_LF_MODES[rx_lf_cb.index],
             )
+            self._apply_line_codes()
             self._save()
             self.connect()
 
         dialog = Dialog(tr("dialog.port.title"), body, (tr("button.ok"), tr("button.cancel")), on_result=on_result)
         dialog.port_combo, dialog.address, dialog.refresh_button = port_cb, address, refresh_button
+        dialog.enter_combo, dialog.backspace_combo, dialog.rx_lf_combo = enter_cb, backspace_cb, rx_lf_cb
         dialog.open(self.app)
         return dialog
 
@@ -575,8 +592,15 @@ class BaramTerm:
         paste = PASTE_KEYS.replace("Primary", "Cmd")
         message_box(self.app, tr("help.title"), tr("help.body", copy=copy, paste=paste), (tr("button.close"),))
 
-    def show_about(self) -> None:
-        message_box(self.app, tr("about.title"), tr("about.body", version=__version__), (tr("button.close"),))
+    def show_about(self) -> Dialog:
+        link = Link(REPO_URL)
+        body = VBox(*[Label(line) for line in tr("about.body", version=__version__).split("\n")], Label(""), link)
+        dialog = Dialog(tr("about.title"), body, (tr("button.close"),))
+        dialog.link = link
+        dialog.open(self.app)
+        # 링크가 첫 포커스면 Enter 가 창을 닫지 않고 브라우저를 연다: 닫기 버튼에서 시작
+        self.app.set_focus(dialog.buttons[0])
+        return dialog
 
     # ---- events --------------------------------------------------------
 
@@ -666,6 +690,7 @@ class BaramTerm:
         if getattr(self, "_reconnect_timer", None) is not None:
             flags.append(tr("status.reconnecting"))
         self.st_flags.set_text(" ".join(flags))
+        self.st_flags.visible = self.st_flags_sep.visible = bool(flags)
         search = getattr(self, "search", None)
         if search is not None and search.is_open:
             search.tick()

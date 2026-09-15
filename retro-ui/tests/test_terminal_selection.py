@@ -116,3 +116,10 @@ def test_selection_skips_timestamp_gutter(app):
     t.feed("abcdef")
     drag(app, 13, 0, 15, 0)
     assert t.selected_text() == "abc"
+
+
+def test_paste_uses_enter_code_for_newlines(app, monkeypatch):
+    t, sent = setup(app, enter=b"\r\n")
+    monkeypatch.setattr("retroui.widgets.terminal.clipboard_get", lambda: "a\nb\r\nc\rd")
+    t.paste()
+    assert sent == [b"a\r\nb\r\nc\r\nd"]

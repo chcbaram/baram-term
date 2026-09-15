@@ -11,6 +11,8 @@ import locale
 import os
 from importlib import resources
 
+from retroui import i18n as retroui_i18n
+
 LANGUAGES = ("ko", "en")
 
 _catalogs: dict[str, dict[str, str]] = {}
@@ -38,6 +40,8 @@ def detect_language() -> str:
 def set_language(lang: str | None) -> None:
     global _language
     _language = lang if lang in LANGUAGES else detect_language()
+    # 라이브러리 위젯(대화상자 기본 버튼, 파일 대화상자)도 같은 언어로
+    retroui_i18n.set_language(_language)
 
 
 def language() -> str:

@@ -15,6 +15,7 @@ import unicodedata
 from pathlib import Path
 from typing import Callable, Sequence
 
+from retroui import i18n
 from retroui.core.wcwidth import str_width
 from retroui.input.events import Event, Key, KeyEvent
 from retroui.widgets.base import Widget
@@ -24,24 +25,6 @@ from retroui.widgets.dialog import Dialog, message_box
 from retroui.widgets.label import Label
 from retroui.widgets.lineedit import LineEdit
 from retroui.widgets.listview import ListView
-
-DEFAULT_TEXT = {
-    "folder": "폴더",
-    "file": "파일",
-    "name": "이름",
-    "up": "▲ 위로",
-    "new_folder": "새 폴더",
-    "save": "저장",
-    "open": "열기",
-    "ok": "확인",
-    "cancel": "취소",
-    "yes": "예",
-    "no": "아니오",
-    "cannot_read": "폴더를 읽을 수 없습니다: {error}",
-    "not_found": "찾을 수 없습니다: {path}",
-    "no_name": "파일 이름을 입력하세요",
-    "mkdir_failed": "폴더를 만들지 못했습니다: {error}",
-}
 
 
 def human_size(n: int) -> str:
@@ -82,7 +65,12 @@ class FileDialog(Dialog):
     ):
         if mode not in ("save", "open"):
             raise ValueError(f"mode must be 'save' or 'open': {mode!r}")
-        t = self.text = {**DEFAULT_TEXT, **(text or {})}
+        # 글자는 retroui.i18n 의 현재 언어, text= 로 넘긴 키가 우선 (예: {"save": "시작"})
+        t = self.text = {
+            **i18n.texts("filedialog"),
+            **{key: i18n.text(key) for key in ("ok", "cancel", "yes", "no")},
+            **(text or {}),
+        }
         self.mode = mode
         self.patterns = [p.lower() for p in patterns] if patterns else None
         self.show_hidden = show_hidden

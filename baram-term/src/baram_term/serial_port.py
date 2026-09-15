@@ -24,6 +24,10 @@ class PortSettings:
     parity: str = "N"
     stopbits: float = 1
     flow: str = "none"  # none | rtscts | xonxoff
+    # 줄 끝/지우기 코드: 장치 CLI 마다 다르다 (공개 cli.c 는 Enter=CR, Backspace=0x08)
+    enter: str = "cr"  # cr | lf | crlf
+    backspace: str = "bs"  # bs (0x08) | del (0x7F)
+    rx_lf: str = "crlf"  # crlf: 받은 LF 에 CR 도 적용 (LF 만 보내는 장치) | lf: 줄만 내림
 
     @property
     def summary(self) -> str:

@@ -9,6 +9,7 @@ from __future__ import annotations
 from functools import partial
 from typing import Callable, Sequence
 
+from retroui import i18n
 from retroui.core.geometry import Rect
 from retroui.core.wcwidth import str_width
 from retroui.input.events import Event, Key, KeyEvent
@@ -28,7 +29,7 @@ class Dialog(Popup):
         self,
         title: str,
         body: Widget,
-        buttons: Sequence[str] = ("확인", "취소"),
+        buttons: Sequence[str] | None = None,
         *,
         default: int = 0,
         cancel: int | None = None,
@@ -36,6 +37,8 @@ class Dialog(Popup):
         **kw,
     ):
         super().__init__(**kw)
+        if buttons is None:
+            buttons = (i18n.text("ok"), i18n.text("cancel"))
         self.title = title
         self.body = body
         self.default = default
@@ -99,11 +102,13 @@ def message_box(
     app,
     title: str,
     text: str,
-    buttons: Sequence[str] = ("확인",),
+    buttons: Sequence[str] | None = None,
     *,
     on_result: Callable[[int], None] | None = None,
     default: int = 0,
 ) -> Dialog:
+    if buttons is None:
+        buttons = (i18n.text("ok"),)
     body = VBox(*[Label(line) for line in text.split("\n")])
     dialog = Dialog(title, body, buttons, default=default, on_result=on_result)
     dialog.open(app)

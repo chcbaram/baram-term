@@ -28,6 +28,9 @@ class Settings:
     parity: str = "N"
     stopbits: float = 1.0
     flow: str = "none"
+    enter: str = "cr"
+    backspace: str = "bs"
+    rx_lf: str = "crlf"
     theme: str = "mono"
     font_size: int = 14
     cols: int = 100
@@ -47,7 +50,10 @@ class Settings:
     commands: dict[str, list[str]] = field(default_factory=dict)
 
     def port_settings(self) -> PortSettings:
-        return PortSettings(self.port, self.baud, self.bytesize, self.parity, self.stopbits, self.flow)
+        return PortSettings(
+            self.port, self.baud, self.bytesize, self.parity, self.stopbits, self.flow,
+            enter=self.enter, backspace=self.backspace, rx_lf=self.rx_lf,
+        )
 
 
 def config_dir() -> Path:

@@ -9,6 +9,7 @@ from retroui.widgets.dialog import Dialog, message_box
 from retroui.widgets.filedialog import FileDialog
 from retroui.widgets.frame import Frame, GroupBox
 from retroui.widgets.label import Label
+from retroui.widgets.link import Link
 from retroui.widgets.lineedit import LineEdit
 from retroui.widgets.listview import ListView
 from retroui.widgets.menu import Menu, MenuBar, MenuItem
@@ -19,6 +20,7 @@ from retroui.widgets.scrollbar import ScrollBar
 from retroui.widgets.terminal import HighlightRule, Terminal, TerminalScreen
 
 __all__ = [
+    "Link",
     "FileDialog", "ListView",
     "Box", "Button", "CheckBox", "ComboBox", "Dialog", "Frame", "GroupBox", "HBox", "Label", "LineEdit",
     "ListPopup", "LivePlot", "Menu", "MenuBar", "MenuItem", "PixelWidget", "Popup", "RingBuffer", "ScrollBar", "Series",

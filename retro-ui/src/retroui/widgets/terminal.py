@@ -767,8 +767,9 @@ class Terminal(Widget):
         return True
 
     def paste(self) -> None:
-        text = clipboard_get().replace("\r\n", "\n").replace("\n", "\r")
-        self._send(text.encode("utf-8"))
+        # 여러 줄 붙여넣기: 줄바꿈은 Enter 키와 같은 코드로 (장치가 LF 나 CRLF 를 기대할 수 있다)
+        text = clipboard_get().replace("\r\n", "\n").replace("\r", "\n")
+        self._send(self.enter.join(part.encode("utf-8") for part in text.split("\n")))
 
     @staticmethod
     def clipboard_combo(ev: KeyEvent, key: int) -> bool:

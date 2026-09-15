@@ -8,8 +8,8 @@
 
 from __future__ import annotations
 
-# 펌웨어가 줄 편집에 쓰는 제어 문자: Backspace, Enter, Delete
-_LINE_EDIT = {0x08, 0x0D, 0x7F}
+# 펌웨어가 줄 편집에 쓰는 제어 문자: Backspace, Enter(CR, 설정에 따라 LF/CRLF), Delete
+_LINE_EDIT = {0x08, 0x0A, 0x0D, 0x7F}
 _TAB = 0x09
 _ESC = 0x1B
 
