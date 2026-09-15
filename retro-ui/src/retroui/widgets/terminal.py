@@ -38,7 +38,7 @@ from retroui.widgets.lineedit import clipboard_get
 
 WIDE_CONT = ""
 
-# 스타일: (fg, bg, flags). fg/bg 는 None(기본색) 또는 ANSI 색 번호 0..15
+# 스타일: (fg, bg, flags). fg/bg 는 None(기본색), ANSI 색 번호 0..15, 또는 (r, g, b)
 BOLD = 1
 UNDERLINE = 2
 REVERSE = 4
@@ -55,6 +55,19 @@ _CSI = re.compile(r"\x1b\[([?]?)([0-9;]*)([@-~])")
 _CSI_PARTIAL = re.compile(r"\x1b\[[?]?[0-9;]*")
 # 스크롤백 한도를 넘으면 한 줄씩이 아니라 이만큼 모아서 지운다 (리스트 앞 삭제 비용 분산)
 _TRIM_SLACK = 256
+
+
+def _xterm256(n: int) -> int | tuple[int, int, int]:
+    """256색 번호 -> 0..15 는 ANSI 색 번호 그대로, 나머지는 RGB."""
+    n = max(0, min(255, n))
+    if n < 16:
+        return n
+    if n >= 232:
+        v = 8 + 10 * (n - 232)
+        return (v, v, v)
+    n -= 16
+    levels = (0, 95, 135, 175, 215, 255)
+    return (levels[n // 36], levels[(n // 6) % 6], levels[n % 6])
 
 
 class TerminalScreen:
@@ -320,7 +333,27 @@ class TerminalScreen:
 
     def _sgr(self, ps: list[int]) -> None:
         fg, bg, flags = self.style
-        for p in ps:
+        i = 0
+        while i < len(ps):
+            p = ps[i]
+            i += 1
+            if p in (38, 48) and i < len(ps):
+                # 확장 색: 38;5;n (256색) / 38;2;r;g;b (트루컬러). 48 은 배경
+                mode = ps[i]
+                if mode == 5 and i + 1 < len(ps):
+                    color = _xterm256(ps[i + 1])
+                    i += 2
+                elif mode == 2 and i + 3 < len(ps):
+                    color = tuple(max(0, min(255, v)) for v in ps[i + 1 : i + 4])
+                    i += 4
+                else:
+                    i += 1
+                    continue
+                if p == 38:
+                    fg = color
+                else:
+                    bg = color
+                continue
             if p == 0:
                 fg, bg, flags = None, None, 0
             elif p == 1:
@@ -450,10 +483,10 @@ class Terminal(Widget):
     def _style_colors(self, style: tuple) -> tuple[RGB, RGB, int]:
         pal = self.palette
         fg_i, bg_i, flags = style
-        if fg_i is not None and flags & BOLD and fg_i < 8:
+        if isinstance(fg_i, int) and flags & BOLD and fg_i < 8:
             fg_i += 8
-        fg = pal.fg if fg_i is None else ANSI_COLORS[fg_i]
-        bg = pal.bg if bg_i is None else ANSI_COLORS[bg_i]
+        fg = pal.fg if fg_i is None else fg_i if isinstance(fg_i, tuple) else ANSI_COLORS[fg_i]
+        bg = pal.bg if bg_i is None else bg_i if isinstance(bg_i, tuple) else ANSI_COLORS[bg_i]
         attr = 0
         if flags & BOLD:
             attr |= Attr.BOLD

@@ -188,3 +188,21 @@ def test_timestamp_gutter(app):
     t.feed("hello")
     line = app.screen_text()[0]
     assert line[8:13] == ".250 " and line[13:18] == "hello"
+
+
+def test_extended_colors_256_and_truecolor():
+    s = scr()
+    s.feed("\x1b[38;2;60;61;62mA\x1b[48;5;240mB\x1b[38;5;196mC\x1b[38;5;3mD\x1b[0mE")
+    line = s.lines[0]
+    assert line[0][1] == ((60, 61, 62), None, 0)
+    assert line[1][1] == ((60, 61, 62), (88, 88, 88), 0)  # 240 -> 회색 단계
+    assert line[2][1][0] == (255, 0, 0)  # 196 -> 색 큐브의 빨강
+    assert line[3][1][0] == 3  # 0..15 는 ANSI 색 번호 그대로
+    assert line[4][1] == (None, None, 0)
+
+
+def test_truecolor_is_drawn_by_widget(app):
+    t, _ = setup_term(app)
+    t.feed("\x1b[38;2;60;60;60mX\x1b[0m")
+    app.screen_text()
+    assert app.buf.get(0, 0)[1] == (60, 60, 60)
