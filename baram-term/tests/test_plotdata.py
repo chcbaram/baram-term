@@ -34,7 +34,11 @@ def test_arduino_plotter(line, expected):
 
 @pytest.mark.parametrize(
     "line",
-    ["", "   ", "cli# help", "[OK] sensor temp=42 rpm=1200", "Uptime  : 12 ms", ">ax", ">:1", ">ax:abc", "nan", "inf 1", ":5", "a:b:c"],
+    [
+        "", "   ", "cli# help", "[OK] sensor temp=42 rpm=1200", "Uptime  : 12 ms", ">ax", ">:1", ">ax:abc", "nan", "inf 1", ":5", "a:b:c",
+        # 수신 버퍼가 잘리거나 UTF-8 이 깨져 두 줄이 붙은 경우: 이상한 이름의 시리즈를 만들지 않는다
+        "gz\ufffd\ufffd>ax:12", "gz>ax:12", ">a\ufffdx:1", ">te mp:1", "a\x01b:3", "ok:1,b\ufffd:2",
+    ],
 )
 def test_non_plot_lines_are_ignored(line):
     assert parse_line(line) is None

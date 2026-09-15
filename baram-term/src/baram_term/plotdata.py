@@ -6,6 +6,8 @@
   (쉼표/탭/공백으로 나누고, 이름이 없으면 Arduino IDE 2 처럼 "value 1", "value 2")
 
 숫자로 읽을 수 없는 조각이 하나라도 있으면 그래프 줄이 아니다: "[OK] sensor temp=42" 같은 로그는 건너뛴다.
+이름도 검사한다: 연결 전에 쌓였던 수신 버퍼가 잘리거나 UTF-8 이 깨지면 "gz��>ax:12" 처럼 두 줄이 붙어 오는데,
+이것을 "gz��>ax" 라는 새 시리즈로 만들지 않게 깨진 글자(U+FFFD), 제어 문자, 공백, '>' 와 구분자가 든 이름은 버린다.
 """
 
 from __future__ import annotations
@@ -16,6 +18,11 @@ import re
 _NUMBER = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
 _SPLIT = re.compile(r"[,\t ]+")
 _AROUND_SEP = re.compile(r"\s*([:=])\s*")
+_NAME = re.compile(r"[^\s:=,;>§|\ufffd\x00-\x1f\x7f]+")
+
+
+def _name_ok(name: str) -> bool:
+    return _NAME.fullmatch(name) is not None
 
 
 def _number(text: str) -> float | None:
@@ -40,7 +47,7 @@ def _parse_teleplot(body: str) -> list[tuple[str, float]] | None:
     body = body.split("|", 1)[0].split("§", 1)[0]
     name, sep, rest = body.partition(":")
     name = name.strip()
-    if not sep or not name:
+    if not sep or not _name_ok(name):
         return None
     point = rest.split(";")[-1]  # ">name:t1:v1;t2:v2" 처럼 여러 점이면 마지막 값
     parts = point.split(":")
@@ -58,7 +65,7 @@ def _parse_arduino(line: str) -> list[tuple[str, float]] | None:
         for sep in (":", "="):
             if sep in token:
                 name, _, value_text = token.partition(sep)
-                if not name:
+                if not _name_ok(name):
                     return None
                 break
         value = _number(value_text)
