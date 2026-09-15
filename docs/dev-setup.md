@@ -21,6 +21,17 @@ uv pip install --python .venv/bin/python -e "retro-ui[dev]" -e "baram-term[dev]"
 Windows (PowerShell) 는 `.venv/bin/python` 대신 `.venv\Scripts\python.exe`, `.venv/bin/baram-term` 대신
 `.venv\Scripts\baram-term.exe` 를 쓴다.
 
+uv 가 없으면 표준 도구로 같은 환경을 만든다. 테스트까지 돌리려면 `[dev]` 를 꼭 붙인다 (빼면 pytest 가 없다):
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e "retro-ui[dev]" -e "baram-term[dev]"
+```
+
+Windows 메모 (Windows 11 에서 확인):
+- `py` 런처가 없을 수 있다. 그때는 `python -m venv .venv` 로 만든다. Microsoft Store 판 Python 3.13 도 동작한다.
+- 편집 가능 설치(`-e`)라서 `git pull` 만 하면 새 코드가 반영된다. `pyproject.toml` 의 의존성이 바뀌었을 때만 다시 설치한다.
+
 > `.venv` 는 안에 절대 경로가 들어가므로 **폴더를 옮기거나 이름을 바꾸면 다시 만든다.**
 > `rm -rf .venv` 후 위 두 줄을 다시 실행.
 
@@ -50,6 +61,10 @@ Windows (PowerShell) 는 `.venv/bin/python` 대신 `.venv\Scripts\python.exe`, `
 ```
 
 - 헤드리스 테스트는 `SDL_VIDEODRIVER=dummy` 로 창 없이 돈다. CI 에서도 그대로 동작한다.
+- 테스트 개수는 `python -m pytest --collect-only -q` 의 마지막 줄로 본다 ([README.md](README.md) 표를 고칠 때).
+- 창 없이 확인할 수 없는 것(IME·한/영 전환, 스크롤 느낌, 화면 배율)은 실제 창에서 따로 확인한다.
+- 문서 그림은 저장소 루트에서 `.venv/bin/python docs/images/make_screenshot.py docs/images/screenshot.png`,
+  `.venv/bin/python docs/images/make_architecture.py docs/images/architecture.png` 로 다시 만든다.
 - `retro-ui/tests/fixtures/ime_macos_2set.json` 은 실제 macOS 두벌식 입력 기록이다. IME 보정 코드를 바꾸면 이 재생 테스트가 기준이다.
 - 실제 장치 CLI 재생 테스트는 로컬 기록이 있을 때만 돈다: [device-testing.md](device-testing.md).
 

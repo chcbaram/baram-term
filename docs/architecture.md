@@ -4,7 +4,7 @@
 
 | 모듈 | 역할 |
 |---|---|
-| `app.py` | App: 창, HiDPI 배율, 이벤트 루프, 포커스, 팝업 스택, damage 기반 페인트, 픽셀 위젯 합성, IME 켜고 끄기, 툴팁 띄우기 |
+| `app.py` | App: 창, HiDPI 배율 (Windows 는 DPI 힌트), 이벤트 루프, 포커스, 팝업 스택, damage 기반 페인트, 픽셀 위젯 합성, IME 켜고 끄기(`refresh_text_input`), 툴팁 띄우기 |
 | `theme.py` | Palette(역할별 색), BoxStyle, 테마 프리셋, `resolve_color`, `lighten` |
 | `core/geometry.py` | Rect (셀/픽셀 공용), `subtract` (팝업 가림 계산) |
 | `core/wcwidth.py` | 글자 폭 (한글 2칸, 모호폭 1칸), NFC 정규화, `slice_cols`, `truncate` |
@@ -16,13 +16,22 @@
 | `render/boxdraw.py` | 박스/블록/사분면/버튼 테두리 문자를 도형으로 그림 |
 | `render/painter.py` | 위젯 로컬 좌표 + 클립으로 셀 버퍼에 쓰기 |
 | `render/renderer.py` | 변경된 셀만 서피스에 그림 |
-| `input/events.py` | pygame 이벤트 → Key/Text/Composition/Mouse/Wheel 이벤트, scancode 로 키 이름 복원 |
-| `input/ime.py` | ImeFilter (macOS 한글 조합 보정), `hangul_backspace` |
+| `input/events.py` | pygame 이벤트 → Key/Text/Composition/Mouse/Wheel 이벤트, scancode 로 키 이름 복원, `KeyEvent.scancode`/`caps`, 미국 배열 글자 `us_ascii` |
+| `input/ime.py` | ImeFilter (macOS 한글 조합 보정, 입력 전환 단축키가 만든 스페이스 버리기), `hangul_backspace` |
+| `input/mac_hotkeys.py` | macOS 입력 소스 전환 단축키(`com.apple.symbolichotkeys` 60·61) 중 스페이스 조합 읽기 |
 | `widgets/*` | base, containers, label, button, checkbox, frame, pixel, plot, popup, tooltip, menu, lineedit, combobox, dialog, terminal |
 
 툴팁은 위젯마다 만들지 않는다. 위젯에 `tooltip = "설명"` 만 넣으면 App 이 hover 를 재서
 `App.tooltip_delay` 초 뒤에 위젯 **위**로 띄우고, hover 가 바뀌거나 키/클릭이 오면 지운다
 (커서와 겹치면 hover 가 툴팁으로 넘어가 깜빡인다).
+
+터미널 입력 모드: `Terminal.ascii_input` 이 켜지면 `wants_text_input` 이 False 가 되어 App 이 IME 를 끄고,
+글자는 KEYDOWN 의 물리 키 위치(`us_ascii`, 미국 배열 + Shift + Caps Lock)로 만든다. 포커스는 그대로인데
+이 값을 바꿨다면 `App.refresh_text_input()` 을 불러야 IME 상태가 따라온다 (IME 는 포커스가 바뀔 때만 다시 본다).
+
+휠: SDL 값에는 OS 설정(macOS 자연스러운 스크롤, 속도·가속)이 이미 들어 있어 그대로 쓴다. `flipped` 를 보고
+다시 뒤집지 않는다. `Terminal.wheel_lines` 는 값 1 에 움직일 줄 수로 macOS 1, 그 외(휠 한 칸 = 1) 3.
+소수 값은 모아서 줄 단위로 움직인다.
 
 ## 그리기 흐름
 
