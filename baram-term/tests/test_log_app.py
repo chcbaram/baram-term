@@ -2,7 +2,7 @@ import time
 
 import pygame
 import pytest
-from retroui import Dialog
+from retroui import FileDialog
 from retroui.input.events import Key, KeyEvent, Mod, TextEvent
 
 from baram_term import i18n
@@ -73,15 +73,22 @@ def test_session_is_logged_as_clean_lines(bt, tmp_path):
 
 
 def test_ctrl_a_l_opens_dialog_then_stops(bt, tmp_path):
+    (tmp_path / "logs").mkdir()
+    bt.config.log_dir = str(tmp_path)  # 사용자 문서 폴더에 만들지 않게
     ctrl_a(bt, "l")
     dialog = bt.app.popups[-1]
-    assert isinstance(dialog, Dialog)
-    assert dialog.path_edit.text.endswith("_demo.log") and dialog.timestamps_box.checked
+    assert isinstance(dialog, FileDialog) and dialog.directory == tmp_path
+    assert dialog.name_edit.text.endswith("_demo.log") and dialog.timestamps_box.checked
+    assert bt.app.focus is dialog.name_edit
 
+    bt.app.set_focus(dialog.list)
+    dialog.list.select(dialog.list.items.index("logs/"))
+    bt.app.dispatch(KeyEvent(Key.RETURN, Mod.NONE, ""))  # 목록에서 폴더로 들어간다
+    assert dialog.directory == tmp_path / "logs"
     path = tmp_path / "logs" / "demo.log"
-    dialog.path_edit.set_text(str(path))
+    dialog.name_edit.set_text("demo.log")
     dialog.timestamps_box.set_checked(False)
-    bt.app.set_focus(dialog.path_edit)
+    bt.app.set_focus(dialog.name_edit)
     bt.app.dispatch(KeyEvent(Key.RETURN, Mod.NONE, ""))
     assert not bt.app.popups and bt.log is not None and path.exists()
     assert bt.config.log_dir == str(path.parent) and bt.config.log_timestamps is False

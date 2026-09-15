@@ -13,6 +13,7 @@ from retroui import (
     CheckBox,
     ComboBox,
     Dialog,
+    FileDialog,
     GroupBox,
     HBox,
     Label,
@@ -56,6 +57,17 @@ WINDOW_PADDING = 8
 # TX/RX 표시등을 켜 두는 시간. 상태줄 갱신 주기(100ms)보다 길어야 짧은 전송도 보인다
 _LED_HOLD_S = 0.15
 _NOT_CONNECTED_NOTICE_S = 2.0
+
+
+FILE_DIALOG_KEYS = (
+    "folder", "file", "name", "up", "new_folder", "save", "open", "ok", "cancel", "yes", "no",
+    "cannot_read", "not_found", "no_name", "mkdir_failed",
+)
+
+
+def file_dialog_text() -> dict[str, str]:
+    """retroui FileDialog 의 글자를 현재 언어로 ({error}, {path} 자리 표시자는 FileDialog 가 채운다)."""
+    return {key: tr(f"filedialog.{key}") for key in FILE_DIALOG_KEYS}
 
 
 def _human_rate(bps: float) -> str:
@@ -348,22 +360,32 @@ class BaramTerm:
         else:
             self.open_log_dialog()
 
-    def open_log_dialog(self) -> Dialog:
-        folder = Path(self.config.log_dir) if self.config.log_dir else default_log_dir()
-        path_edit = LineEdit(str(folder / log_filename(self.settings.port)), min_size=(56, 1))
+    def open_log_dialog(self) -> FileDialog:
+        if self.config.log_dir:
+            folder = Path(self.config.log_dir)
+        else:
+            folder = default_log_dir()
+            try:
+                folder.mkdir(parents=True, exist_ok=True)  # 처음 한 번: 문서 폴더 아래 baram-term 폴더
+            except OSError:
+                pass
         timestamps_box = CheckBox(tr("dialog.log.timestamps"), checked=self.config.log_timestamps)
-        body = VBox(
-            HBox(Label(tr("dialog.log.file"), min_size=(6, 1)), path_edit, spacing=1),
-            timestamps_box,
-            spacing=1,
+
+        def on_result(path: Path | None) -> None:
+            if path is not None:
+                self.start_log(str(path), timestamps_box.checked)
+
+        dialog = FileDialog(
+            tr("dialog.log.title"),
+            mode="save",
+            directory=folder,
+            filename=log_filename(self.settings.port),
+            extra=timestamps_box,
+            confirm_existing=tr("dialog.log.exists"),
+            text=file_dialog_text(),
+            on_result=on_result,
         )
-
-        def on_result(index: int) -> None:
-            if index == 0:
-                self.start_log(path_edit.text, timestamps_box.checked)
-
-        dialog = Dialog(tr("dialog.log.title"), body, (tr("button.start"), tr("button.cancel")), on_result=on_result)
-        dialog.path_edit, dialog.timestamps_box = path_edit, timestamps_box
+        dialog.timestamps_box = timestamps_box
         dialog.open(self.app)
         return dialog
 
