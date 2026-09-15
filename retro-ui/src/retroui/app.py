@@ -694,21 +694,26 @@ class App:
         deadline = self._pixel_deadline()
         return deadline is not None and now >= deadline
 
+    def ensure_layout(self) -> None:
+        """밀린 레이아웃을 지금 한다. 그리기 전에 위젯 위치(rect)로 팝업 자리를 잡을 때 쓴다."""
+        if not self._layout_needed:
+            return
+        self._layout_needed = False
+        if self.root is not None:
+            self.root._do_layout(self.buf.rect)
+            tree = list(self.root.iter_tree())
+            self._pixel_widgets = [w for w in tree if isinstance(w, PixelWidget)]
+            self._key_hooks = [w for w in tree if callable(getattr(w, "global_key", None))]
+        else:
+            self._pixel_widgets = []
+            self._key_hooks = []
+        self._pixels_force = True
+        self.invalidate()
+
     def _paint(self, now: float | None = None) -> list[pygame.Rect]:
         if now is None:
             now = time.monotonic()
-        if self._layout_needed:
-            self._layout_needed = False
-            if self.root is not None:
-                self.root._do_layout(self.buf.rect)
-                tree = list(self.root.iter_tree())
-                self._pixel_widgets = [w for w in tree if isinstance(w, PixelWidget)]
-                self._key_hooks = [w for w in tree if callable(getattr(w, "global_key", None))]
-            else:
-                self._pixel_widgets = []
-                self._key_hooks = []
-            self._pixels_force = True
-            self.invalidate()
+        self.ensure_layout()
 
         rects: list[pygame.Rect] = []
         if self._damage is not None:

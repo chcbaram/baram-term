@@ -18,6 +18,7 @@
   "menu.edit.copy": "Copy",
   "menu.edit.paste": "Paste",
   "menu.edit.select_all": "Select all",
+  "menu.edit.find": "Find...",
   "menu.help": "&Help",
   "menu.help.keys": "Key bindings",
   "menu.help.about": "About baram-term",
@@ -45,6 +46,10 @@
   "notice.settings_load_failed": "could not read settings, using defaults: {error}",
   "notice.settings_save_failed": "could not save settings: {error}",
   "notice.no_commands": "no command list yet · run help once to enable Tab completion",
+  "search.title": "Find",
+  "search.placeholder": "text to find",
+  "search.hint": "Enter/↑ older · ↓ newer · Esc",
+  "search.none": "none",
   "state.on": "on",
   "state.off": "off",
   "dialog.port.title": "Port settings",
@@ -64,7 +69,7 @@
   "button.start": "Start",
   "button.close": "Close",
   "help.title": "Key bindings",
-  "help.body": "Ctrl-A O   port settings\nCtrl-A D   disconnect\nCtrl-A R   reconnect\nCtrl-A E   toggle local echo\nCtrl-A N   toggle timestamps\nCtrl-A L   start/stop log file\nCtrl-A C   clear screen\nCtrl-A X   quit\nCtrl-A Z   this help\nCtrl-A Ctrl-A   send Ctrl-A\n\ndrag / double-click   select text / word\n{copy}   copy · {paste}   paste\nTab   complete command (after running help once)\nTab and control keys   not sent at the prompt (View menu)\nShift+PgUp/PgDn, wheel, scroll bar   scroll\nF10   menu\nCmd/Ctrl +/-   font size",
+  "help.body": "Ctrl-A O   port settings\nCtrl-A D   disconnect\nCtrl-A R   reconnect\nCtrl-A E   toggle local echo\nCtrl-A N   toggle timestamps\nCtrl-A L   start/stop log file\nCtrl-A /   find in scrollback (macOS Cmd+F) · Enter/↑ older, Shift+Enter/↓ newer\nCtrl-A C   clear screen\nCtrl-A X   quit\nCtrl-A Z   this help\nCtrl-A Ctrl-A   send Ctrl-A\n\ndrag / double-click   select text / word\n{copy}   copy · {paste}   paste\nTab   complete command (after running help once)\nTab and control keys   not sent at the prompt (View menu)\nShift+PgUp/PgDn, wheel, scroll bar   scroll\nF10   menu\nCmd/Ctrl +/-   font size",
   "about.title": "About baram-term",
   "about.body": "baram-term {version}\nfirmware CLI serial terminal\n\nhttps://github.com/chcbaram/baram-term"
 }

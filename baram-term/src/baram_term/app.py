@@ -36,6 +36,7 @@ from baram_term.icon import make_icon
 from baram_term.i18n import tr
 from baram_term.logger import SessionLog, default_log_dir, log_filename
 from baram_term.logo import banner
+from baram_term.search import SearchBar
 from baram_term.serial_port import DEMO_PORT, PortSettings, SerialPort, list_ports, open_device
 from baram_term import settings as config_store
 from baram_term.settings import Settings
@@ -99,6 +100,8 @@ class BaramTerm:
         )
         self.decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         self.log: SessionLog | None = None
+        self.search: SearchBar | None = None
+        self.last_search = ""
         self.local_echo = self.config.local_echo
         self.guard_controls = self.config.guard_controls
         self.auto_reconnect = self.config.auto_reconnect
@@ -140,6 +143,9 @@ class BaramTerm:
         self.app.add_key_filter(self._key_filter)
         self.app.add_shortcut("Primary+=", lambda: self.zoom(+1))
         self.app.add_shortcut("Primary+-", lambda: self.zoom(-1))
+        if IS_MAC:
+            # Windows/Linux 의 Ctrl+F 는 장치로 보내는 제어 문자라 Ctrl-A / 만 쓴다
+            self.app.add_shortcut("Primary+F", self.open_search)
         self.app.set_interval(100, self._update_status)
 
         self.terminal.feed(banner(__version__, self._banner_info()))
@@ -172,6 +178,8 @@ class BaramTerm:
                         MenuItem(tr("menu.edit.copy"), self.terminal.copy_selection, shortcut=COPY_KEYS),
                         MenuItem(tr("menu.edit.paste"), self.terminal.paste, shortcut=PASTE_KEYS),
                         MenuItem(tr("menu.edit.select_all"), self.terminal.select_all, shortcut=SELECT_ALL_KEYS),
+                        MenuItem.sep(),
+                        MenuItem(tr("menu.edit.find"), self.open_search, shortcut="Ctrl-A /", key="F"),
                     ],
                 ),
                 Menu(
@@ -320,6 +328,17 @@ class BaramTerm:
         self._save()
         self.port.close()
         self.app.quit()
+
+    # ---- search --------------------------------------------------------
+
+    def open_search(self) -> None:
+        if self.search is not None and self.search.is_open:
+            self.app.set_focus(self.search.edit)
+            self.search.edit.select_all()
+            return
+        self.completer.close()
+        self.search = SearchBar(self)
+        self.search.open()
 
     # ---- log file ------------------------------------------------------
 
@@ -563,6 +582,8 @@ class BaramTerm:
                 "q": self.quit,
                 "z": self.show_help,
                 "l": self.toggle_log,
+                "/": self.open_search,
+                "f": self.open_search,
             }.get(name)
             if action is not None:
                 action()
@@ -571,6 +592,8 @@ class BaramTerm:
             self._prefix = True
             self._update_status()
             return True
+        if self.search is not None and self.search.is_open:
+            return False  # 찾기 칸에 입력 중: Tab 자동완성을 끼우지 않는다
         return self.completer.handle_key(ev)
 
     def _on_rx(self) -> None:
@@ -621,6 +644,9 @@ class BaramTerm:
         if getattr(self, "_reconnect_timer", None) is not None:
             flags.append(tr("status.reconnecting"))
         self.st_flags.set_text(" ".join(flags))
+        search = getattr(self, "search", None)
+        if search is not None and search.is_open:
+            search.tick()
 
     def run(self) -> None:
         if self.settings.port:

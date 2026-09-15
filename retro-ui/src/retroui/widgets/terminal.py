@@ -396,6 +396,25 @@ class TerminalScreen:
 # ---- widget ----------------------------------------------------------------
 
 
+def _line_text(line: list[tuple[str, tuple]]) -> tuple[str, list[int]]:
+    """줄의 글자와 각 글자의 셀 열 (와이드 문자 오른쪽 칸은 뺀다)."""
+    chars = []
+    index = []
+    for x, (ch, _) in enumerate(line):
+        if ch != WIDE_CONT:
+            chars.append(ch)
+            index.append(x)
+    return "".join(chars), index
+
+
+def _cell_end(line: list[tuple[str, tuple]], last: int) -> int:
+    """마지막 글자 셀 다음 열. 와이드 문자면 오른쪽 칸까지 포함한다."""
+    end = last + 1
+    if end < len(line) and line[end][0] == WIDE_CONT:
+        end += 1
+    return end
+
+
 @dataclass
 class HighlightRule:
     """정규식에 맞는 글자의 색을 바꾼다. 원래 기본색인 글자에만 적용해서 펌웨어가 보낸 ANSI 색은 존중한다."""
@@ -447,6 +466,9 @@ class Terminal(Widget):
         self._sel_end: tuple[int, int] | None = None
         self._sel_active = False
         self._selecting = False
+        # 찾기: 찾는 글자(정규식)와 지금 가리키는 일치 (절대 줄, 시작 열, 끝 열)
+        self._search: re.Pattern[str] | None = None
+        self._search_current: tuple[int, int, int] | None = None
 
     # ---- data ----------------------------------------------------------
 
@@ -466,6 +488,7 @@ class Terminal(Widget):
         self.scroll_offset = 0
         self._sel_anchor = self._sel_end = None
         self._sel_active = self._selecting = False
+        self._search_current = None
         self._sync_scrollbar()
         self.invalidate()
 
@@ -539,13 +562,7 @@ class Terminal(Widget):
     def _highlights(self, line: list[tuple[str, tuple]]) -> dict[int, tuple[RGB, bool]]:
         if not self.rules or not line:
             return {}
-        chars = []
-        index = []
-        for x, (ch, _) in enumerate(line):
-            if ch != WIDE_CONT:
-                chars.append(ch)
-                index.append(x)
-        text = "".join(chars)
+        text, index = _line_text(line)
         out: dict[int, tuple[RGB, bool]] = {}
         for rule in self.rules:
             for m in rule.pattern.finditer(text):
@@ -566,6 +583,7 @@ class Terminal(Widget):
         top = self.view_top()
         sel = self.selection_range()
         dropped = scr.dropped
+        cur = self._search_current
 
         for row in range(h):
             li = top + row
@@ -577,6 +595,8 @@ class Terminal(Widget):
                 p.text(0, row, time.strftime("%H:%M:%S", time.localtime(stamp)) + f".{ms:03d}", pal.dim, pal.bg)
             line = scr.lines[li]
             marks = self._highlights(line)
+            found = self._found_cells(line) if self._search is not None else ()
+            current = cur if cur is not None and cur[0] == li + dropped else None
             for x, (ch, style) in enumerate(line):
                 if ch == WIDE_CONT:
                     continue
@@ -588,6 +608,13 @@ class Terminal(Widget):
                     fg = mark[0]
                     if mark[1]:
                         attr |= Attr.BOLD
+                if x in found:
+                    # 다른 일치는 옅게, 지금 가리키는 일치는 선택색으로: mono 에서도 둘이 구분돼야 한다
+                    fg, bg = pal.accent, pal.hover_bg
+                    attr = (attr | Attr.UNDERLINE) & ~Attr.REVERSE
+                if current is not None and current[1] <= x < current[2]:
+                    fg, bg = pal.sel_fg, pal.sel_bg
+                    attr &= ~Attr.REVERSE
                 if sel is not None and sel[0] <= (li + dropped, x) <= sel[1]:
                     fg, bg = pal.sel_fg, pal.sel_bg
                     attr &= ~Attr.REVERSE
@@ -604,6 +631,65 @@ class Terminal(Widget):
         if self.scroll_offset:
             label = f" ↑{self.scroll_offset} "
             p.text(max(0, content_w - len(label)), 0, label, pal.bg, pal.warn)
+
+    # ---- search --------------------------------------------------------
+
+    def set_search(self, query: str) -> None:
+        """찾는 글자를 정하고 일치하는 곳을 모두 표시한다. 대문자가 섞이면 대소문자를 구분한다 (smartcase)."""
+        if query:
+            flags = 0 if any(c.isupper() for c in query) else re.IGNORECASE
+            self._search = re.compile(re.escape(query), flags)
+        else:
+            self._search = None
+        self._search_current = None
+        self.invalidate()
+
+    def search_matches(self) -> list[tuple[int, int, int]]:
+        """스크롤백 전체의 일치: (절대 줄, 시작 열, 끝 열(미포함)), 오래된 것부터."""
+        if self._search is None:
+            return []
+        scr = self.screen
+        out = []
+        for li, line in enumerate(scr.lines):
+            text, index = _line_text(line)
+            for m in self._search.finditer(text):
+                if m.end() > m.start():
+                    out.append((li + scr.dropped, index[m.start()], _cell_end(line, index[m.end() - 1])))
+        return out
+
+    @property
+    def search_current(self) -> tuple[int, int, int] | None:
+        return self._search_current
+
+    def set_search_current(self, match: tuple[int, int, int] | None) -> None:
+        """가리키는 일치를 바꾸고, 화면 밖이면 보이게 스크롤한다."""
+        self._search_current = match
+        if match is not None:
+            self.reveal(match[0])
+        self.invalidate()
+
+    def reveal(self, abs_line: int) -> None:
+        """절대 줄이 보이게 스크롤한다. 이미 보이면 그대로 두고, 아니면 화면 가운데에 온다."""
+        scr = self.screen
+        li = abs_line - scr.dropped
+        if not 0 <= li < len(scr.lines):
+            return
+        h = max(1, self.rect.h)
+        top = self.view_top()
+        if top <= li < top + h:
+            return
+        self.scroll_offset = len(scr.lines) - h - max(0, li - h // 2)
+        self._clamp_scroll()
+        self._sync_scrollbar()
+        self.invalidate()
+
+    def _found_cells(self, line: list[tuple[str, tuple]]) -> set[int]:
+        text, index = _line_text(line)
+        cells: set[int] = set()
+        for m in self._search.finditer(text):  # type: ignore[union-attr]
+            if m.end() > m.start():
+                cells.update(range(index[m.start()], _cell_end(line, index[m.end() - 1])))
+        return cells
 
     # ---- selection -----------------------------------------------------
 
