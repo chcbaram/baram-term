@@ -25,7 +25,8 @@ from retroui import (
 from retroui.input.events import IS_MAC, Key, KeyEvent
 
 from baram_term import __version__
-from baram_term.completion import Completer
+from baram_term.completion import Completer, at_prompt
+from baram_term.outgoing import outgoing_bytes
 from baram_term.highlight import default_rules
 from baram_term.icon import make_icon
 from baram_term.i18n import tr
@@ -85,6 +86,7 @@ class BaramTerm:
         )
         self.decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
         self.local_echo = False
+        self.guard_controls = True
         self._prefix = False
         self._last_not_connected = 0.0
         self._rate_prev = (time.monotonic(), 0, 0)
@@ -129,6 +131,7 @@ class BaramTerm:
         self.item_echo = MenuItem(tr("menu.view.echo"), lambda: self._apply_echo(self.item_echo.checked), key="E", checked=False)
         self.item_ts = MenuItem(tr("menu.view.timestamps"), lambda: self._apply_timestamps(self.item_ts.checked), key="N", checked=False)
         self.item_complete = MenuItem(tr("menu.view.complete"), lambda: self._apply_complete(self.item_complete.checked), key="T", checked=True)
+        self.item_guard = MenuItem(tr("menu.view.guard"), lambda: self._apply_guard(self.item_guard.checked), key="G", checked=True)
         return MenuBar(
             [
                 Menu(
@@ -155,6 +158,7 @@ class BaramTerm:
                         self.item_echo,
                         self.item_ts,
                         self.item_complete,
+                        self.item_guard,
                         MenuItem(tr("menu.view.clear"), self.clear, shortcut="Ctrl-A C", key="C"),
                         MenuItem.sep(),
                         MenuItem(tr("menu.view.bigger"), lambda: self.zoom(+1), shortcut="Primary+="),
@@ -211,7 +215,12 @@ class BaramTerm:
             self.notice(tr("notice.disconnected"))
         self._update_status()
 
-    def send(self, data: bytes) -> None:
+    def send(self, data: bytes, raw: bool = False) -> None:
+        """장치로 보낸다. raw=False 면 프롬프트 줄에서 펌웨어가 줄에 넣어 버리는 제어 문자를 거른다 (outgoing.py)."""
+        if not raw:
+            data = outgoing_bytes(data, at_prompt=at_prompt(self.terminal), guard=self.guard_controls)
+            if not data:
+                return
         if not self.port.is_open:
             now = time.monotonic()
             if now - self._last_not_connected > _NOT_CONNECTED_NOTICE_S:
@@ -225,6 +234,10 @@ class BaramTerm:
     def clear(self) -> None:
         self.completer.close()
         self.terminal.clear()
+
+    def _apply_guard(self, on: bool) -> None:
+        self.item_guard.checked = on
+        self.guard_controls = on
 
     def _apply_complete(self, on: bool) -> None:
         self.item_complete.checked = on
@@ -319,7 +332,7 @@ class BaramTerm:
             if ev.key == Key.ESCAPE:
                 return True
             if ev.mod & Mod.CTRL and name == "a":
-                self.send(b"\x01")
+                self.send(b"\x01", raw=True)  # 사용자가 명시적으로 보내는 제어 문자는 거르지 않는다
                 return True
             action = {
                 "o": self.open_port_dialog,

@@ -70,8 +70,8 @@ class CommandCatalog:
         return [c for c in self.commands if c.startswith(p)]
 
 
-def current_input(terminal: Terminal) -> tuple[str, int] | None:
-    """커서 줄에서 (프롬프트 뒤 입력 중인 명령어, 명령어 시작 열). 명령어 뒤 인자를 치는 중이면 None."""
+def _prompt_line(terminal: Terminal) -> tuple[str, int] | None:
+    """커서 줄이 프롬프트 줄이면 (줄 글자, 프롬프트 끝 열)."""
     scr = terminal.screen
     if not 0 <= scr.cy < len(scr.lines):
         return None
@@ -79,10 +79,24 @@ def current_input(terminal: Terminal) -> tuple[str, int] | None:
     m = PROMPT.match(text)
     if not m or scr.cx < m.end():
         return None
-    typed = text[m.end() : scr.cx]
+    return text, m.end()
+
+
+def at_prompt(terminal: Terminal) -> bool:
+    """커서가 프롬프트 줄의 입력 위치에 있는가 (명령어 인자를 치는 중이어도 True)."""
+    return _prompt_line(terminal) is not None
+
+
+def current_input(terminal: Terminal) -> tuple[str, int] | None:
+    """커서 줄에서 (프롬프트 뒤 입력 중인 명령어, 명령어 시작 열). 명령어 뒤 인자를 치는 중이면 None."""
+    line = _prompt_line(terminal)
+    if line is None:
+        return None
+    text, start = line
+    typed = text[start : terminal.screen.cx]
     if " " in typed:
         return None
-    return typed, m.end()
+    return typed, start
 
 
 class Completer:

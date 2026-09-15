@@ -8,6 +8,7 @@
   "menu.view.echo": "Local echo",
   "menu.view.timestamps": "Timestamps",
   "menu.view.complete": "Command completion (Tab)",
+  "menu.view.guard": "Filter control keys at prompt",
   "menu.view.clear": "Clear screen",
   "menu.view.bigger": "Larger font",
   "menu.view.smaller": "Smaller font",
@@ -46,7 +47,7 @@
   "button.cancel": "Cancel",
   "button.close": "Close",
   "help.title": "Key bindings",
-  "help.body": "Ctrl-A O   port settings\nCtrl-A D   disconnect\nCtrl-A R   reconnect\nCtrl-A E   toggle local echo\nCtrl-A N   toggle timestamps\nCtrl-A C   clear screen\nCtrl-A X   quit\nCtrl-A Z   this help\nCtrl-A Ctrl-A   send Ctrl-A\n\ndrag / double-click   select text / word\n{copy}   copy · {paste}   paste\nTab   complete command (after running help once)\nShift+PgUp/PgDn, wheel, scroll bar   scroll\nF10   menu\nCmd/Ctrl +/-   font size",
+  "help.body": "Ctrl-A O   port settings\nCtrl-A D   disconnect\nCtrl-A R   reconnect\nCtrl-A E   toggle local echo\nCtrl-A N   toggle timestamps\nCtrl-A C   clear screen\nCtrl-A X   quit\nCtrl-A Z   this help\nCtrl-A Ctrl-A   send Ctrl-A\n\ndrag / double-click   select text / word\n{copy}   copy · {paste}   paste\nTab   complete command (after running help once)\nTab and control keys   not sent at the prompt (View menu)\nShift+PgUp/PgDn, wheel, scroll bar   scroll\nF10   menu\nCmd/Ctrl +/-   font size",
   "about.title": "About baram-term",
   "about.body": "baram-term {version}\nfirmware CLI serial terminal\n\nhttps://github.com/chcbaram/baram-term"
 }

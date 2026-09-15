@@ -8,6 +8,7 @@
   "menu.view.echo": "로컬 에코",
   "menu.view.timestamps": "타임스탬프",
   "menu.view.complete": "명령 자동완성 (Tab)",
+  "menu.view.guard": "프롬프트에서 제어 문자 거르기",
   "menu.view.clear": "화면 지우기",
   "menu.view.bigger": "글자 크게",
   "menu.view.smaller": "글자 작게",
@@ -46,7 +47,7 @@
   "button.cancel": "취소",
   "button.close": "닫기",
   "help.title": "단축키",
-  "help.body": "Ctrl-A O   포트 설정\nCtrl-A D   연결 끊기\nCtrl-A R   다시 연결\nCtrl-A E   로컬 에코 켜기/끄기\nCtrl-A N   타임스탬프 켜기/끄기\nCtrl-A C   화면 지우기\nCtrl-A X   끝내기\nCtrl-A Z   이 도움말\nCtrl-A Ctrl-A   Ctrl-A 문자 보내기\n\n드래그 / 더블클릭   글자 / 단어 선택\n{copy}   복사 · {paste}   붙여넣기\nTab   명령 자동완성 (help 를 한 번 실행한 뒤)\nShift+PgUp/PgDn, 휠, 스크롤바   스크롤\nF10   메뉴\nCmd/Ctrl +/-   글자 크기",
+  "help.body": "Ctrl-A O   포트 설정\nCtrl-A D   연결 끊기\nCtrl-A R   다시 연결\nCtrl-A E   로컬 에코 켜기/끄기\nCtrl-A N   타임스탬프 켜기/끄기\nCtrl-A C   화면 지우기\nCtrl-A X   끝내기\nCtrl-A Z   이 도움말\nCtrl-A Ctrl-A   Ctrl-A 문자 보내기\n\n드래그 / 더블클릭   글자 / 단어 선택\n{copy}   복사 · {paste}   붙여넣기\nTab   명령 자동완성 (help 를 한 번 실행한 뒤)\nTab 등 제어 문자   프롬프트에서는 장치로 보내지 않음 (보기 메뉴)\nShift+PgUp/PgDn, 휠, 스크롤바   스크롤\nF10   메뉴\nCmd/Ctrl +/-   글자 크기",
   "about.title": "baram-term 정보",
   "about.body": "baram-term {version}\n펌웨어 CLI 시리얼 터미널\n\nhttps://github.com/chcbaram/baram-term"
 }

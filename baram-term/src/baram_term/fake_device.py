@@ -146,7 +146,8 @@ class FakeCliDevice:
             if self.cursor < len(self.line):
                 self.line = self.line[: self.cursor] + self.line[self.cursor + 1 :]
                 self._emit("\x1b[1P")
-        elif 0x20 <= b < 0x7F:
+        elif b < 0x7F:
+            # 공개 펌웨어처럼 Tab 등 제어 문자도 줄에 넣고 그대로 에코한다 (터미널에서 거르는지 확인하려고 재현)
             ch = chr(b)
             if self.cursor == len(self.line):
                 self.line += ch
