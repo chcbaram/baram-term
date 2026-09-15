@@ -38,6 +38,8 @@ class Settings:
     completion: bool = True
     guard_controls: bool = True
     auto_reconnect: bool = True
+    # 포트 설정 창에서 고른 포트/직접 입력한 주소 (최근 것이 앞)
+    recent_ports: list[str] = field(default_factory=list)
     # 포트별로 help 출력에서 배운 명령 목록 (Tab 자동완성)
     commands: dict[str, list[str]] = field(default_factory=dict)
 
@@ -67,6 +69,8 @@ def _valid(default: object, value: object) -> bool:
         return isinstance(value, (int, float)) and not isinstance(value, bool)
     if isinstance(default, str):
         return isinstance(value, str)
+    if isinstance(default, list):
+        return isinstance(value, list) and all(isinstance(v, str) for v in value)
     if isinstance(default, dict):
         return isinstance(value, dict) and all(
             isinstance(k, str) and isinstance(v, list) and all(isinstance(c, str) for c in v) for k, v in value.items()

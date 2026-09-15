@@ -44,6 +44,8 @@
   "state.off": "off",
   "dialog.port.title": "Port settings",
   "dialog.port.port": "Port",
+  "dialog.port.refresh": "Refresh",
+  "dialog.port.address": "Address",
   "dialog.port.baud": "Baud",
   "dialog.port.bytesize": "Data bits",
   "dialog.port.parity": "Parity",

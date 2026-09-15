@@ -9,11 +9,13 @@ from typing import Any, Callable
 
 from retroui import (
     App,
+    Button,
     ComboBox,
     Dialog,
     GroupBox,
     HBox,
     Label,
+    LineEdit,
     Menu,
     MenuBar,
     MenuItem,
@@ -367,13 +369,28 @@ class BaramTerm:
             self.config.commands[self.settings.port] = list(commands)
             self._save()
 
-    def open_port_dialog(self) -> None:
-        ports = list_ports()
+    RECENT_PORTS_MAX = 8
+
+    def _port_choices(self) -> list[str]:
+        """현재 포트(목록에 없으면 맨 앞), 찾은 포트, 최근에 쓴 포트/주소, demo 순."""
+        detected = list_ports()
         current = self.settings.port
-        if current and current not in ports:
-            ports.insert(0, current)
-        if DEMO_PORT not in ports:
-            ports.append(DEMO_PORT)
+        head = [current] if current and current not in detected else []
+        choices: list[str] = []
+        for port in (*head, *detected, *self.config.recent_ports, DEMO_PORT):
+            if port and port not in choices:
+                choices.append(port)
+        return choices
+
+    def _remember_port(self, port: str) -> None:
+        if not port or port == DEMO_PORT:
+            return
+        recent = [p for p in self.config.recent_ports if p != port]
+        self.config.recent_ports = [port, *recent][: self.RECENT_PORTS_MAX]
+
+    def open_port_dialog(self) -> Dialog:
+        ports = self._port_choices()
+        current = self.settings.port
 
         def combo(items, value) -> ComboBox:
             items = list(items)
@@ -382,6 +399,15 @@ class BaramTerm:
         s = self.settings
         stop = str(int(s.stopbits)) if float(s.stopbits).is_integer() else str(s.stopbits)
         port_cb = combo(ports, current)
+        # 목록에서 고르면 주소 칸에 채우고, 확인은 주소 칸 값으로 연결한다 (socket://, rfc2217:// 직접 입력)
+        address = LineEdit(current or port_cb.text, placeholder="socket://host:port", min_size=(32, 1))
+        port_cb.changed.connect(lambda _index, text: address.set_text(text))
+
+        def refresh() -> None:
+            port_cb.set_items(self._port_choices())
+
+        # 박스 버튼은 3줄이라 한 줄짜리로: 포트 줄 높이를 늘리지 않는다
+        refresh_button = Button(tr("dialog.port.refresh"), on_click=refresh, style="fill")
         baud_cb = combo(BAUD_RATES, str(s.baud))
         bits_cb = combo(BYTESIZES, str(s.bytesize))
         parity_cb = combo(PARITIES, s.parity)
@@ -392,7 +418,8 @@ class BaramTerm:
             return HBox(Label(tr(label_key), min_size=(12, 1)), widget, Spacer(), spacing=1)
 
         body = VBox(
-            row("dialog.port.port", port_cb),
+            HBox(Label(tr("dialog.port.port"), min_size=(12, 1)), port_cb, refresh_button, Spacer(), spacing=1),
+            HBox(Label(tr("dialog.port.address"), min_size=(12, 1)), address, spacing=1),
             row("dialog.port.baud", baud_cb),
             row("dialog.port.bytesize", bits_cb),
             row("dialog.port.parity", parity_cb),
@@ -403,8 +430,10 @@ class BaramTerm:
         def on_result(index: int) -> None:
             if index != 0:
                 return
+            port = address.text.strip()
+            self._remember_port(port)
             self.settings = PortSettings(
-                port=port_cb.text,
+                port=port,
                 baud=int(baud_cb.text),
                 bytesize=int(bits_cb.text),
                 parity=parity_cb.text,
@@ -414,7 +443,10 @@ class BaramTerm:
             self._save()
             self.connect()
 
-        Dialog(tr("dialog.port.title"), body, (tr("button.ok"), tr("button.cancel")), on_result=on_result).open(self.app)
+        dialog = Dialog(tr("dialog.port.title"), body, (tr("button.ok"), tr("button.cancel")), on_result=on_result)
+        dialog.port_combo, dialog.address, dialog.refresh_button = port_cb, address, refresh_button
+        dialog.open(self.app)
+        return dialog
 
     def show_help(self) -> None:
         copy = COPY_KEYS.replace("Primary", "Cmd")

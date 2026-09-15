@@ -44,6 +44,8 @@
   "state.off": "꺼짐",
   "dialog.port.title": "포트 설정",
   "dialog.port.port": "포트",
+  "dialog.port.refresh": "새로고침",
+  "dialog.port.address": "주소",
   "dialog.port.baud": "속도",
   "dialog.port.bytesize": "데이터 비트",
   "dialog.port.parity": "패리티",
