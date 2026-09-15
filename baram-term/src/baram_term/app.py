@@ -48,6 +48,7 @@ from baram_term.logger import LineCleaner, SessionLog, default_log_dir, log_file
 from baram_term.plotdata import parse_line, plot_format
 from baram_term.plotfilter import PlotLineFilter
 from baram_term.logo import banner
+from baram_term.macros import SLOTS as MACRO_SLOTS, MacroBar, free_keys, join_entry, split_entry
 from baram_term.search import SearchBar
 from baram_term.serial_port import DEMO_PORT, PortSettings, SerialPort, list_ports, open_device
 from baram_term import settings as config_store
@@ -231,6 +232,11 @@ class BaramTerm:
             self.st_led, self.st_port, sep(), self.st_baud, self.st_framing, sep(), self.st_txrx, sep(), self.st_rate, self.st_flags_sep,
             self.st_flags, Spacer(), self.st_hint, spacing=1,
         )
+        # 매크로 막대: 상태줄 바로 위 한 줄. 등록된 칸은 F 키로도 보낸다
+        self.macro_bar = MacroBar(
+            self.config.macros, on_run=self.run_macro, on_edit=self.ask_macro,
+            on_menu=self.open_macro_menu, visible=self.config.macro_bar,
+        )
         self.menu = self._build_menu()
         # 터미널과 그래프 사이 경계(두 테두리 줄)를 마우스로 끌어 높이를 나눈다. 더블클릭은 기본 비율로
         self.split = VSplit(
@@ -242,7 +248,7 @@ class BaramTerm:
             min_bottom=8,  # 범례 줄 + 가로축 눈금 줄 + 시간 폭 줄 + 테두리를 빼고도 그래프가 보이게
             on_change=self._on_split_changed,
         )
-        self.app.set_root(VBox(self.menu, self.split, status))
+        self.app.set_root(VBox(self.menu, self.split, self.macro_bar, status))
         self.app.set_focus(self.terminal)
         self.app.add_key_filter(self._key_filter)
         self.app.add_shortcut("Primary+=", lambda: self.zoom(+1))
@@ -267,6 +273,10 @@ class BaramTerm:
         )
         self.item_plot_hide = MenuItem(
             tr("menu.view.plot_hide"), lambda: self._apply_plot_hide(self.item_plot_hide.checked), checked=self.plot_hide_lines
+        )
+        self.item_macro = MenuItem(
+            tr("menu.view.macro"), lambda: self._apply_macro_bar(self.item_macro.checked),
+            shortcut="Ctrl-A M", key="M", checked=self.config.macro_bar,
         )
         self.item_reconnect = MenuItem(tr("menu.view.reconnect"), lambda: self._apply_reconnect(self.item_reconnect.checked), key="A", checked=self.auto_reconnect)
         return MenuBar(
@@ -300,6 +310,7 @@ class BaramTerm:
                         self.item_complete,
                         self.item_guard,
                         self.item_reconnect,
+                        self.item_macro,
                         MenuItem.sep(),
                         self.item_plot,
                         self.item_plot_hide,
@@ -447,6 +458,116 @@ class BaramTerm:
     PLOT_CAPACITY = 16384
     # 이름이 계속 바뀌는 데이터(카운터를 이름에 넣는 등)가 와도 범례와 색이 끝없이 늘지 않게
     PLOT_MAX_SERIES = 12
+
+    # ---- 매크로 막대 ----------------------------------------------------
+
+    def _apply_macro_bar(self, on: bool) -> None:
+        self.item_macro.checked = on
+        self.macro_bar.visible = on
+        self._save()
+
+    def run_macro(self, index: int) -> None:
+        """등록된 명령을 줄끝 코드와 함께 보낸다 (터미널에 직접 친 것과 같게)."""
+        if index >= len(self.macro_bar.macros):
+            self.notice(tr("notice.macro_empty", n=index + 1), error=True)
+            return
+        command = split_entry(self.macro_bar.macros[index])[2]
+        self.send(command.encode("utf-8", "replace") + ENTER_CODES[self.settings.enter], raw=True)
+
+    def open_macro_menu(self, index: int, x: int, y: int) -> ListPopup | None:
+        """매크로 칸 오른쪽 클릭: 수정 / 지우기 중에 고른다."""
+        if index >= len(self.macro_bar.macros):
+            self.ask_macro(index)  # [+] 는 지울 것이 없으니 바로 등록 창
+            return None
+        items = [tr("macro.menu.edit"), tr("macro.menu.delete")]
+
+        def chosen(choice: int) -> None:
+            if choice == 0:
+                self.ask_macro(index)
+            else:
+                self._set_macro(index, "")
+
+        popup = ListPopup(items, 0, on_choose=chosen)
+        popup._app = self.app
+        self.app.ensure_layout()
+        # 막대가 화면 맨 아래라 위로 연다 (칸 왼쪽 끝에 맞춰서)
+        self.app.open_popup(popup, x, y - popup.effective_hint().pref_h)
+        return popup
+
+    def ask_macro(self, index: int) -> Dialog:
+        """칸 하나의 키/이름/명령을 고친다 (목록 끝 번호면 새로 더한다). 명령을 비우면 지운다."""
+        macros = self.macro_bar.macros
+        adding = index >= len(macros)
+        key, name, command = (None, "", "") if adding else split_entry(macros[index])
+        keys = free_keys(macros, keep=key)
+        if not keys:
+            self.notice(tr("notice.macro_full", n=MACRO_SLOTS), error=True)
+            keys = [key or 1]
+        key_combo = ComboBox([f"F{k}" for k in keys], max(0, keys.index(key) if key in keys else 0))
+        name_edit = LineEdit(name, min_size=(16, 1))
+        cmd_edit = LineEdit(command, min_size=(28, 1))
+
+        def done(result: int) -> None:
+            if result == 2:  # 삭제
+                self._set_macro(index, "")
+                return
+            if result != 0:
+                return
+            self._set_macro(index, join_entry(keys[key_combo.index], name_edit.text, cmd_edit.text))
+
+        # 라벨 폭을 가장 긴 것에 맞춘다: 언어마다 길이가 달라서(en 은 Command/Name/Key)
+        # 그냥 두면 입력칸 시작 위치가 어긋난다
+        label_keys = ("dialog.macro.command", "dialog.macro.name", "dialog.macro.key")
+        label_w = max(str_width(tr(k)) for k in label_keys)
+
+        def row(label_key: str, widget) -> HBox:
+            return HBox(Label(tr(label_key), min_size=(label_w, 1)), widget, spacing=1)
+
+        dialog = Dialog(
+            tr("dialog.macro.title", n=key or keys[0]),
+            VBox(
+                row("dialog.macro.command", cmd_edit),
+                row("dialog.macro.name", name_edit),
+                row("dialog.macro.key", HBox(key_combo, Spacer(), spacing=0)),
+                spacing=0,
+            ),
+            # 새로 더하는 중이면 지울 것이 없다
+            (tr("button.ok"), tr("button.cancel"))
+            if adding
+            else (tr("button.ok"), tr("button.cancel"), tr("dialog.macro.delete")),
+            on_result=done,
+        )
+        dialog.open(self.app)
+        self.app.set_focus(cmd_edit)
+        cmd_edit.select_all()
+        return dialog
+
+    # F10 은 메뉴바 키라 매크로로 가로채지 않는다 (macros.MENU_KEY: 고를 수도 없다)
+    MACRO_KEYS = (Key.F1, Key.F2, Key.F3, Key.F4, Key.F5, Key.F6, Key.F7, Key.F8, Key.F9, None, Key.F11, Key.F12)
+
+    def _macro_slot(self, key: int) -> int | None:
+        """눌린 키의 F 번호 (F1 -> 1). 매크로로 쓰지 않는 키면 None."""
+        for i, k in enumerate(self.MACRO_KEYS):
+            if k is not None and key == k:
+                return i + 1
+        return None
+
+    def _set_macro(self, index: int, entry: str) -> None:
+        """비우면 그 칸을 뺀다 (남은 매크로의 F 번호는 그대로). 목록 끝 번호면 새로 더한다.
+
+        키가 겹치면 `normalize` 가 남는 번호로 옮긴다 (고르는 목록에서 이미 뺐으니 드문 경우다).
+        """
+        macros = list(self.macro_bar.macros)
+        if not entry:
+            if index < len(macros):
+                del macros[index]
+        elif index < len(macros):
+            macros[index] = entry
+        elif len(macros) < MACRO_SLOTS:
+            macros.append(entry)
+        self.macro_bar.set_macros(macros)
+        self.app.set_focus(self.terminal)
+        self._save()
 
     def _apply_plot(self, on: bool) -> None:
         self.item_plot.checked = on
@@ -695,6 +816,8 @@ class BaramTerm:
         c.completion = self.completer.enabled
         c.guard_controls = self.guard_controls
         c.auto_reconnect = self.auto_reconnect
+        c.macro_bar = self.macro_bar.visible
+        c.macros = list(self.macro_bar.macros)
         c.font_size = self.app.fonts.size
         c.cols, c.rows = self.app.cols, self.app.rows
         if self.config_path is None:
@@ -949,6 +1072,7 @@ class BaramTerm:
                 "l": self.toggle_log,
                 "/": self.open_search,
                 "g": lambda: self._apply_plot(not self.plot_frame.visible),
+                "m": lambda: self._apply_macro_bar(not self.macro_bar.visible),
                 "f": self.open_search,
             }.get(name)
             if action is not None:
@@ -958,6 +1082,12 @@ class BaramTerm:
             self._prefix = True
             self._update_status()
             return True
+        if self.macro_bar.visible and not ev.mod:
+            fkey = self._macro_slot(ev.key)
+            index = None if fkey is None else self.macro_bar.index_of_key(fkey)
+            if index is not None:
+                self.run_macro(index)
+                return True
         if self.search is not None and self.search.is_open:
             return False  # 찾기 칸에 입력 중: Tab 자동완성을 끼우지 않는다
         return self.completer.handle_key(ev)

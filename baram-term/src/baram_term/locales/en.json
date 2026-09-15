@@ -90,7 +90,19 @@
   "button.start": "Start",
   "button.close": "Close",
   "help.title": "Key bindings",
-  "help.body": "Ctrl-A O   port settings\nCtrl-A D   disconnect\nCtrl-A R   reconnect\nCtrl-A E   toggle local echo\nCtrl-A N   toggle timestamps\nCtrl-A L   start/stop log file\nCtrl-A /   find in scrollback (macOS Cmd+F) · Enter/↑ older, Shift+Enter/↓ newer\nCtrl-A G   toggle plot panel (>name:value, Arduino plotter format)\nCtrl-A C   clear screen\nCtrl-A X   quit\nCtrl-A Z   this help\nCtrl-A Ctrl-A   send Ctrl-A\n\ndrag / double-click   select text / word\n{copy}   copy · {paste}   paste\nTab   complete command (after running help once)\nTab and control keys   not sent at the prompt (View menu)\nShift+PgUp/PgDn, wheel, scroll bar   scroll\nF10   menu\nCmd/Ctrl +/-   font size",
+  "help.body": "Ctrl-A O   port settings\nCtrl-A D   disconnect\nCtrl-A R   reconnect\nCtrl-A E   toggle local echo\nCtrl-A N   toggle timestamps\nCtrl-A L   start/stop log file\nCtrl-A /   find in scrollback (macOS Cmd+F) · Enter/↑ older, Shift+Enter/↓ newer\nCtrl-A G   toggle plot panel (>name:value, Arduino plotter format)\nCtrl-A M   toggle macro bar (send commands with F keys, + at the end to add)\nCtrl-A C   clear screen\nCtrl-A X   quit\nCtrl-A Z   this help\nCtrl-A Ctrl-A   send Ctrl-A\n\ndrag / double-click   select text / word\n{copy}   copy · {paste}   paste\nTab   complete command (after running help once)\nTab and control keys   not sent at the prompt (View menu)\nShift+PgUp/PgDn, wheel, scroll bar   scroll\nF1~F12   send the macro on that slot (F10 stays the menu, not available)\nmacro slot left click   send · right click   edit / delete\nF10   menu\nCmd/Ctrl +/-   font size",
   "about.title": "About baram-term",
-  "about.body": "baram-term {version}\nfirmware CLI serial terminal"
+  "about.body": "baram-term {version}\nfirmware CLI serial terminal",
+  "menu.view.macro": "&Macro bar",
+  "dialog.macro.title": "Macro F{n}",
+  "dialog.macro.name": "Name",
+  "dialog.macro.command": "Command",
+  "dialog.macro.delete": "Delete",
+  "notice.macro_empty": "no command on F{n}",
+  "macro.menu.edit": "Edit",
+  "macro.menu.delete": "Delete",
+  "macro.tip_add": "add a macro",
+  "dialog.macro.key": "Key",
+  "notice.macro_full": "at most {n} macros",
+  "macro.add": "Add Macro"
 }

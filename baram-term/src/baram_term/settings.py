@@ -48,6 +48,9 @@ class Settings:
     plot_split: float = 2 / 3  # 터미널 : 그래프 높이 비율 (터미널 몫)
     # 포트 설정 창에서 고른 포트/직접 입력한 주소 (최근 것이 앞)
     recent_ports: list[str] = field(default_factory=list)
+    # F1~F12 매크로 막대: 보이기와 슬롯 12개 ("이름=명령", 빈 문자열이면 빈 칸)
+    macro_bar: bool = False
+    macros: list[str] = field(default_factory=list)
     # 로그 저장 창의 마지막 폴더와 타임스탬프 선택
     log_dir: str = ""
     log_timestamps: bool = True

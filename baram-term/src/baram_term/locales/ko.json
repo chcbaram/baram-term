@@ -90,7 +90,19 @@
   "button.start": "시작",
   "button.close": "닫기",
   "help.title": "단축키",
-  "help.body": "Ctrl-A O   포트 설정\nCtrl-A D   연결 끊기\nCtrl-A R   다시 연결\nCtrl-A E   로컬 에코 켜기/끄기\nCtrl-A N   타임스탬프 켜기/끄기\nCtrl-A L   로그 파일 저장 시작/중지\nCtrl-A /   스크롤백 찾기 (macOS Cmd+F) · Enter·↑ 이전, Shift+Enter·↓ 다음\nCtrl-A G   그래프 패널 켜기/끄기 (>이름:값, Arduino 플로터 형식)\nCtrl-A C   화면 지우기\nCtrl-A X   끝내기\nCtrl-A Z   이 도움말\nCtrl-A Ctrl-A   Ctrl-A 문자 보내기\n\n드래그 / 더블클릭   글자 / 단어 선택\n{copy}   복사 · {paste}   붙여넣기\nTab   명령 자동완성 (help 를 한 번 실행한 뒤)\nTab 등 제어 문자   프롬프트에서는 장치로 보내지 않음 (보기 메뉴)\nShift+PgUp/PgDn, 휠, 스크롤바   스크롤\nF10   메뉴\nCmd/Ctrl +/-   글자 크기",
+  "help.body": "Ctrl-A O   포트 설정\nCtrl-A D   연결 끊기\nCtrl-A R   다시 연결\nCtrl-A E   로컬 에코 켜기/끄기\nCtrl-A N   타임스탬프 켜기/끄기\nCtrl-A L   로그 파일 저장 시작/중지\nCtrl-A /   스크롤백 찾기 (macOS Cmd+F) · Enter·↑ 이전, Shift+Enter·↓ 다음\nCtrl-A G   그래프 패널 켜기/끄기 (>이름:값, Arduino 플로터 형식)\nCtrl-A M   매크로 막대 켜기/끄기 (F 키로 명령 보내기, 막대 끝 + 로 등록)\nCtrl-A C   화면 지우기\nCtrl-A X   끝내기\nCtrl-A Z   이 도움말\nCtrl-A Ctrl-A   Ctrl-A 문자 보내기\n\n드래그 / 더블클릭   글자 / 단어 선택\n{copy}   복사 · {paste}   붙여넣기\nTab   명령 자동완성 (help 를 한 번 실행한 뒤)\nTab 등 제어 문자   프롬프트에서는 장치로 보내지 않음 (보기 메뉴)\nShift+PgUp/PgDn, 휠, 스크롤바   스크롤\nF1~F12   등록한 매크로 보내기 (F10 은 메뉴라 매크로로 쓸 수 없음)\n매크로 칸 왼쪽 클릭   보내기 · 오른쪽 클릭   수정 / 삭제\nF10   메뉴\nCmd/Ctrl +/-   글자 크기",
   "about.title": "baram-term 정보",
-  "about.body": "baram-term {version}\n펌웨어 CLI 시리얼 터미널"
+  "about.body": "baram-term {version}\n펌웨어 CLI 시리얼 터미널",
+  "menu.view.macro": "매크로 막대(&M)",
+  "dialog.macro.title": "매크로 F{n}",
+  "dialog.macro.name": "이름",
+  "dialog.macro.command": "명령",
+  "dialog.macro.delete": "삭제",
+  "notice.macro_empty": "F{n} 에 등록된 명령이 없습니다",
+  "macro.menu.edit": "수정",
+  "macro.menu.delete": "삭제",
+  "macro.tip_add": "새 매크로 등록",
+  "dialog.macro.key": "키",
+  "notice.macro_full": "매크로는 최대 {n}개입니다",
+  "macro.add": "매크로 추가"
 }
