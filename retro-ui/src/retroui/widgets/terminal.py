@@ -26,6 +26,7 @@ from retroui.input.events import (
     TextEvent,
     IS_MAC,
     WheelEvent,
+    us_ascii,
 )
 from retroui.render.cellbuffer import Attr
 from retroui.render.painter import Painter
@@ -434,7 +435,12 @@ _GUTTER = 13  # "HH:MM:SS.mmm "
 
 class Terminal(Widget):
     focusable = True
-    wants_text_input = True
+
+    @property
+    def wants_text_input(self) -> bool:
+        """영문 전용(ascii_input)이면 IME 를 끈다: 한글 입력 상태여도 조합이 일어나지 않는다.
+        글자는 KEYDOWN 의 물리 키 위치로 직접 만든다 (on_event)."""
+        return not self.ascii_input
 
     def __init__(
         self,
@@ -460,6 +466,8 @@ class Terminal(Widget):
         # 휠 값 1 에 움직일 줄 수. macOS 는 휠·트랙패드 값에 이미 스크롤 속도와 가속을 넣어 주므로
         # 그대로 쓴다 (터미널.app 처럼). 다른 OS 는 휠 한 칸이 1 이라 관례대로 3줄
         self.wheel_lines = 1 if IS_MAC else 3
+        # True 면 입력 언어와 무관하게 미국 배열 영문으로 입력한다. 바꾼 뒤에는 App.refresh_text_input()
+        self.ascii_input = False
         self._wheel_accum = 0.0
         # 오른쪽 한 칸 스크롤바 (자식 위젯이라 마우스는 스크롤바가 받고, 포커스는 터미널에 남는다)
         self.scrollbar: ScrollBar | None = None
@@ -871,6 +879,12 @@ class Terminal(Widget):
             if seq is not None:
                 self._send(seq)
                 return True
+            if self.ascii_input and not ev.mod & (Mod.CTRL | Mod.META | Mod.ALT):
+                # IME 가 꺼져 TEXTINPUT 이 오지 않으므로 글자를 직접 만든다 (Option 조합 특수문자는 만들지 않는다)
+                text = us_ascii(ev)
+                if text is not None:
+                    self._send(text.encode("ascii"))
+                    return True
             return False
         if isinstance(ev, WheelEvent):
             self._wheel(ev.dy)

@@ -78,6 +78,10 @@ class KeyEvent:
     key: int
     mod: Mod
     name: str = ""
+    # 물리 키 위치 (USB HID scancode). 입력 언어(한글/영문)와 무관하게 같은 키면 같은 값
+    scancode: int = 0
+    # Caps Lock 켜짐. Mod 에 넣으면 수정키를 정확히 비교하는 곳(단축키, 입력 전환 조합)이 모두 어긋난다
+    caps: bool = False
 
     @property
     def shift(self) -> bool:
@@ -159,6 +163,30 @@ def normalize_key(key: int, name: str, scancode: int) -> tuple[int, str]:
     return key, name
 
 
+# 미국 배열 물리 키 -> (기본 글자, Shift 글자). 한국 키보드도 물리 배열은 같다
+_US_KEYS: dict[int, tuple[str, str]] = {
+    **{4 + i: (c, c.upper()) for i, c in enumerate("abcdefghijklmnopqrstuvwxyz")},
+    **{30 + i: pair for i, pair in enumerate(zip("1234567890", "!@#$%^&*()"))},
+    44: (" ", " "), 45: ("-", "_"), 46: ("=", "+"), 47: ("[", "{"), 48: ("]", "}"),
+    49: ("\\", "|"), 51: (";", ":"), 52: ("'", '"'), 53: ("`", "~"),
+    54: (",", "<"), 55: (".", ">"), 56: ("/", "?"),
+}
+
+
+def us_ascii(ev: KeyEvent) -> str | None:
+    """입력 언어와 무관하게 미국 배열 기준으로 이 키가 찍을 글자. 글자 키가 아니면 None.
+
+    Caps Lock 은 영문자에만 적용한다 (숫자·기호는 Shift 로만 바뀐다).
+    """
+    pair = _US_KEYS.get(ev.scancode)
+    if pair is None:
+        return None
+    base, shifted = pair
+    if base.isalpha():
+        return shifted if ev.shift != ev.caps else base
+    return shifted if ev.shift else base
+
+
 def _to_cells(pos: tuple[float, float], scale: float, cw: int, ch: int, ox: int, oy: int) -> tuple[int, int, int, int]:
     # 여백 안쪽 격자 원점 기준. 여백을 누르면 음수 셀이 되어 어떤 위젯에도 맞지 않는다
     px = int(pos[0] * scale) - ox
@@ -169,8 +197,9 @@ def _to_cells(pos: tuple[float, float], scale: float, cw: int, ch: int, ox: int,
 def translate(ev: pygame.event.Event, scale: float, cw: int, ch: int, ox: int = 0, oy: int = 0) -> Event | None:
     t = ev.type
     if t == pygame.KEYDOWN:
-        key, name = normalize_key(ev.key, pygame.key.name(ev.key), getattr(ev, "scancode", 0))
-        return KeyEvent(key, mod_from_pygame(ev.mod), name)
+        scancode = getattr(ev, "scancode", 0)
+        key, name = normalize_key(ev.key, pygame.key.name(ev.key), scancode)
+        return KeyEvent(key, mod_from_pygame(ev.mod), name, scancode, bool(ev.mod & pygame.KMOD_CAPS))
     if t == pygame.TEXTINPUT:
         return TextEvent(ev.text)
     if t == pygame.TEXTEDITING:

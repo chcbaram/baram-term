@@ -543,6 +543,13 @@ class App:
             if ev is not None:
                 self.dispatch(ev)
 
+    def refresh_text_input(self) -> None:
+        """위젯의 wants_text_input 이 바뀌었을 때 IME 켜기/끄기를 다시 맞춘다.
+
+        IME 상태는 포커스가 바뀔 때만 다시 보므로, 포커스는 그대로인데 위젯 설정만 바꿨다면 불러 줘야 한다.
+        """
+        self._update_text_input()
+
     def _update_text_input(self) -> None:
         """입력 위젯에 포커스가 있을 때만 IME 를 켠다. 켜 두면 일반 위젯의 글자 키를 IME 가 가로챈다."""
         want = self.focus is not None and getattr(self.focus, "wants_text_input", False)
