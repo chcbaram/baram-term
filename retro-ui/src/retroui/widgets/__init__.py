@@ -13,9 +13,10 @@ from retroui.widgets.menu import Menu, MenuBar, MenuItem
 from retroui.widgets.pixel import PixelWidget
 from retroui.widgets.plot import LivePlot, RingBuffer, Series
 from retroui.widgets.popup import Popup
+from retroui.widgets.terminal import HighlightRule, Terminal, TerminalScreen
 
 __all__ = [
     "Box", "Button", "CheckBox", "ComboBox", "Dialog", "Frame", "GroupBox", "HBox", "Label", "LineEdit",
     "ListPopup", "LivePlot", "Menu", "MenuBar", "MenuItem", "PixelWidget", "Popup", "RingBuffer", "Series",
-    "SizeHint", "Spacer", "VBox", "Widget", "message_box",
+    "SizeHint", "Spacer", "Terminal", "TerminalScreen", "HighlightRule", "VBox", "Widget", "message_box",
 ]
