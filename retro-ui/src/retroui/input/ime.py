@@ -8,6 +8,9 @@ macOS SDL2 두벌식 실측 (tests/fixtures/ime_macos_2set.json) 에서 확인�
 2. 조합 중 Backspace: 자모를 지우지 않고 조합 중 글자를 그대로 확정해 버린다.
    -> 확정을 버리고 마지막 자모만 뺀 글자를 넣는다 ("한" -> "하", "ㅗ" -> "").
 3. 조합 중 스페이스/마침표 같은 글자 키는 IME 가 "철 " 처럼 붙여서 확정하므로 건드리지 않는다.
+4. 입력 소스 전환을 "수정키 + 스페이스"(예: Shift+Space)로 설정한 경우: macOS 기본 앱에서는 전환만 되는데
+   SDL 은 KEYDOWN 뒤에 TEXTINPUT " " 까지 보낸다. 설정된 조합과 수정키가 정확히 같을 때만 그 키와
+   바로 뒤의 스페이스 글자를 버린다 (조합 중이면 확정 글자 끝의 스페이스 하나만). input/mac_hotkeys.py
 
 TEXTINPUT 이 KEYDOWN 보다 먼저 오는 플랫폼에서는 KEYDOWN 시점에 조합이 비어 있어 아무것도 하지 않는다.
 """
@@ -15,7 +18,7 @@ TEXTINPUT 이 KEYDOWN 보다 먼저 오는 플랫폼에서는 KEYDOWN 시점에 
 from __future__ import annotations
 
 import time
-from typing import Callable
+from typing import Callable, Collection
 
 from retroui.input.events import CompositionEvent, Event, Key, KeyEvent, Mod, TextEvent
 
@@ -51,11 +54,14 @@ def hangul_backspace(text: str) -> str:
 
 
 class ImeFilter:
-    def __init__(self, clock: Callable[[], float] = time.monotonic):
+    def __init__(self, clock: Callable[[], float] = time.monotonic, space_switch_mods: Collection[Mod] = ()):
         self.clock = clock
         self.preedit = ""
         self._suppress: str | None = None
         self._suppress_until = 0.0
+        # 입력 소스 전환으로 쓰는 "수정키 + 스페이스" 조합들 (없으면 규칙 4 는 동작하지 않는다)
+        self.space_switch_mods = set(space_switch_mods)
+        self._drop_space_until = 0.0
 
     def _arm(self, text: str) -> None:
         self._suppress = text
@@ -79,6 +85,15 @@ class ImeFilter:
             self.preedit = ev.text
             return [ev]
 
+        if isinstance(ev, TextEvent) and self._drop_space_until:
+            armed = self.clock() <= self._drop_space_until
+            self._drop_space_until = 0.0
+            if armed and ev.text.endswith(" "):
+                text = ev.text[:-1]  # 전환 키가 만든 스페이스 하나만 뺀다
+                if not text:
+                    return []
+                ev = TextEvent(text)
+
         if isinstance(ev, TextEvent):
             if self._suppress is not None:
                 expected = self._suppress
@@ -87,6 +102,11 @@ class ImeFilter:
                     return []
             self.preedit = ""
             return [ev]
+
+        if isinstance(ev, KeyEvent) and ev.key == Key.SPACE and ev.mod in self.space_switch_mods:
+            # 시스템이 입력 전환으로 쓴 키다. 다른 앱처럼 키도 글자도 앱에 넘기지 않는다
+            self._drop_space_until = self.clock() + _SUPPRESS_S
+            return []
 
         if isinstance(ev, KeyEvent) and self.preedit and (ev.key in _EDIT_KEYS or ev.mod & (Mod.CTRL | Mod.META)):
             pending = self.commit_pending()

@@ -36,6 +36,7 @@ from retroui.input.events import (
     translate,
 )
 from retroui.input.ime import ImeFilter
+from retroui.input.mac_hotkeys import input_source_space_mods
 from retroui.render.cellbuffer import WIDE_CONT, CellBuffer
 from retroui.render.fonts import FontSet
 from retroui.render.painter import Painter
@@ -151,7 +152,8 @@ class App:
         self._last_click = (0.0, -1, -1, 0, 0)  # time, cx, cy, button, clicks
         self._shortcuts: list[tuple[Mod, int, Callable[[], None]]] = []
         self._key_filters: list[Callable[[KeyEvent], bool]] = []
-        self._ime = ImeFilter()
+        # 입력 소스 전환을 Shift+Space 처럼 스페이스 조합으로 쓰면 SDL 이 스페이스 글자도 보낸다: 그 글자를 버린다
+        self._ime = ImeFilter(space_switch_mods=input_source_space_mods())
         self._text_input_active = False
         self._text_input_rect: tuple[int, int, int, int] | None = None
         self._key_hooks: list[Widget] = []
