@@ -34,15 +34,22 @@ def test_half_block_conversion():
     assert bitmap_to_half_cells(["#.#", "##.", "..#"]) == ["█▄▀", "  ▀"]
 
 
-def test_glyphs_have_even_height():
-    # 홀수 높이면 반쪽 블록 마지막 줄이 반만 차서 글자가 뭉개진다
-    assert all(len(rows) % 2 == 0 for rows in GLYPHS.values())
+def test_glyph_plus_shadow_height_fills_whole_rows():
+    # 전체 도트 높이가 홀수면 반쪽 블록 마지막 줄이 반만 차서 글자가 뭉개진다
+    assert all((len(rows) + SHADOW_OFFSET[1]) % 2 == 0 for rows in GLYPHS.values())
+
+
+def test_middle_bars_are_vertically_centered():
+    for letter in "BAR":
+        rows = GLYPHS[letter]
+        bar = next(i for i in range(1, len(rows) - 1) if rows[i].count("#") >= len(rows[i]) - 1)
+        assert bar == len(rows) // 2, letter
 
 
 def test_word_bitmap_has_one_dot_gap():
     rows = word_bitmap("BA")
-    assert rows[0] == "#####." + "." + ".####."
-    assert all(len(r) == 13 for r in rows)
+    assert rows[0] == "######." + "." + ".#####."
+    assert all(len(r) == 15 for r in rows)
 
 
 def decode_dots(lines):
@@ -73,11 +80,10 @@ def test_logo_and_shadow_dots_match_bitmap():
 
 
 def test_logo_size_and_letters_stay_apart():
-    assert len(LOGO) == 4  # 글자 6도트 + 그림자 1도트 -> 반쪽 블록 4줄
-    assert max(len(line) for line in LOGO) == 5 * 6 + 4 * LOGO_GAP + 1
-    # 그림자가 들어가도 글자 사이에 빈 열이 하나 남는다 (B 오른쪽 끝 5, 그림자 6, 빈 열 7)
-    rows = word_bitmap("BARAM", LOGO_GAP)
-    gap_col = 6 + 1
+    assert len(LOGO) == 4  # 글자 7도트 + 그림자 1도트 = 8도트 -> 반쪽 블록 4줄
+    assert max(len(line) for line in LOGO) == 5 * 7 + 4 * LOGO_GAP + 1
+    # 그림자가 들어가도 글자 사이에 빈 열이 하나 남는다 (B 오른쪽 끝 6, 그림자 7, 빈 열 8)
+    gap_col = 7 + 1
     assert all(line[gap_col] == " " for line in LOGO[:3] if len(line) > gap_col)
 
 
