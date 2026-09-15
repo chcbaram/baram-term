@@ -30,7 +30,7 @@ baram-term/                 GitHub: https://github.com/chcbaram/baram-term
 | baram-term 그래프 패널 (`>name:value` / Arduino 플로터 형식, 범례, STOP/지우기, 시간 폭, 경계 끌기) | 완료, 실제 보드 확인 |
 | baram-term 매크로 막대 (F 키/클릭 전송, 오른쪽 클릭 수정/삭제, 키 선택, hover 툴팁, 설정 저장) | 완료, 실제 창 확인 |
 | 다음 | HEX 분할 보기, 배포 |
-| 테스트 | retro-ui 244개, baram-term 193개 (+ 로컬 장치 기록이 있으면 재생 테스트) |
+| 테스트 | retro-ui 271개, baram-term 195개 (+ 로컬 장치 기록이 있으면 재생 테스트) |
 
 ## 마지막 작업 지점 (2026-09-15)
 
@@ -71,6 +71,9 @@ baram-term/                 GitHub: https://github.com/chcbaram/baram-term
   고쳤다 (SDL 의 `flipped` 를 다시 뒤집고 있었다). macOS 실제 트랙패드·마우스에서 방향과 속도 확인받음.
   Windows/Linux 휠(3줄 고정, Windows 는 시스템 설정값을 읽는 편이 맞음)은 아직 확인 못 함.
 - 루트 README 에 **펌웨어에서 그래프 값 찍는 법**(printf 예시)을 넣었다.
+- 입력 소스 전환을 Shift+Space 로 쓸 때 스페이스가 찍히던 문제를 고쳤다 (`retroui/input/mac_hotkeys.py`,
+  `ImeFilter` 규칙 4). 실제 창에서 확인받음.
+- 터미널 영문 입력 옵션 (보기 메뉴, **기본 켜짐**). 한글 상태로 와도 명령이 영문으로 찍힌다. 실제 창에서 확인받음.
 - 설정 파일 주의: 이전 버전으로 실행한 PC 는 `plot_hide_lines` 가 `true` 로 저장돼 있을 수 있다 (예전 기본값). 보기 메뉴에서 한 번 끄면 된다.
 
 ## 작업 방식 (Claude Code 와 작업할 때)
