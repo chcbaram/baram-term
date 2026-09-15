@@ -187,9 +187,10 @@ def translate(ev: pygame.event.Event, scale: float, cw: int, ch: int, ox: int = 
         return MouseEvent("move", 0, cx, cy, px, py, mod_from_pygame(pygame.key.get_mods()))
     if t == pygame.MOUSEWHEEL:
         cx, cy, px, py = _to_cells(pygame.mouse.get_pos(), scale, cw, ch, ox, oy)
+        # SDL 이 주는 값은 OS 의 스크롤 방향 설정(macOS 자연스러운 스크롤)이 이미 들어간 값이다.
+        # `flipped` 는 "OS 가 뒤집었다" 는 표시일 뿐이라 여기서 다시 뒤집으면 사용자 설정을 되돌린다.
+        # 예전에 그렇게 해서 트랙패드와 마우스를 반대로 설정해 둔 사람에게 둘이 같은 방향으로 움직였다
         dx = getattr(ev, "precise_x", ev.x)
         dy = getattr(ev, "precise_y", ev.y)
-        if getattr(ev, "flipped", False):
-            dx, dy = -dx, -dy
         return WheelEvent(dx, dy, cx, cy, px, py)
     return None

@@ -175,7 +175,7 @@ def test_scroll_view_is_kept_when_new_data_arrives(app):
         t.feed(f"log {i}\r\n")
     app.screen_text()
     app.dispatch(WheelEvent(0, 2, 1, 1, 0, 0))
-    assert t.scroll_offset == 6
+    assert t.scroll_offset == 2 * t.wheel_lines  # OS 마다 기본 줄 수가 다르다
     top_before = app.screen_text()[1]
     t.feed("new line\r\n")
     assert app.screen_text()[1] == top_before

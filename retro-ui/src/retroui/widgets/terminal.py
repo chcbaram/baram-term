@@ -24,6 +24,7 @@ from retroui.input.events import (
     Mod,
     MouseEvent,
     TextEvent,
+    IS_MAC,
     WheelEvent,
 )
 from retroui.render.cellbuffer import Attr
@@ -456,6 +457,10 @@ class Terminal(Widget):
         self.rules: list[HighlightRule] = []
         self.send = Signal()  # bytes: 키 입력을 장치로 보낼 때
         self.scroll_offset = 0
+        # 휠 값 1 에 움직일 줄 수. macOS 는 휠·트랙패드 값에 이미 스크롤 속도와 가속을 넣어 주므로
+        # 그대로 쓴다 (터미널.app 처럼). 다른 OS 는 휠 한 칸이 1 이라 관례대로 3줄
+        self.wheel_lines = 1 if IS_MAC else 3
+        self._wheel_accum = 0.0
         # 오른쪽 한 칸 스크롤바 (자식 위젯이라 마우스는 스크롤바가 받고, 포커스는 터미널에 남는다)
         self.scrollbar: ScrollBar | None = None
         if scrollbar:
@@ -500,6 +505,21 @@ class Terminal(Widget):
     @property
     def gutter(self) -> int:
         return _GUTTER if self.show_timestamps else 0
+
+    def _wheel(self, dy: float) -> None:
+        """휠/트랙패드 값을 줄 수로 바꿔 스크롤한다.
+
+        - 값에 `wheel_lines` 를 곱한다. 값이 1 이 넘는다고 따로 더 키우지 않는다: macOS 는 빠르게 밀면
+          가속이 들어간 큰 값을 주는데, 거기에 3을 곱했더니 가속이 지나치게 셌다.
+        - 이벤트마다 최소 1줄을 보장하지 않는다 (0.1 짜리가 잦게 오는 트랙패드에서 화면이 확 지나갔다).
+        - 남는 소수는 다음 이벤트로 넘긴다 (조금씩 밀어도 버려지지 않는다).
+        """
+        self._wheel_accum += dy * self.wheel_lines
+        # 0 쪽으로 버린다. 0.1 을 열 번 더하면 0.999... 이라 그냥 int() 면 한 줄을 잃는다
+        lines = int(self._wheel_accum + (1e-6 if self._wheel_accum > 0 else -1e-6))
+        self._wheel_accum -= lines
+        if lines:
+            self.scroll(lines)
 
     def scroll(self, delta: int) -> None:
         self.scroll_offset += delta
@@ -853,7 +873,7 @@ class Terminal(Widget):
                 return True
             return False
         if isinstance(ev, WheelEvent):
-            self.scroll(int(round(ev.dy * 3)) or (1 if ev.dy > 0 else -1))
+            self._wheel(ev.dy)
             return True
         if isinstance(ev, MouseEvent):
             if ev.kind == "down" and ev.button == 1:

@@ -84,6 +84,7 @@ def test_click_track_pages_and_drag_moves_thumb(app):
 
 def test_terminal_scrollbar_follows_scrollback(app):
     t = Terminal(scrollbar=True)
+    t.wheel_lines = 3  # OS 마다 기본값이 달라서 아래 계산이 맞게 정해 둔다
     app.set_root(VBox(t))
     app.step()
     assert t.screen.cols == app.cols - 1
