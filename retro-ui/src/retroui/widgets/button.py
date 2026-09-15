@@ -62,9 +62,12 @@ class Button(Widget):
         *,
         style: str | None = None,
         color: str | RGB | None = None,
+        padding: int = 2,
         **kw,
     ):
         super().__init__(**kw)
+        # 글자 좌우 여백 (칸). 버튼이 여러 개 늘어서는 줄에서는 1로 줄여 폭을 아낀다
+        self.padding = padding
         self.fill_color = color  # solid 버튼 배경 (팔레트 이름 또는 RGB). None 이면 accent
         self.clicked = Signal()
         if on_click is not None:
@@ -95,7 +98,7 @@ class Button(Widget):
             self.clicked.emit()
 
     def size_hint(self) -> SizeHint:
-        w = str_width(self.text) + 4
+        w = str_width(self.text) + self.padding * 2
         h = 3 if self.effective_style == "box" else 1
         return SizeHint(w, h, w, h, max_w=w, max_h=h)
 
@@ -107,7 +110,7 @@ class Button(Widget):
 
     def _draw_label(self, p: Painter, y: int, fg: RGB, bg: RGB, attr: int) -> None:
         w = self.rect.w
-        label = truncate(self.text, max(0, w - 4))
+        label = truncate(self.text, max(0, w - self.padding * 2))
         x = (w - str_width(label)) // 2
         if self.focused:
             attr |= Attr.BOLD

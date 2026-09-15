@@ -56,7 +56,15 @@ class Key:
     SPACE = pygame.K_SPACE
     F1 = pygame.K_F1
     F2 = pygame.K_F2
+    F3 = pygame.K_F3
+    F4 = pygame.K_F4
+    F5 = pygame.K_F5
+    F6 = pygame.K_F6
+    F7 = pygame.K_F7
+    F8 = pygame.K_F8
+    F9 = pygame.K_F9
     F10 = pygame.K_F10
+    F11 = pygame.K_F11
     F12 = pygame.K_F12
     A = pygame.K_a
     C = pygame.K_c
