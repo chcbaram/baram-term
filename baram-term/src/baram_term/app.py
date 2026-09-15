@@ -46,6 +46,7 @@ from baram_term.icon import make_icon
 from baram_term.i18n import tr
 from baram_term.logger import LineCleaner, SessionLog, default_log_dir, log_filename
 from baram_term.plotdata import parse_line
+from baram_term.plotfilter import PlotLineFilter
 from baram_term.logo import banner
 from baram_term.search import SearchBar
 from baram_term.serial_port import DEMO_PORT, PortSettings, SerialPort, list_ports, open_device
@@ -91,6 +92,7 @@ def _parse_seconds(text: str) -> float | None:
 
 def _format_seconds(value: float) -> str:
     return str(int(value)) if float(value).is_integer() else f"{value:g}"
+
 
 # 복사/붙여넣기 단축키: macOS 는 Cmd, 그 외는 Ctrl+Shift (Ctrl+C/V 는 장치로 보내는 제어 문자라서)
 COPY_KEYS, PASTE_KEYS, SELECT_ALL_KEYS = (
@@ -176,9 +178,11 @@ class BaramTerm:
         self.plot_run_button = Button(
             tr("plot.stop"), on_click=self.toggle_plot_pause, style="solid", color="error", min_size=(run_w, 1)
         )
+        self.plot_clear_button = Button(tr("plot.clear"), on_click=self.clear_plot, style="solid", color="dim")
         # 누르는 동안 포커스(►◄ 표시)를 가져가지 않는다: 마우스용 버튼이고 입력은 터미널에 남아야 한다
         self.plot_run_button.focusable = False
-        plot_toolbar = HBox(self.plot_legend, self.plot_run_button, spacing=2)
+        self.plot_clear_button.focusable = False
+        plot_toolbar = HBox(self.plot_legend, self.plot_clear_button, self.plot_run_button, spacing=1)
         # 아랫줄 오른쪽: 시간 폭 (Arduino IDE 플로터에서 설정 칸이 아래 오른쪽에 있는 배치)
         self.plot_window_combo = EditableComboBox(
             PLOT_WINDOWS,
@@ -198,6 +202,8 @@ class BaramTerm:
         )
         self.plot_frame = GroupBox("", VBox(plot_toolbar, self.plot, plot_footer), stretch=1, visible=self.config.plot)
         self._plot_lines = LineCleaner()
+        self.plot_filter = PlotLineFilter()
+        self.plot_hide_lines = self.config.plot_hide_lines
         self._plot_series: dict[str, Any] = {}
         self.plot_clock: Callable[[], float] = time.monotonic
         self._plot_t0 = self.plot_clock()
@@ -256,6 +262,9 @@ class BaramTerm:
         self.item_plot = MenuItem(
             tr("menu.view.plot"), lambda: self._apply_plot(self.item_plot.checked), shortcut="Ctrl-A G", key="P", checked=self.config.plot
         )
+        self.item_plot_hide = MenuItem(
+            tr("menu.view.plot_hide"), lambda: self._apply_plot_hide(self.item_plot_hide.checked), checked=self.plot_hide_lines
+        )
         self.item_reconnect = MenuItem(tr("menu.view.reconnect"), lambda: self._apply_reconnect(self.item_reconnect.checked), key="A", checked=self.auto_reconnect)
         return MenuBar(
             [
@@ -290,6 +299,7 @@ class BaramTerm:
                         self.item_reconnect,
                         MenuItem.sep(),
                         self.item_plot,
+                        self.item_plot_hide,
                         MenuItem(tr("menu.view.plot_pause"), self.toggle_plot_pause),
                         MenuItem(tr("menu.view.plot_clear"), self.clear_plot),
                         MenuItem(tr("menu.view.plot_window"), self.ask_plot_window),
@@ -438,11 +448,15 @@ class BaramTerm:
     def _apply_plot(self, on: bool) -> None:
         self.item_plot.checked = on
         self.plot_frame.visible = on
+        self._release_plot_partial()
         self._plot_lines = LineCleaner()  # 꺼져 있는 동안 받은 반쪽 줄을 이어 붙이지 않게
         self._save()
 
     def _feed_plot(self, text: str) -> None:
-        for line in self._plot_lines.feed(text):
+        self._add_plot_lines(self._plot_lines.feed(text))
+
+    def _add_plot_lines(self, lines: list[str]) -> None:
+        for line in lines:
             values = parse_line(line)
             if not values:
                 continue
@@ -456,6 +470,19 @@ class BaramTerm:
                     series = self.plot.add_series(name, capacity=self.PLOT_CAPACITY)
                     self._plot_series[name] = series
                 series.append(value, now)
+
+    def _apply_plot_hide(self, on: bool) -> None:
+        self.item_plot_hide.checked = on
+        self.plot_hide_lines = on
+        self._release_plot_partial()
+        self._save()
+        self._update_status()
+
+    def _release_plot_partial(self, force: bool = True) -> None:
+        """필터가 붙잡고 있던 끝 조각을 터미널로 (숨기기를 끄거나 오래 기다렸을 때)."""
+        text = self.plot_filter.flush(force=force)
+        if text:
+            self.terminal.feed(text)
 
     def _on_split_changed(self, ratio: float) -> None:
         self.config.plot_split = round(ratio, 4)
@@ -650,6 +677,7 @@ class BaramTerm:
             )
         c.enter, c.backspace, c.rx_lf = s.enter, s.backspace, s.rx_lf
         c.plot = self.plot_frame.visible
+        c.plot_hide_lines = self.plot_hide_lines
         c.local_echo = self.local_echo
         c.timestamps = self.terminal.show_timestamps
         c.completion = self.completer.enabled
@@ -926,11 +954,17 @@ class BaramTerm:
         data = self.port.take()
         if data:
             text = self.decoder.decode(data)
-            self.terminal.feed(text)
+            if self.plot_frame.visible and self.plot_hide_lines:
+                shown, plot_lines = self.plot_filter.feed(text)
+                if shown:
+                    self.terminal.feed(shown)
+                self._add_plot_lines(plot_lines)
+            else:
+                self.terminal.feed(text)
+                if self.plot_frame.visible:
+                    self._feed_plot(text)
             if self.log is not None:
-                self._log_call(self.log.feed, text)
-            if self.plot_frame.visible:
-                self._feed_plot(text)
+                self._log_call(self.log.feed, text)  # 로그에는 그래프 줄까지 받은 그대로
             self.completer.on_text(text)
 
     def _on_port_error(self, message: str) -> None:
@@ -970,6 +1004,9 @@ class BaramTerm:
             flags.append("TS")
         if getattr(self, "log", None) is not None:
             flags.append("LOG")
+        if self.plot_frame.visible and self.plot_hide_lines:
+            flags.append("PLOT")  # 그래프 줄이 터미널에서 빠지고 있다는 표시
+            self._release_plot_partial(force=False)
         if getattr(self, "_reconnect_timer", None) is not None:
             flags.append(tr("status.reconnecting"))
         self.st_flags.set_text(" ".join(flags))

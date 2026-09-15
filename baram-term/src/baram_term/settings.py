@@ -42,6 +42,7 @@ class Settings:
     guard_controls: bool = True
     auto_reconnect: bool = True
     plot: bool = False
+    plot_hide_lines: bool = True  # 그래프 패널이 켜져 있으면 그래프 값 줄은 터미널에 넘기지 않는다
     plot_window: float = 10.0  # 그래프 가로 폭 (초)
     plot_split: float = 2 / 3  # 터미널 : 그래프 높이 비율 (터미널 몫)
     # 포트 설정 창에서 고른 포트/직접 입력한 주소 (최근 것이 앞)

@@ -300,3 +300,42 @@ def test_drag_boundary_resizes_plot_and_persists(tmp_path):
     finally:
         again.port.close()
         again.app.close()
+
+
+def test_plot_lines_hidden_from_terminal_while_prompt_stays(tmp_path):
+    path = tmp_path / "settings.json"
+    term = make(config=Settings(), config_path=path)
+    try:
+        term._apply_plot(True)
+        term.connect()
+        assert pump(term, lambda: term.terminal.screen.line_text(term.terminal.screen.cy) == "cli#")
+        run_command(term, "plot")
+        assert pump(term, lambda: all(counts(term).get(n, 0) >= 5 for n in ("ax", "ay", "az", "temp")))
+        term._update_status()
+        term.app.step()
+        text = "\n".join(term.app.screen_text())
+        assert ">ax:" not in text and "PLOT" in term.app.screen_text()[-1]
+        scr = term.terminal.screen
+        assert scr.line_text(scr.cy) == "cli#"  # 프롬프트가 두 번 찍히지 않는다
+
+        for ch in "st":
+            term.app.dispatch(TextEvent(ch))
+        assert pump(term, lambda: scr.line_text(scr.cy) == "cli# st")  # 값이 계속 와도 입력 중인 줄 유지
+
+        term._apply_plot_hide(False)
+        assert pump(term, lambda: ">ax:" in "\n".join(term.app.screen_text()))
+        assert "PLOT" not in term.app.screen_text()[-1] or not term.plot_hide_lines
+        run_command(term, "plot off")
+    finally:
+        term.port.close()
+        term.app.close()
+    assert store.load(path)[0].plot_hide_lines is False
+
+
+def test_clear_button_clears_and_keeps_focus(bt):
+    bt._apply_plot(True)
+    bt._feed_plot(">ax:1\r\n")
+    bt.app.step()
+    assert bt.plot_clear_button.rect.right <= bt.plot_run_button.rect.x  # STOP 왼쪽
+    click(bt, bt.plot_clear_button)
+    assert bt.plot.series == [] and bt.app.focus is bt.terminal

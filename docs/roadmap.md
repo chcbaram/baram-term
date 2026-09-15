@@ -17,7 +17,7 @@
 | baram-term 화면 | BARAM 블록 로고, 메뉴(포트/보기/도움말), 터미널, 상태줄(연결, 포트, 8N1, TX/RX, 전송률, 모드), 포트 설정 대화상자, Ctrl-A 명령(O P R D E N C X Z), 로컬 에코, 타임스탬프, 글자 크기 |
 | baram-term 편의 | 7x7 도트 로고 + 그림자, 창 여백, 터미널 아이콘, 포트 이름 오른쪽 정렬, 스크롤바(1/8칸), 드래그/더블클릭 선택과 복사·붙여넣기(편집 메뉴), Tab 명령 자동완성(help 출력 목록 학습, 입력에 따라 목록 갱신) |
 | baram-term 설정 | 설정 저장/불러오기(OS 사용자 설정 폴더 `settings.json`, 실행 인자 우선, 인자 없으면 마지막 포트), 자동 재연결(1초 주기, 보기 메뉴 A), 포트별 Tab 명령 목록 저장, 포트 설정 창 새로고침 버튼/주소 직접 입력/최근 포트 8개, Enter/Backspace/받은 LF 코드 설정, 상태줄 모드 칸 정리, 터미널 테두리 제목 제거, About 링크, 상태줄 포트/속도 클릭으로 바로 전환(열린 포트는 속도만 변경), 속도 직접 입력, 로그 파일 저장(`Ctrl-A L`, 파일 다이얼로그로 위치 선택, 화면에 보이는 줄 그대로, 타임스탬프 선택), 스크롤백 찾기(`Ctrl-A /`, macOS Cmd+F, smartcase, 새 줄이 와도 위치 유지) |
-| baram-term 그래프 | 그래프 패널(`Ctrl-A G`): `>name:value`(Teleplot)와 Arduino 시리얼 플로터 형식, 범례 클릭으로 보이기/숨기기, STOP/START, 시간 폭(초), 터미널/그래프 경계 끌기(비율 저장), 데모 `plot` 명령 |
+| baram-term 그래프 | 그래프 패널(`Ctrl-A G`): `>name:value`(Teleplot)와 Arduino 시리얼 플로터 형식, 범례 클릭으로 보이기/숨기기, STOP/START, 시간 폭(초), 터미널/그래프 경계 끌기(비율 저장), 그래프 줄은 터미널에서 숨김(기본, 상태줄 PLOT), CLEAR 버튼, 데모 `plot` 명령 |
 | retro-ui 추가 | VSplit(경계 끌기, 위치별 커서), PlotLegend, Button solid 스타일, LivePlot(header=False)/series_changed/clear_series, Dialog 버튼 같은 폭·가운데, EditableComboBox, 클릭 가능한 Label과 손가락 커서, Link, 기본 문자열 다국어(`retroui.set_language`), 붙여넣기 줄바꿈이 Enter 코드를 따름, ListView, FileDialog(창 안에 그리는 열기/저장, 새 폴더, 패턴, 이어쓰기 확인), App padding/icon, `App.ensure_layout`, Terminal 찾기(`set_search`/`search_matches`/`reveal`), GroupBox title_align, Box 방향별 margin, ScrollBar, 포커스 없는 팝업, 터미널 256색/트루컬러 |
 
 ## 다음 할 일 (이 순서로)
@@ -33,6 +33,10 @@
 - [ ] `pipx install git+https://github.com/chcbaram/baram-term#subdirectory=baram-term` (retro-ui 의존성 해결 방법 포함)
 - [ ] PyInstaller 단독 실행 파일 (macOS .app/.dmg, Windows .exe, Linux AppImage)
 - [ ] GitHub Actions: 두 패키지 테스트(3 OS) + 태그 push 시 릴리스 빌드
+
+## 개선 메모 (급하지 않음)
+
+- 상태줄이 좁을 때 오른쪽 안내(`Ctrl-A Z 도움말 · F10 메뉴`)가 잘린다. 모드 표시(ECHO/TS/LOG/PLOT)가 늘수록 심해짐 → 공간이 모자라면 안내를 먼저 줄이거나 숨기기
 
 ## 라이브러리 남은 항목 (필요해질 때)
 
