@@ -14,7 +14,7 @@ import os
 import queue
 import threading
 import time
-from typing import Any, Callable
+from typing import Any, Callable, MutableMapping
 
 import pygame
 
@@ -80,6 +80,22 @@ def parse_shortcut(spec: str) -> tuple[Mod, int]:
     return mods, key
 
 
+def set_windows_dpi_hints(environ: MutableMapping[str, str], os_name: str) -> None:
+    """윈도우 화면 배율(125%·150%)에서 글자가 흐리지 않게 SDL 에 DPI 를 알린다.
+
+    DPI 를 모르는 앱은 윈도우가 100% 로 그린 화면을 늘려서 보여줘 흐려진다. `allow_high_dpi` 는 macOS 에만
+    효과가 있어서, 윈도우에서는 아래 힌트를 따로 줘야 한다.
+    - DPI_AWARENESS: 모니터마다 배율을 알린다 (모니터를 옮기면 창 크기 변경으로 다시 계산된다)
+    - DPI_SCALING: 창 좌표는 배율 단위, 그리는 표면은 실제 픽셀로 받는다. macOS Retina 와 같은 모양이라
+      기존 배율 계산(표면 폭 / 창 폭)과 폰트 다시 열기가 그대로 동작한다
+    사용자가 환경변수로 직접 준 값은 건드리지 않는다 (예: SDL_WINDOWS_DPI_AWARENESS=unaware 로 끄기).
+    """
+    if os_name != "nt":
+        return
+    environ.setdefault("SDL_WINDOWS_DPI_AWARENESS", "permonitorv2")
+    environ.setdefault("SDL_WINDOWS_DPI_SCALING", "1")
+
+
 class App:
     def __init__(
         self,
@@ -101,6 +117,7 @@ class App:
         # macOS 에서 비활성 창을 클릭하면 SDL 은 기본으로 창 활성화에만 쓰고 클릭을 버린다.
         # 첫 클릭이 "안 먹는" 것처럼 보이므로 클릭도 함께 전달한다
         os.environ.setdefault("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1")
+        set_windows_dpi_hints(os.environ, os.name)  # SDL 비디오 초기화 전에 줘야 한다
         pygame.init()
         self.theme = get_theme(theme)
         self.fps = fps
