@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import codecs
+from dataclasses import replace
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -12,6 +13,7 @@ from retroui import (
     Button,
     CheckBox,
     ComboBox,
+    EditableComboBox,
     Dialog,
     FileDialog,
     GroupBox,
@@ -19,6 +21,7 @@ from retroui import (
     Label,
     LineEdit,
     Link,
+    ListPopup,
     Menu,
     MenuBar,
     MenuItem,
@@ -52,6 +55,16 @@ ENTER_CODES = {"cr": b"\r", "lf": b"\n", "crlf": b"\r\n"}
 BACKSPACE_CODES = {"bs": b"\x08", "del": b"\x7f"}
 RX_LF_MODES = ("crlf", "lf")
 REPO_URL = "https://github.com/chcbaram/baram-term"
+
+
+def _baud_text_ok(text: str) -> bool:
+    """속도 입력칸: 숫자만 (지우는 중인 빈 칸은 허용)."""
+    return text == "" or (text.isdigit() and len(text) <= 8)
+
+
+def _parse_baud(text: str) -> int | None:
+    text = text.strip()
+    return int(text) if text.isdigit() and int(text) > 0 else None
 
 # 복사/붙여넣기 단축키: macOS 는 Cmd, 그 외는 Ctrl+Shift (Ctrl+C/V 는 장치로 보내는 제어 문자라서)
 COPY_KEYS, PASTE_KEYS, SELECT_ALL_KEYS = (
@@ -130,8 +143,11 @@ class BaramTerm:
         self.frame = GroupBox("", self.terminal, stretch=1)
 
         self.st_led = Label("○", bold=True)
-        self.st_port = Label("")
-        self.st_serial = Label("", fg="dim")
+        # 포트/속도는 누르면 바로 위에 목록이 열린다. 8N1 은 설정 항목이 여러 개라 포트 설정 창을 연다
+        self._status_popup: ListPopup | None = None
+        self.st_port = Label("", on_click=self.open_port_menu)
+        self.st_baud = Label("", fg="dim", on_click=self.open_baud_menu)
+        self.st_framing = Label("", fg="dim", on_click=self.open_port_dialog)
         self.st_txrx = Label("TX· RX·")
         self.st_rate = Label("", fg="dim", min_size=(9, 1))
         # 켜진 모드가 없으면 칸과 앞 구분선을 함께 숨긴다 (빈 칸 뒤에 │ 만 남지 않게)
@@ -143,7 +159,7 @@ class BaramTerm:
             return Label("│", fg="dim")
 
         status = HBox(
-            self.st_led, self.st_port, sep(), self.st_serial, sep(), self.st_txrx, sep(), self.st_rate, self.st_flags_sep,
+            self.st_led, self.st_port, sep(), self.st_baud, self.st_framing, sep(), self.st_txrx, sep(), self.st_rate, self.st_flags_sep,
             self.st_flags, Spacer(), self.st_hint, spacing=1,
         )
         self.menu = self._build_menu()
@@ -491,6 +507,94 @@ class BaramTerm:
             self.config.commands[self.settings.port] = list(commands)
             self._save()
 
+    # ---- status bar quick switch ---------------------------------------
+
+    def open_port_menu(self) -> ListPopup | None:
+        return self._open_status_popup(self.st_port, self._port_choices(), self.settings.port, self.switch_port)
+
+    def open_baud_menu(self) -> ListPopup | None:
+        current = str(self.settings.baud)
+        rates = sorted({*BAUD_RATES, current}, key=int)
+        items = [*rates, tr("status.custom_baud")]
+
+        def choose(item: str) -> None:
+            if item in rates:
+                self.switch_baud(int(item))
+            else:
+                self.ask_custom_baud()
+
+        return self._open_status_popup(self.st_baud, items, current, choose)
+
+    def _open_status_popup(
+        self, anchor: Label, items: list[str], current: str, choose: Callable[[str], None]
+    ) -> ListPopup | None:
+        popup = self._status_popup
+        if popup is not None and popup.is_open:
+            popup.close()
+            self._status_popup = None
+            if popup.owner is anchor:
+                return None  # 같은 글자를 다시 누르면 닫기만
+        app = self.app
+        app.ensure_layout()
+        popup = ListPopup(items, items.index(current) if current in items else 0, on_choose=lambda i: choose(items[i]), visible_rows=12)
+        popup.owner = anchor
+        popup._app = app
+        hint = popup.effective_hint()
+        # 목록 글자가 상태줄 글자와 같은 열에서 시작하게 (상자 테두리 + 여백 2칸), 상태줄 바로 위에
+        app.open_popup(popup, anchor.rect.x - 2, anchor.rect.y - hint.pref_h)
+        self._status_popup = popup
+        return popup
+
+    def switch_port(self, port: str) -> None:
+        if port == self.settings.port and self.port.is_open:
+            return
+        self._remember_port(port)
+        self.settings = replace(self.settings, port=port)
+        self._stop_reconnect()
+        self.completer.close()
+        self.port.close()
+        self._save()
+        self.connect()
+
+    def switch_baud(self, baud: int) -> None:
+        if baud <= 0 or baud == self.settings.baud:
+            return
+        self.settings = replace(self.settings, baud=baud)
+        if self.port.is_open:
+            try:
+                self.port.set_baud(baud)
+            except Exception:
+                self.port.close()  # 열린 채 속도를 바꾸지 못하는 장치: 새 속도로 다시 연다
+                self.connect()
+            else:
+                self.notice(tr("notice.baud_changed", port=self.settings.port, serial=self.settings.summary))
+        self._save()
+        self._update_status()
+
+    def ask_custom_baud(self) -> Dialog:
+        edit = LineEdit(str(self.settings.baud), validator=_baud_text_ok, min_size=(12, 1))
+
+        def done(index: int) -> None:
+            if index != 0:
+                return
+            baud = _parse_baud(edit.text)
+            if baud is None:
+                self.notice(tr("notice.bad_baud", text=edit.text), error=True)
+                return
+            self.switch_baud(baud)
+
+        dialog = Dialog(
+            tr("dialog.baud.title"),
+            HBox(Label(tr("dialog.port.baud")), edit, spacing=1),
+            (tr("button.ok"), tr("button.cancel")),
+            on_result=done,
+        )
+        dialog.edit = edit
+        dialog.open(self.app)
+        self.app.set_focus(edit)
+        edit.select_all()
+        return dialog
+
     RECENT_PORTS_MAX = 8
 
     def _port_choices(self) -> list[str]:
@@ -530,7 +634,8 @@ class BaramTerm:
 
         # 박스 버튼은 3줄이라 한 줄짜리로: 포트 줄 높이를 늘리지 않는다
         refresh_button = Button(tr("dialog.port.refresh"), on_click=refresh, style="fill")
-        baud_cb = combo(BAUD_RATES, str(s.baud))
+        # 목록에 없는 속도(250000 등)는 직접 입력한다
+        baud_cb = EditableComboBox(BAUD_RATES, str(s.baud), validator=_baud_text_ok, min_size=(12, 1))
         bits_cb = combo(BYTESIZES, str(s.bytesize))
         parity_cb = combo(PARITIES, s.parity)
         stop_cb = combo(STOPBITS, stop)
@@ -564,11 +669,15 @@ class BaramTerm:
         def on_result(index: int) -> None:
             if index != 0:
                 return
+            baud = _parse_baud(baud_cb.text)
+            if baud is None:
+                self.notice(tr("notice.bad_baud", text=baud_cb.text), error=True)
+                return
             port = address.text.strip()
             self._remember_port(port)
             self.settings = PortSettings(
                 port=port,
-                baud=int(baud_cb.text),
+                baud=baud,
                 bytesize=int(bits_cb.text),
                 parity=parity_cb.text,
                 stopbits=float(stop_cb.text),
@@ -584,6 +693,7 @@ class BaramTerm:
         dialog = Dialog(tr("dialog.port.title"), body, (tr("button.ok"), tr("button.cancel")), on_result=on_result)
         dialog.port_combo, dialog.address, dialog.refresh_button = port_cb, address, refresh_button
         dialog.enter_combo, dialog.backspace_combo, dialog.rx_lf_combo = enter_cb, backspace_cb, rx_lf_cb
+        dialog.baud_combo = baud_cb
         dialog.open(self.app)
         return dialog
 
@@ -669,7 +779,8 @@ class BaramTerm:
             self.st_led.fg = led_fg
             self.st_led.invalidate()
         self.st_port.set_text(self.settings.port or tr("status.no_port"))
-        self.st_serial.set_text(self.settings.summary)
+        self.st_baud.set_text(str(self.settings.baud))
+        self.st_framing.set_text(self.settings.framing)
         tx = "●" if now - p.last_tx < _LED_HOLD_S else "·"
         rx = "●" if now - p.last_rx < _LED_HOLD_S else "·"
         self.st_txrx.set_text(f"TX{tx} RX{rx}")

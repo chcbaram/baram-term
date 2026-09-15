@@ -16,6 +16,7 @@ from retroui.widgets.label import Label
 
 class Link(Label):
     focusable = True
+    cursor = "hand"
 
     def __init__(self, text: str, url: str | None = None, *, on_click: Callable[[str], None] | None = None, **kw):
         kw.setdefault("fg", "accent")

@@ -3,7 +3,7 @@
 from retroui.widgets.base import SizeHint, Widget
 from retroui.widgets.button import Button
 from retroui.widgets.checkbox import CheckBox
-from retroui.widgets.combobox import ComboBox, ListPopup
+from retroui.widgets.combobox import ComboBox, EditableComboBox, ListPopup
 from retroui.widgets.containers import Box, HBox, Spacer, VBox
 from retroui.widgets.dialog import Dialog, message_box
 from retroui.widgets.filedialog import FileDialog
@@ -20,6 +20,7 @@ from retroui.widgets.scrollbar import ScrollBar
 from retroui.widgets.terminal import HighlightRule, Terminal, TerminalScreen
 
 __all__ = [
+    "EditableComboBox",
     "Link",
     "FileDialog", "ListView",
     "Box", "Button", "CheckBox", "ComboBox", "Dialog", "Frame", "GroupBox", "HBox", "Label", "LineEdit",

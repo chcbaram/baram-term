@@ -10,7 +10,7 @@ from __future__ import annotations
 import queue
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Callable
 
 DEMO_PORT = "demo://"
@@ -30,9 +30,14 @@ class PortSettings:
     rx_lf: str = "crlf"  # crlf: 받은 LF 에 CR 도 적용 (LF 만 보내는 장치) | lf: 줄만 내림
 
     @property
-    def summary(self) -> str:
+    def framing(self) -> str:
+        """8N1 처럼 데이터 비트, 패리티, 정지 비트."""
         stop = str(int(self.stopbits)) if float(self.stopbits).is_integer() else str(self.stopbits)
-        return f"{self.baud} {self.bytesize}{self.parity}{stop}"
+        return f"{self.bytesize}{self.parity}{stop}"
+
+    @property
+    def summary(self) -> str:
+        return f"{self.baud} {self.framing}"
 
 
 def list_ports() -> list[str]:
@@ -118,6 +123,14 @@ class SerialPort:
                 th.join(timeout=1.0)
         self.device = None
         self._reader = self._writer = None
+
+    def set_baud(self, baud: int) -> None:
+        """열린 포트의 속도만 바꾼다. 다시 열지 않는다: USB CDC 보드는 포트를 다시 열 때 리셋되거나 끊길 수 있다."""
+        if self.device is None:
+            raise OSError("port is not open")
+        self.device.baudrate = baud  # pyserial 은 열린 포트에 바로 적용한다
+        if self.settings is not None:
+            self.settings = replace(self.settings, baud=baud)
 
     def write(self, data: bytes) -> bool:
         if not self.is_open or not data:

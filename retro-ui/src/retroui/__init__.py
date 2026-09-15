@@ -11,6 +11,7 @@ from retroui.widgets import (
     Button,
     CheckBox,
     ComboBox,
+    EditableComboBox,
     Dialog,
     FileDialog,
     Frame,
@@ -43,6 +44,7 @@ from retroui.widgets import (
 __version__ = "0.0.1"
 
 __all__ = [
+    "EditableComboBox",
     "Link", "set_language",
     "FileDialog", "ListView",
     "App", "BOX_STYLES", "Box", "Button", "CheckBox", "ComboBox", "Dialog", "Frame", "GroupBox", "HBox", "Key",

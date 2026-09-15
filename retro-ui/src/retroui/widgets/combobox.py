@@ -10,6 +10,7 @@ from retroui.core.wcwidth import str_width, truncate
 from retroui.input.events import Event, Key, KeyEvent, Mod, MouseEvent, WheelEvent
 from retroui.render.painter import Painter
 from retroui.widgets.base import SizeHint, Widget
+from retroui.widgets.lineedit import LineEdit
 from retroui.widgets.popup import Popup
 
 
@@ -258,3 +259,74 @@ class ComboBox(Widget):
                 return False
             return True
         return False
+
+
+class EditableComboBox(LineEdit):
+    """직접 입력도 되는 콤보박스 (통신 속도처럼 목록 밖 값도 받을 때).
+
+    오른쪽 ▼ 를 누르거나 ↓ / Alt+↓ 로 목록을 연다. 입력 제한은 LineEdit 의 validator 로 한다.
+    """
+
+    def __init__(self, items: Sequence[object] = (), text: str = "", *, visible_rows: int = 10, **kw):
+        kw.setdefault("stretch", 0)
+        super().__init__(text, **kw)
+        self.items = [str(i) for i in items]
+        self.visible_rows = visible_rows
+        self._popup: ListPopup | None = None
+
+    @property
+    def is_open(self) -> bool:
+        return self._popup is not None and self._popup.is_open
+
+    def size_hint(self) -> SizeHint:
+        w = max([str_width(i) for i in self.items] + [str_width(self.text), 4]) + 4
+        return SizeHint(6, 1, w, 1, max_h=1)
+
+    def open(self) -> None:
+        app = self.app
+        if app is None or not self.items or self.is_open:
+            return
+        index = self.items.index(self.text) if self.text in self.items else 0
+        popup = ListPopup(self.items, index, on_choose=self._chosen, visible_rows=self.visible_rows)
+        popup.owner = self
+        popup._app = app
+        hint = popup.effective_hint()
+        w = max(self.rect.w, hint.pref_w)
+        h = hint.pref_h
+        y = self.rect.bottom if self.rect.bottom + h <= app.rows else self.rect.y - h
+        self._popup = popup
+        app.open_popup(popup, self.rect.x, y, w, h)
+
+    def close(self) -> None:
+        if self._popup is not None:
+            self._popup.close()
+            self._popup = None
+
+    def _chosen(self, index: int) -> None:
+        self.set_text(self.items[index])
+
+    def paint(self, p: Painter) -> None:
+        # 글자 칸은 ▼ 두 칸을 뺀 폭으로 그린다 (LineEdit 는 rect 폭으로 스크롤/캐럿을 계산한다)
+        full = self.rect
+        self.rect = Rect(full.x, full.y, max(1, full.w - 2), full.h)
+        try:
+            super().paint(p)
+        finally:
+            self.rect = full
+        pal = self.palette
+        fg = pal.input_fg if self.enabled else pal.disabled
+        if full.w >= 3:
+            p.fill(Rect(full.w - 2, 0, 2, full.h), " ", fg, pal.input_bg)
+            p.put(full.w - 2, 0, "▼", fg, pal.input_bg)
+
+    def on_event(self, ev: Event) -> bool:
+        if isinstance(ev, MouseEvent) and ev.kind == "down" and ev.button == 1 and ev.cx >= self.rect.right - 2:
+            if self.is_open:
+                self.close()
+            else:
+                self.open()
+            return True
+        if isinstance(ev, KeyEvent) and ev.key == Key.DOWN and (not ev.mod or ev.alt):
+            self.open()
+            return True
+        return super().on_event(ev)

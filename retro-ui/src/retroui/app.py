@@ -150,6 +150,7 @@ class App:
         self._text_input_active = False
         self._text_input_rect: tuple[int, int, int, int] | None = None
         self._key_hooks: list[Widget] = []
+        self._cursor: int | None = None
         self._damage: Rect | None = None
         self._layout_needed = True
         self._pixel_widgets: list[PixelWidget] = []
@@ -608,6 +609,7 @@ class App:
                         w.hovered = state
                         w.invalidate()
                 self._hover = under
+                self._update_cursor(under)
             if self._capture is not None:
                 self._capture.on_event(ev)
             else:
@@ -657,6 +659,18 @@ class App:
             captured.on_event(ev)
         else:
             self._bubble(under, ev)
+
+    def _update_cursor(self, widget: Widget | None) -> None:
+        """누를 수 있는 글자(링크, 상태줄 항목) 위에서는 손가락 커서."""
+        if self.window is None:
+            return
+        want = pygame.SYSTEM_CURSOR_HAND if getattr(widget, "cursor", None) == "hand" else pygame.SYSTEM_CURSOR_ARROW
+        if want != self._cursor:
+            try:
+                pygame.mouse.set_cursor(want)
+                self._cursor = want
+            except pygame.error:
+                pass
 
     def _release_pointer(self) -> None:
         if self._capture is not None:
