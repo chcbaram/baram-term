@@ -55,7 +55,7 @@ def test_held_text_is_released_after_timeout_or_force():
     assert f.flush() == ""
     clock[0] = 0.25
     assert f.flush() == "> " and not f.holding
-    f.feed("12")
+    assert f.feed("\r\n12") == ("\r\n", [])
     assert f.flush(force=True) == "12"
 
 
@@ -63,3 +63,39 @@ def test_non_plot_line_that_looked_like_plot_passes_whole():
     f, _ = make()
     assert f.feed("ax") == ("", [])
     assert f.feed(" is ok!\r\n") == ("ax is ok!\r\n", [])
+
+
+def test_echo_after_prompt_is_not_held():
+    # 프롬프트 뒤에 치는 글자의 에코는 줄 처음이 아니라서 바로 보낸다 (입력이 늦게 보이지 않게)
+    f, _ = make()
+    assert f.feed("\r\ncli# ") == ("\r\ncli# ", [])
+    for ch in "plot":
+        assert f.feed(ch) == (ch, [])
+    assert f.feed("\r\n") == ("\r\n", [])
+    assert f.feed("te") == ("", [])  # 새 줄 처음은 다시 기다린다
+
+
+def test_continuation_of_shown_text_is_never_a_plot_line():
+    f, _ = make()
+    assert f.feed("cli# ") == ("cli# ", [])
+    assert f.feed("12 34\r\n") == ("12 34\r\n", [])
+
+
+def test_carriage_return_after_prompt_starts_a_new_line():
+    # 프롬프트가 보인 뒤 펌웨어가 줄을 지우고(\r\x1b[K) 값을 찍고 프롬프트를 다시 그린다
+    f, _ = make()
+    assert f.feed("cli# ") == ("cli# ", [])
+    assert f.feed("\r\x1b[K>ax:1\r\ncli# ") == ("\r\x1b[Kcli# ", [">ax:1"])
+    assert f.feed("\r\x1b[K>a") == ("", [])  # 지운 뒤 줄 처음이라 기다린다
+    assert f.feed("y:2\r\n") == ("\r\x1b[K", [">ay:2"])
+
+
+def test_expected_format_limits_what_is_held_and_accepted():
+    fmt = ["tele"]
+    f = PlotLineFilter(
+        clock=lambda: 0.0,
+        accept=lambda line: line.startswith(">"),
+        expected_format=lambda: fmt[0],
+    )
+    assert f.feed("p:34") == ("p:34", [])  # > 없는 조각은 기다리지 않는다
+    assert f.feed("\r\n>ax:1\r\np:34\r\n") == ("\r\np:34\r\n", [">ax:1"])

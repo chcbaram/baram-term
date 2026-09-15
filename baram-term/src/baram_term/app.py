@@ -45,7 +45,7 @@ from baram_term.highlight import default_rules
 from baram_term.icon import make_icon
 from baram_term.i18n import tr
 from baram_term.logger import LineCleaner, SessionLog, default_log_dir, log_filename
-from baram_term.plotdata import parse_line
+from baram_term.plotdata import parse_line, plot_format
 from baram_term.plotfilter import PlotLineFilter
 from baram_term.logo import banner
 from baram_term.search import SearchBar
@@ -202,7 +202,10 @@ class BaramTerm:
         )
         self.plot_frame = GroupBox("", VBox(plot_toolbar, self.plot, plot_footer), stretch=1, visible=self.config.plot)
         self._plot_lines = LineCleaner()
-        self.plot_filter = PlotLineFilter()
+        # 한 세션의 그래프 형식 (>name:value 또는 Arduino). 처음 받은 줄로 정하고 지우기로 푼다:
+        # 시작 직후 잘린 ">temp:34" 가 "p:34" 로 와도 새 시리즈를 만들지 않게
+        self._plot_format: str | None = None
+        self.plot_filter = PlotLineFilter(accept=self._plot_line_ok, expected_format=lambda: self._plot_format)
         self.plot_hide_lines = self.config.plot_hide_lines
         self._plot_series: dict[str, Any] = {}
         self.plot_clock: Callable[[], float] = time.monotonic
@@ -452,8 +455,16 @@ class BaramTerm:
         self._plot_lines = LineCleaner()  # 꺼져 있는 동안 받은 반쪽 줄을 이어 붙이지 않게
         self._save()
 
+    def _plot_line_ok(self, line: str) -> bool:
+        if parse_line(line) is None:
+            return False
+        fmt = plot_format(line)
+        if self._plot_format is None:
+            self._plot_format = fmt
+        return fmt == self._plot_format
+
     def _feed_plot(self, text: str) -> None:
-        self._add_plot_lines(self._plot_lines.feed(text))
+        self._add_plot_lines([line for line in self._plot_lines.feed(text) if self._plot_line_ok(line)])
 
     def _add_plot_lines(self, lines: list[str]) -> None:
         for line in lines:
@@ -498,6 +509,7 @@ class BaramTerm:
     def clear_plot(self) -> None:
         self.plot.clear_series()
         self._plot_series.clear()
+        self._plot_format = None
         self._plot_t0 = self.plot_clock()
         self.app.set_focus(self.terminal)
 

@@ -33,6 +33,11 @@ def _number(text: str) -> float | None:
     return value if math.isfinite(value) else None
 
 
+def plot_format(line: str) -> str:
+    """'tele' (>name:value) 또는 'arduino'."""
+    return "tele" if line.lstrip().startswith(">") else "arduino"
+
+
 def parse_line(line: str) -> list[tuple[str, float]] | None:
     """그래프 값 목록 [(이름, 값)], 그래프 줄이 아니면 None."""
     line = line.strip()

@@ -93,7 +93,7 @@ def test_split_chunks_and_log_lines(bt):
     bt._apply_plot(True)
     bt._feed_plot(">a")
     bt._feed_plot("x:1\r\n[OK] sensor temp=42 rpm=1\r\n>ax:2\r\n10 20\r\n")
-    assert counts(bt) == {"ax": 2, "value 1": 1, "value 2": 1}
+    assert counts(bt) == {"ax": 2}  # ">" 형식으로 시작했으니 Arduino 형식 "10 20" 은 받지 않는다
     assert list(bt._plot_series["ax"].buffer.snapshot()[1]) == [1.0, 2.0]
 
 
@@ -306,7 +306,9 @@ def test_plot_lines_hidden_from_terminal_while_prompt_stays(tmp_path):
     path = tmp_path / "settings.json"
     term = make(config=Settings(), config_path=path)
     try:
+        assert term.plot_hide_lines is False and not term.item_plot_hide.checked  # 기본은 끔
         term._apply_plot(True)
+        term._apply_plot_hide(True)
         term.connect()
         assert pump(term, lambda: term.terminal.screen.line_text(term.terminal.screen.cy) == "cli#")
         run_command(term, "plot")
@@ -339,3 +341,26 @@ def test_clear_button_clears_and_keeps_focus(bt):
     assert bt.plot_clear_button.rect.right <= bt.plot_run_button.rect.x  # STOP 왼쪽
     click(bt, bt.plot_clear_button)
     assert bt.plot.series == [] and bt.app.focus is bt.terminal
+
+
+def test_format_is_locked_until_clear(bt):
+    bt._apply_plot(True)
+    bt._feed_plot(">ax:1\r\np:34\r\n>ay:2\r\n")  # 잘린 ">temp:34" 가 "p:34" 로 온 경우
+    assert sorted(bt._plot_series) == ["ax", "ay"]
+    bt.clear_plot()
+    bt._feed_plot("p:34\r\n>ax:1\r\n")  # 지우면 새 형식으로 다시 시작
+    assert sorted(bt._plot_series) == ["p"]
+
+
+def test_typed_echo_is_not_delayed_while_hiding_plot_lines(bt):
+    bt._apply_plot(True)
+    bt._apply_plot_hide(True)
+    bt.connect()
+    scr = bt.terminal.screen
+    assert pump(bt, lambda: scr.line_text(scr.cy) == "cli#")
+    run_command(bt, "plot")
+    assert pump(bt, lambda: len(counts(bt)) == 4)
+    bt.app.dispatch(TextEvent("s"))
+    # 붙잡는 시간(0.2초)보다 훨씬 빨리 보여야 한다
+    assert pump(bt, lambda: scr.line_text(scr.cy) == "cli# s", timeout=0.1)
+    run_command(bt, "plot off")
