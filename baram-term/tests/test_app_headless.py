@@ -91,6 +91,7 @@ def test_typing_while_disconnected_shows_notice(bt):
 
 
 def test_device_unplug_is_reported(bt):
+    bt._apply_reconnect(False)  # 재연결은 test_persistence.py 에서 따로 확인
     bt.connect()
     assert pump(bt, lambda: "cli#" in screen(bt))
     bt.port.device.close()  # 장치 제거 흉내

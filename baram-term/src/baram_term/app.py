@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import codecs
 import time
+from pathlib import Path
 from typing import Any, Callable
 
 from retroui import (
@@ -32,6 +33,8 @@ from baram_term.icon import make_icon
 from baram_term.i18n import tr
 from baram_term.logo import banner
 from baram_term.serial_port import DEMO_PORT, PortSettings, SerialPort, list_ports, open_device
+from baram_term import settings as config_store
+from baram_term.settings import Settings
 
 BAUD_RATES = ("9600", "19200", "38400", "57600", "115200", "230400", "460800", "921600", "1000000", "2000000")
 BYTESIZES = ("8", "7", "6", "5")
@@ -68,8 +71,14 @@ class BaramTerm:
         size: tuple[int, int] = (100, 32),
         headless: bool = False,
         opener: Callable[[PortSettings], Any] = open_device,
+        config: Settings | None = None,
+        config_path: Path | None = None,
     ):
         self.settings = settings
+        # config_path 가 없으면 설정을 파일에 쓰지 않는다 (테스트, 일회성 실행)
+        self.config = config if config is not None else Settings()
+        self.config_path = config_path
+        self._save_error_shown = False
         self.app = App(
             title="baram-term",
             size=size,
@@ -85,8 +94,10 @@ class BaramTerm:
             opener=opener,
         )
         self.decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
-        self.local_echo = False
-        self.guard_controls = True
+        self.local_echo = self.config.local_echo
+        self.guard_controls = self.config.guard_controls
+        self.auto_reconnect = self.config.auto_reconnect
+        self._reconnect_timer = None
         self._prefix = False
         self._last_not_connected = 0.0
         self._rate_prev = (time.monotonic(), 0, 0)
@@ -96,6 +107,10 @@ class BaramTerm:
         self.terminal.rules = default_rules()
         self.terminal.send.connect(self.send)
         self.completer = Completer(self)
+        self.completer.enabled = self.config.completion
+        self.completer.on_learned = self._on_commands_learned
+        if self.config.timestamps:
+            self.terminal.set_show_timestamps(True)
         # 포트 이름은 오른쪽에: 왼쪽에 두면 바로 위 메뉴바와 붙어 메뉴의 일부처럼 읽힌다
         self.frame = GroupBox(self._frame_title(), self.terminal, stretch=1, title_align="right")
 
@@ -128,10 +143,11 @@ class BaramTerm:
     # ---- UI construction -----------------------------------------------
 
     def _build_menu(self) -> MenuBar:
-        self.item_echo = MenuItem(tr("menu.view.echo"), lambda: self._apply_echo(self.item_echo.checked), key="E", checked=False)
-        self.item_ts = MenuItem(tr("menu.view.timestamps"), lambda: self._apply_timestamps(self.item_ts.checked), key="N", checked=False)
-        self.item_complete = MenuItem(tr("menu.view.complete"), lambda: self._apply_complete(self.item_complete.checked), key="T", checked=True)
-        self.item_guard = MenuItem(tr("menu.view.guard"), lambda: self._apply_guard(self.item_guard.checked), key="G", checked=True)
+        self.item_echo = MenuItem(tr("menu.view.echo"), lambda: self._apply_echo(self.item_echo.checked), key="E", checked=self.local_echo)
+        self.item_ts = MenuItem(tr("menu.view.timestamps"), lambda: self._apply_timestamps(self.item_ts.checked), key="N", checked=self.terminal.show_timestamps)
+        self.item_complete = MenuItem(tr("menu.view.complete"), lambda: self._apply_complete(self.item_complete.checked), key="T", checked=self.completer.enabled)
+        self.item_guard = MenuItem(tr("menu.view.guard"), lambda: self._apply_guard(self.item_guard.checked), key="G", checked=self.guard_controls)
+        self.item_reconnect = MenuItem(tr("menu.view.reconnect"), lambda: self._apply_reconnect(self.item_reconnect.checked), key="A", checked=self.auto_reconnect)
         return MenuBar(
             [
                 Menu(
@@ -159,6 +175,7 @@ class BaramTerm:
                         self.item_ts,
                         self.item_complete,
                         self.item_guard,
+                        self.item_reconnect,
                         MenuItem(tr("menu.view.clear"), self.clear, shortcut="Ctrl-A C", key="C"),
                         MenuItem.sep(),
                         MenuItem(tr("menu.view.bigger"), lambda: self.zoom(+1), shortcut="Primary+="),
@@ -197,18 +214,56 @@ class BaramTerm:
         if not self.settings.port:
             self.open_port_dialog()
             return
-        try:
-            self.port.open(self.settings)
-        except Exception as e:
-            self.notice(tr("notice.open_failed", port=self.settings.port, error=e), error=True)
-            self._update_status()
+        self._stop_reconnect()
+        if not self._open_port():
+            # 보드가 아직 안 꽂혔거나 리셋 중이면 기다렸다가 붙는다
+            if self.auto_reconnect:
+                self._start_reconnect()
             return
-        self.decoder.reset()
-        self.frame.set_title(self._frame_title())
         self.notice(tr("notice.connected", port=self.settings.port, serial=self.settings.summary))
         self._update_status()
 
+    def _open_port(self, quiet: bool = False) -> bool:
+        try:
+            self.port.open(self.settings)
+        except Exception as e:
+            if not quiet:
+                self.notice(tr("notice.open_failed", port=self.settings.port, error=e), error=True)
+            self._update_status()
+            return False
+        self.decoder.reset()
+        self.frame.set_title(self._frame_title())
+        self._load_commands()
+        self._save()
+        return True
+
+    # 재연결 시도 주기. USB CDC 장치가 리셋 후 다시 나타나는 데 보통 1초 안팎이 걸린다
+    RECONNECT_INTERVAL_MS = 1000
+
+    def _start_reconnect(self) -> None:
+        if self._reconnect_timer is not None:
+            return
+        self.notice(tr("notice.reconnecting", port=self.settings.port))
+        self._reconnect_timer = self.app.set_interval(self.RECONNECT_INTERVAL_MS, self._try_reconnect)
+        self._update_status()
+
+    def _stop_reconnect(self) -> None:
+        if self._reconnect_timer is not None:
+            self._reconnect_timer.stop()
+            self._reconnect_timer = None
+            self._update_status()
+
+    def _try_reconnect(self) -> None:
+        if self.port.is_open or not self.settings.port:
+            self._stop_reconnect()
+            return
+        if self._open_port(quiet=True):
+            self._stop_reconnect()
+            self.notice(tr("notice.reconnected", port=self.settings.port, serial=self.settings.summary))
+            self._update_status()
+
     def disconnect(self) -> None:
+        self._stop_reconnect()
         if self.port.is_open:
             self.completer.close()
             self.port.close()
@@ -238,31 +293,79 @@ class BaramTerm:
     def _apply_guard(self, on: bool) -> None:
         self.item_guard.checked = on
         self.guard_controls = on
+        self._save()
 
     def _apply_complete(self, on: bool) -> None:
         self.item_complete.checked = on
         self.completer.enabled = on
+        self._save()
         if not on:
             self.completer.close()
 
     def zoom(self, delta: int) -> None:
         self.app.set_font_size(max(8, min(40, self.app.fonts.size + delta)))
+        self._save()
 
     def quit(self) -> None:
+        self._stop_reconnect()
+        self._save()
         self.port.close()
         self.app.quit()
 
     def _apply_echo(self, on: bool) -> None:
         self.local_echo = on
         self.item_echo.checked = on
+        self._save()
         self.notice(tr("notice.echo", state=tr("state.on" if on else "state.off")))
         self._update_status()
 
     def _apply_timestamps(self, on: bool) -> None:
         self.item_ts.checked = on
         self.terminal.set_show_timestamps(on)
+        self._save()
         self.notice(tr("notice.timestamps", state=tr("state.on" if on else "state.off")))
         self._update_status()
+
+    def _apply_reconnect(self, on: bool) -> None:
+        self.item_reconnect.checked = on
+        self.auto_reconnect = on
+        if not on:
+            self._stop_reconnect()
+        self._save()
+
+    def _save(self) -> None:
+        c = self.config
+        s = self.settings
+        # demo:// 는 마지막 포트로 남기지 않는다: --demo 한 번 뒤 다음 실행이 demo 에 붙으면 헷갈린다
+        if s.port and s.port != DEMO_PORT:
+            c.port, c.baud, c.bytesize, c.parity, c.stopbits, c.flow = (
+                s.port, s.baud, s.bytesize, s.parity, float(s.stopbits), s.flow
+            )
+        c.local_echo = self.local_echo
+        c.timestamps = self.terminal.show_timestamps
+        c.completion = self.completer.enabled
+        c.guard_controls = self.guard_controls
+        c.auto_reconnect = self.auto_reconnect
+        c.font_size = self.app.fonts.size
+        c.cols, c.rows = self.app.cols, self.app.rows
+        if self.config_path is None:
+            return
+        try:
+            config_store.save(c, self.config_path)
+        except OSError as e:
+            if not self._save_error_shown:
+                self._save_error_shown = True
+                self.notice(tr("notice.settings_save_failed", error=e), error=True)
+
+    def _load_commands(self) -> None:
+        commands = self.config.commands.get(self.settings.port)
+        if commands:
+            self.completer.catalog.commands = list(commands)
+
+    def _on_commands_learned(self, commands: list[str]) -> None:
+        if self.settings.port:
+            self.config.commands[self.settings.port] = list(commands)
+            self._save()
 
     def open_port_dialog(self) -> None:
         ports = list_ports()
@@ -308,6 +411,7 @@ class BaramTerm:
                 stopbits=float(stop_cb.text),
                 flow=flow_cb.text,
             )
+            self._save()
             self.connect()
 
         Dialog(tr("dialog.port.title"), body, (tr("button.ok"), tr("button.cancel")), on_result=on_result).open(self.app)
@@ -363,8 +467,11 @@ class BaramTerm:
             self.completer.on_text(text)
 
     def _on_port_error(self, message: str) -> None:
+        self.completer.close()
         self.port.close()
         self.notice(tr("notice.port_error", error=message), error=True)
+        if self.auto_reconnect:
+            self._start_reconnect()
         self._update_status()
 
     def _update_status(self) -> None:
@@ -393,6 +500,8 @@ class BaramTerm:
             flags.append("ECHO")
         if self.terminal.show_timestamps:
             flags.append("TS")
+        if getattr(self, "_reconnect_timer", None) is not None:
+            flags.append(tr("status.reconnecting"))
         self.st_flags.set_text(" ".join(flags))
 
     def run(self) -> None:

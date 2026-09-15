@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import os
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from retroui import ListPopup
 from retroui.input.events import Key, KeyEvent
@@ -105,6 +105,8 @@ class Completer:
         self.catalog = CommandCatalog()
         self.enabled = True
         self.popup: ListPopup | None = None
+        # help 출력에서 명령 목록을 새로 배웠을 때 불린다 (포트별 저장용)
+        self.on_learned: Callable[[list[str]], None] | None = None
 
     @property
     def is_open(self) -> bool:
@@ -118,7 +120,10 @@ class Completer:
 
     def on_text(self, text: str) -> None:
         """장치에서 받은 글자. 명령 목록을 배우고, 열린 목록은 에코에 맞춰 갱신한다."""
+        before = self.catalog.commands
         self.catalog.feed(text)
+        if self.catalog.commands is not before and self.on_learned is not None:
+            self.on_learned(self.catalog.commands)
         if self.is_open:
             self.refresh()
 
