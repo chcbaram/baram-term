@@ -195,8 +195,14 @@ class App:
         self.request_layout()
         self.focus_next(1)
 
-    def open_popup(self, popup: Popup, x: int, y: int, w: int | None = None, h: int | None = None) -> None:
-        """팝업을 (x, y) 셀 위치에 연다. 크기는 size_hint 기준이고 화면 안으로 밀어 넣는다."""
+    def open_popup(
+        self, popup: Popup, x: int, y: int, w: int | None = None, h: int | None = None, *, focus: bool = True
+    ) -> None:
+        """팝업을 (x, y) 셀 위치에 연다. 크기는 size_hint 기준이고 화면 안으로 밀어 넣는다.
+
+        focus=False 면 포커스를 옮기지 않는다. 입력은 계속 원래 위젯으로 가고, 팝업은 목록만 보여준다
+        (자동완성 목록처럼 타이핑하면서 갱신되는 팝업).
+        """
         popup._app = self
         hint = popup.effective_hint()
         w = min(w or hint.pref_w, self.cols)
@@ -207,8 +213,22 @@ class App:
         self._popups.append(popup)
         popup._do_layout(Rect(x, y, w, h))
         self.invalidate(popup.outer_rect())
-        chain = [c for c in popup.iter_tree() if c.focusable and c.enabled]
-        self.set_focus(chain[0] if chain else None)
+        if focus:
+            chain = [c for c in popup.iter_tree() if c.focusable and c.enabled]
+            self.set_focus(chain[0] if chain else None)
+
+    def reposition_popup(self, popup: Popup, x: int, y: int, w: int | None = None, h: int | None = None) -> None:
+        """열린 팝업의 위치/크기를 바꾼다 (내용이 바뀌어 크기가 달라질 때)."""
+        if not any(p is popup for p in self._popups):
+            return
+        hint = popup.effective_hint()
+        w = min(w or hint.pref_w, self.cols)
+        h = min(h or hint.pref_h, self.rows)
+        x = max(0, min(x, self.cols - w))
+        y = max(0, min(y, self.rows - h))
+        self.invalidate(popup.outer_rect())
+        popup._do_layout(Rect(x, y, w, h))
+        self.invalidate(popup.outer_rect())
 
     def close_popup(self, popup: Popup) -> None:
         """popup 과 그 위에 쌓인 팝업들을 닫고, 열기 전 포커스로 되돌린다."""

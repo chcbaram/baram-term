@@ -57,6 +57,17 @@ class ListPopup(Popup):
             self._ensure_visible()
             self.invalidate()
 
+    def set_items(self, items: Sequence[str], keep: str | None = None) -> None:
+        """목록을 바꾼다. keep 이 새 목록에 있으면 그 항목을 계속 선택한다."""
+        self.items = [str(i) for i in items]
+        if keep is not None and keep in self.items:
+            self.selected = self.items.index(keep)
+        else:
+            self.selected = 0 if self.items else -1
+        self.top = 0
+        self._ensure_visible()
+        self.invalidate()
+
     def choose(self, index: int) -> None:
         self.close()
         if self.on_choose is not None and 0 <= index < len(self.items):

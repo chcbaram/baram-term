@@ -25,6 +25,7 @@ from retroui import (
 from retroui.input.events import IS_MAC, Key, KeyEvent
 
 from baram_term import __version__
+from baram_term.completion import Completer
 from baram_term.highlight import default_rules
 from baram_term.icon import make_icon
 from baram_term.i18n import tr
@@ -92,6 +93,7 @@ class BaramTerm:
         self.terminal = Terminal(max_lines=5000, scrollbar=True)
         self.terminal.rules = default_rules()
         self.terminal.send.connect(self.send)
+        self.completer = Completer(self)
         # 포트 이름은 오른쪽에: 왼쪽에 두면 바로 위 메뉴바와 붙어 메뉴의 일부처럼 읽힌다
         self.frame = GroupBox(self._frame_title(), self.terminal, stretch=1, title_align="right")
 
@@ -126,6 +128,7 @@ class BaramTerm:
     def _build_menu(self) -> MenuBar:
         self.item_echo = MenuItem(tr("menu.view.echo"), lambda: self._apply_echo(self.item_echo.checked), key="E", checked=False)
         self.item_ts = MenuItem(tr("menu.view.timestamps"), lambda: self._apply_timestamps(self.item_ts.checked), key="N", checked=False)
+        self.item_complete = MenuItem(tr("menu.view.complete"), lambda: self._apply_complete(self.item_complete.checked), key="T", checked=True)
         return MenuBar(
             [
                 Menu(
@@ -151,6 +154,7 @@ class BaramTerm:
                     [
                         self.item_echo,
                         self.item_ts,
+                        self.item_complete,
                         MenuItem(tr("menu.view.clear"), self.clear, shortcut="Ctrl-A C", key="C"),
                         MenuItem.sep(),
                         MenuItem(tr("menu.view.bigger"), lambda: self.zoom(+1), shortcut="Primary+="),
@@ -202,6 +206,7 @@ class BaramTerm:
 
     def disconnect(self) -> None:
         if self.port.is_open:
+            self.completer.close()
             self.port.close()
             self.notice(tr("notice.disconnected"))
         self._update_status()
@@ -218,7 +223,14 @@ class BaramTerm:
             self.terminal.feed(data.decode("utf-8", errors="replace").replace("\r", "\r\n"))
 
     def clear(self) -> None:
+        self.completer.close()
         self.terminal.clear()
+
+    def _apply_complete(self, on: bool) -> None:
+        self.item_complete.checked = on
+        self.completer.enabled = on
+        if not on:
+            self.completer.close()
 
     def zoom(self, delta: int) -> None:
         self.app.set_font_size(max(8, min(40, self.app.fonts.size + delta)))
@@ -328,12 +340,14 @@ class BaramTerm:
             self._prefix = True
             self._update_status()
             return True
-        return False
+        return self.completer.handle_key(ev)
 
     def _on_rx(self) -> None:
         data = self.port.take()
         if data:
-            self.terminal.feed(self.decoder.decode(data))
+            text = self.decoder.decode(data)
+            self.terminal.feed(text)
+            self.completer.on_text(text)
 
     def _on_port_error(self, message: str) -> None:
         self.port.close()

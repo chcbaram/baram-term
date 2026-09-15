@@ -48,6 +48,7 @@ class FakeCliDevice:
             "INFO": self._cmd_info,
             "LOG": self._cmd_log,
             "SENSOR": self._cmd_sensor,
+            "STATUS": self._cmd_status,
             "RESET": self._cmd_reset,
         }
         if boot:
@@ -227,6 +228,9 @@ class FakeCliDevice:
         for i in range(5):
             lines.append(f"temp={42.0 + self._rng.uniform(-1, 1):.1f} rpm={1200 + self._rng.randint(-50, 50)}\r\n")
         return "".join(lines)
+
+    def _cmd_status(self, args: list[str]) -> str:
+        return f"Uptime  : {self._uptime_ms()} ms\r\nHistory : {len(self.history)}\r\n"
 
     def _cmd_reset(self, args: list[str]) -> str:
         self._t0 = self.clock()

@@ -7,6 +7,7 @@
   "menu.view": "&View",
   "menu.view.echo": "Local echo",
   "menu.view.timestamps": "Timestamps",
+  "menu.view.complete": "Command completion (Tab)",
   "menu.view.clear": "Clear screen",
   "menu.view.bigger": "Larger font",
   "menu.view.smaller": "Smaller font",
@@ -31,6 +32,7 @@
   "notice.not_connected": "not connected · press Ctrl-A O to choose a port",
   "notice.echo": "local echo {state}",
   "notice.timestamps": "timestamps {state}",
+  "notice.no_commands": "no command list yet · run help once to enable Tab completion",
   "state.on": "on",
   "state.off": "off",
   "dialog.port.title": "Port settings",
@@ -44,7 +46,7 @@
   "button.cancel": "Cancel",
   "button.close": "Close",
   "help.title": "Key bindings",
-  "help.body": "Ctrl-A O   port settings\nCtrl-A D   disconnect\nCtrl-A R   reconnect\nCtrl-A E   toggle local echo\nCtrl-A N   toggle timestamps\nCtrl-A C   clear screen\nCtrl-A X   quit\nCtrl-A Z   this help\nCtrl-A Ctrl-A   send Ctrl-A\n\ndrag / double-click   select text / word\n{copy}   copy · {paste}   paste\nShift+PgUp/PgDn, wheel, scroll bar   scroll\nF10   menu\nCmd/Ctrl +/-   font size",
+  "help.body": "Ctrl-A O   port settings\nCtrl-A D   disconnect\nCtrl-A R   reconnect\nCtrl-A E   toggle local echo\nCtrl-A N   toggle timestamps\nCtrl-A C   clear screen\nCtrl-A X   quit\nCtrl-A Z   this help\nCtrl-A Ctrl-A   send Ctrl-A\n\ndrag / double-click   select text / word\n{copy}   copy · {paste}   paste\nTab   complete command (after running help once)\nShift+PgUp/PgDn, wheel, scroll bar   scroll\nF10   menu\nCmd/Ctrl +/-   font size",
   "about.title": "About baram-term",
   "about.body": "baram-term {version}\nfirmware CLI serial terminal\n\nhttps://github.com/chcbaram/baram-term"
 }
