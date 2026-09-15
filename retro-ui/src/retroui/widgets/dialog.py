@@ -45,12 +45,21 @@ class Dialog(Popup):
         self.buttons = [Button(text, on_click=partial(self.finish, i)) for i, text in enumerate(buttons)]
         self.add(VBox(body, HBox(Spacer(), *self.buttons, spacing=2), spacing=1, margin=1))
 
+    def _fit_margins(self) -> None:
+        # 박스 버튼은 테두리 선을 셀 안쪽으로 당겨 그려(boxdraw.EDGE_INSET) 버튼 아래 칸이 이미 비어 보인다.
+        # 여기에 아래 여백 줄까지 두면 버튼 아래(약 2.2줄)가 위(1.7줄)보다 넓어 버튼이 떠 보인다.
+        # 한 줄 버튼은 아래 여백 1줄일 때 위아래(1.5줄)가 대칭이다
+        box_buttons = bool(self.buttons) and self.buttons[0].effective_style == "box"
+        self.children[0].margin = (1, 1, 1, 0) if box_buttons else 1
+
     def size_hint(self) -> SizeHint:
+        self._fit_margins()
         h = self.children[0].effective_hint()
         title_w = str_width(self.title) + 8
         return SizeHint(max(h.min_w + 2, title_w), h.min_h + 2, max(h.pref_w + 2, title_w), h.pref_h + 2)
 
     def layout_children(self) -> None:
+        self._fit_margins()
         self.children[0]._do_layout(self.rect.inset(1))
 
     def open(self, app) -> None:

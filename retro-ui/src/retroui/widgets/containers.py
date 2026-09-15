@@ -6,11 +6,13 @@ from retroui.core.geometry import Rect
 from retroui.core.layout import distribute
 from retroui.widgets.base import SizeHint, Widget
 
+Margin = int | tuple[int, int, int, int]  # 전체 또는 (left, top, right, bottom)
+
 
 class Box(Widget):
     horizontal = True
 
-    def __init__(self, *children: Widget | None, spacing: int = 0, margin: int = 0, align: str = "fill", **kw):
+    def __init__(self, *children: Widget | None, spacing: int = 0, margin: Margin = 0, align: str = "fill", **kw):
         super().__init__(**kw)
         self.spacing = spacing
         self.margin = margin
@@ -19,32 +21,41 @@ class Box(Widget):
             if c is not None:
                 self.add(c)
 
+    @property
+    def margins(self) -> tuple[int, int, int, int]:
+        m = self.margin
+        if isinstance(m, int):
+            return (m, m, m, m)
+        left, top, right, bottom = m
+        return (left, top, right, bottom)
+
     def _visible_children(self) -> list[Widget]:
         return [c for c in self.children if c.visible]
 
     def size_hint(self) -> SizeHint:
         hints = [c.effective_hint() for c in self._visible_children()]
         gap = self.spacing * max(0, len(hints) - 1)
-        m2 = self.margin * 2
+        left, top, right, bottom = self.margins
+        mw, mh = left + right, top + bottom
         if self.horizontal:
             return SizeHint(
-                sum(h.min_w for h in hints) + gap + m2,
-                max((h.min_h for h in hints), default=0) + m2,
-                sum(h.pref_w for h in hints) + gap + m2,
-                max((h.pref_h for h in hints), default=0) + m2,
+                sum(h.min_w for h in hints) + gap + mw,
+                max((h.min_h for h in hints), default=0) + mh,
+                sum(h.pref_w for h in hints) + gap + mw,
+                max((h.pref_h for h in hints), default=0) + mh,
             )
         return SizeHint(
-            max((h.min_w for h in hints), default=0) + m2,
-            sum(h.min_h for h in hints) + gap + m2,
-            max((h.pref_w for h in hints), default=0) + m2,
-            sum(h.pref_h for h in hints) + gap + m2,
+            max((h.min_w for h in hints), default=0) + mw,
+            sum(h.min_h for h in hints) + gap + mh,
+            max((h.pref_w for h in hints), default=0) + mw,
+            sum(h.pref_h for h in hints) + gap + mh,
         )
 
     def layout_children(self) -> None:
         kids = self._visible_children()
         if not kids:
             return
-        inner = self.rect.inset(self.margin)
+        inner = self.rect.inset(*self.margins)
         hints = [c.effective_hint() for c in kids]
         if self.horizontal:
             sizes = distribute(inner.w, [(h.min_w, h.pref_w, c.stretch) for c, h in zip(kids, hints)], self.spacing)

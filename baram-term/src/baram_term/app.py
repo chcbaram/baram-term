@@ -22,7 +22,7 @@ from retroui import (
     VBox,
     message_box,
 )
-from retroui.input.events import Key, KeyEvent
+from retroui.input.events import IS_MAC, Key, KeyEvent
 
 from baram_term import __version__
 from baram_term.highlight import default_rules
@@ -37,6 +37,10 @@ PARITIES = ("N", "E", "O", "M", "S")
 STOPBITS = ("1", "1.5", "2")
 FLOWS = ("none", "rtscts", "xonxoff")
 
+# 복사/붙여넣기 단축키: macOS 는 Cmd, 그 외는 Ctrl+Shift (Ctrl+C/V 는 장치로 보내는 제어 문자라서)
+COPY_KEYS, PASTE_KEYS, SELECT_ALL_KEYS = (
+    ("Primary+C", "Primary+V", "Primary+A") if IS_MAC else ("Ctrl+Shift+C", "Ctrl+Shift+V", "Ctrl+Shift+A")
+)
 # 창 가장자리 여백 (point). 메뉴/테두리/상태줄이 창에 딱 붙으면 답답해 보인다
 WINDOW_PADDING = 8
 # TX/RX 표시등을 켜 두는 시간. 상태줄 갱신 주기(100ms)보다 길어야 짧은 전송도 보인다
@@ -85,7 +89,7 @@ class BaramTerm:
         self._rate_prev = (time.monotonic(), 0, 0)
         self._rx_rate = 0.0
 
-        self.terminal = Terminal(max_lines=5000)
+        self.terminal = Terminal(max_lines=5000, scrollbar=True)
         self.terminal.rules = default_rules()
         self.terminal.send.connect(self.send)
         # 포트 이름은 오른쪽에: 왼쪽에 두면 바로 위 메뉴바와 붙어 메뉴의 일부처럼 읽힌다
@@ -132,6 +136,14 @@ class BaramTerm:
                         MenuItem(tr("menu.port.settings"), self.open_port_dialog, shortcut="Ctrl-A O", key="O"),
                         MenuItem.sep(),
                         MenuItem(tr("menu.port.quit"), self.quit, shortcut="Ctrl-A X", key="X"),
+                    ],
+                ),
+                Menu(
+                    tr("menu.edit"),
+                    [
+                        MenuItem(tr("menu.edit.copy"), self.terminal.copy_selection, shortcut=COPY_KEYS),
+                        MenuItem(tr("menu.edit.paste"), self.terminal.paste, shortcut=PASTE_KEYS),
+                        MenuItem(tr("menu.edit.select_all"), self.terminal.select_all, shortcut=SELECT_ALL_KEYS),
                     ],
                 ),
                 Menu(
@@ -276,7 +288,9 @@ class BaramTerm:
         Dialog(tr("dialog.port.title"), body, (tr("button.ok"), tr("button.cancel")), on_result=on_result).open(self.app)
 
     def show_help(self) -> None:
-        message_box(self.app, tr("help.title"), tr("help.body"), (tr("button.close"),))
+        copy = COPY_KEYS.replace("Primary", "Cmd")
+        paste = PASTE_KEYS.replace("Primary", "Cmd")
+        message_box(self.app, tr("help.title"), tr("help.body", copy=copy, paste=paste), (tr("button.close"),))
 
     def show_about(self) -> None:
         message_box(self.app, tr("about.title"), tr("about.body", version=__version__), (tr("button.close"),))

@@ -10,19 +10,20 @@
   "menu.view.clear": "Clear screen",
   "menu.view.bigger": "Larger font",
   "menu.view.smaller": "Smaller font",
+  "menu.edit": "&Edit",
+  "menu.edit.copy": "Copy",
+  "menu.edit.paste": "Paste",
+  "menu.edit.select_all": "Select all",
   "menu.help": "&Help",
   "menu.help.keys": "Key bindings",
   "menu.help.about": "About baram-term",
-
   "status.no_port": "no port",
   "status.hint": "Ctrl-A Z help · F10 menu",
   "status.prefix": "Ctrl-A…",
-
   "banner.tagline": "firmware CLI serial terminal",
   "banner.port": "port {port} · {serial}",
   "banner.no_port": "no port · press Ctrl-A O to choose one",
   "banner.keys": "Ctrl-A Z help · F10 menu",
-
   "notice.connected": "connected to {port} ({serial})",
   "notice.disconnected": "disconnected",
   "notice.open_failed": "failed to open {port}: {error}",
@@ -32,7 +33,6 @@
   "notice.timestamps": "timestamps {state}",
   "state.on": "on",
   "state.off": "off",
-
   "dialog.port.title": "Port settings",
   "dialog.port.port": "Port",
   "dialog.port.baud": "Baud",
@@ -40,14 +40,11 @@
   "dialog.port.parity": "Parity",
   "dialog.port.stopbits": "Stop bits",
   "dialog.port.flow": "Flow control",
-
   "button.ok": "OK",
   "button.cancel": "Cancel",
   "button.close": "Close",
-
   "help.title": "Key bindings",
-  "help.body": "Ctrl-A O   port settings\nCtrl-A D   disconnect\nCtrl-A R   reconnect\nCtrl-A E   toggle local echo\nCtrl-A N   toggle timestamps\nCtrl-A C   clear screen\nCtrl-A X   quit\nCtrl-A Z   this help\nCtrl-A Ctrl-A   send Ctrl-A\n\nShift+PgUp/PgDn, wheel   scroll\nF10   menu\nCmd/Ctrl +/-   font size",
-
+  "help.body": "Ctrl-A O   port settings\nCtrl-A D   disconnect\nCtrl-A R   reconnect\nCtrl-A E   toggle local echo\nCtrl-A N   toggle timestamps\nCtrl-A C   clear screen\nCtrl-A X   quit\nCtrl-A Z   this help\nCtrl-A Ctrl-A   send Ctrl-A\n\ndrag / double-click   select text / word\n{copy}   copy · {paste}   paste\nShift+PgUp/PgDn, wheel, scroll bar   scroll\nF10   menu\nCmd/Ctrl +/-   font size",
   "about.title": "About baram-term",
   "about.body": "baram-term {version}\nfirmware CLI serial terminal\n\nhttps://github.com/chcbaram/baram-term"
 }

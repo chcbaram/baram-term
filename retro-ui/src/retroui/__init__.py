@@ -24,6 +24,7 @@ from retroui.widgets import (
     PixelWidget,
     Popup,
     RingBuffer,
+    ScrollBar,
     Series,
     SizeHint,
     Spacer,
@@ -40,6 +41,6 @@ __version__ = "0.0.1"
 __all__ = [
     "App", "BOX_STYLES", "Box", "Button", "CheckBox", "ComboBox", "Dialog", "Frame", "GroupBox", "HBox", "Key",
     "Label", "LineEdit", "ListPopup", "LivePlot", "Menu", "MenuBar", "MenuItem", "Mod", "PixelWidget", "Popup",
-    "Rect", "RingBuffer", "Series", "Signal", "SizeHint", "Spacer", "THEMES", "Terminal", "TerminalScreen", "HighlightRule", "Theme", "VBox", "Widget",
+    "Rect", "RingBuffer", "ScrollBar", "Series", "Signal", "SizeHint", "Spacer", "THEMES", "Terminal", "TerminalScreen", "HighlightRule", "Theme", "VBox", "Widget",
     "get_theme", "message_box",
 ]

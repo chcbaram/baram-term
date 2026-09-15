@@ -16,6 +16,7 @@ from retroui.core.geometry import Rect
 from retroui.core.signal import Signal
 from retroui.core.wcwidth import char_width
 from retroui.input.events import (
+    IS_MAC,
     CompositionEvent,
     Event,
     Key,
@@ -32,7 +33,8 @@ from retroui.theme import (
     LIGHT_MAGENTA, LIGHT_RED, MAGENTA, RED, WHITE, YELLOW,
 )
 from retroui.widgets.base import RGB, SizeHint, Widget
-from retroui.widgets.lineedit import clipboard_get
+from retroui.widgets.lineedit import clipboard_get, clipboard_put
+from retroui.widgets.scrollbar import ScrollBar
 
 # ---- screen model ----------------------------------------------------------
 
@@ -421,6 +423,7 @@ class Terminal(Widget):
         show_timestamps: bool = False,
         enter: bytes = b"\r",
         backspace: bytes = b"\x08",
+        scrollbar: bool = False,
         stretch: int = 1,
         clock: Callable[[], float] = time.time,
         **kw,
@@ -434,6 +437,16 @@ class Terminal(Widget):
         self.rules: list[HighlightRule] = []
         self.send = Signal()  # bytes: 키 입력을 장치로 보낼 때
         self.scroll_offset = 0
+        # 오른쪽 한 칸 스크롤바 (자식 위젯이라 마우스는 스크롤바가 받고, 포커스는 터미널에 남는다)
+        self.scrollbar: ScrollBar | None = None
+        if scrollbar:
+            self.scrollbar = ScrollBar(on_scroll=self._on_scrollbar)
+            self.add(self.scrollbar)
+        # 선택: (절대 줄 번호, 열). 절대 줄 번호 = lines 인덱스 + dropped 라서 스크롤백이 잘려도 같은 글자를 가리킨다
+        self._sel_anchor: tuple[int, int] | None = None
+        self._sel_end: tuple[int, int] | None = None
+        self._sel_active = False
+        self._selecting = False
 
     # ---- data ----------------------------------------------------------
 
@@ -445,11 +458,15 @@ class Terminal(Widget):
             # 스크롤해서 과거를 보는 중에는 새 줄이 와도 보던 화면을 유지한다
             self.scroll_offset += len(scr.lines) + scr.dropped - before
             self._clamp_scroll()
+        self._sync_scrollbar()
         self.invalidate()
 
     def clear(self) -> None:
         self.screen.clear()
         self.scroll_offset = 0
+        self._sel_anchor = self._sel_end = None
+        self._sel_active = self._selecting = False
+        self._sync_scrollbar()
         self.invalidate()
 
     def set_show_timestamps(self, show: bool) -> None:
@@ -464,6 +481,20 @@ class Terminal(Widget):
     def scroll(self, delta: int) -> None:
         self.scroll_offset += delta
         self._clamp_scroll()
+        self._sync_scrollbar()
+        self.invalidate()
+
+    def _sync_scrollbar(self) -> None:
+        if self.scrollbar is None:
+            return
+        total = len(self.screen.lines)
+        page = max(1, self.rect.h)
+        self.scrollbar.set_range(total, page, max(0, total - page - self.scroll_offset))
+
+    def _on_scrollbar(self, pos: int) -> None:
+        total = len(self.screen.lines)
+        self.scroll_offset = max(0, total - max(1, self.rect.h) - pos)
+        self._clamp_scroll()
         self.invalidate()
 
     def _clamp_scroll(self) -> None:
@@ -475,10 +506,19 @@ class Terminal(Widget):
     def size_hint(self) -> SizeHint:
         return SizeHint(10, 3, 80, 24)
 
+    @property
+    def content_width(self) -> int:
+        return max(1, self.rect.w - (1 if self.scrollbar is not None else 0))
+
     def _do_layout(self, rect: Rect) -> None:
         super()._do_layout(rect)
-        self.screen.resize(max(1, rect.w - self.gutter), max(1, rect.h))
+        self.screen.resize(max(1, self.content_width - self.gutter), max(1, rect.h))
         self._clamp_scroll()
+        self._sync_scrollbar()
+
+    def layout_children(self) -> None:
+        if self.scrollbar is not None:
+            self.scrollbar._do_layout(Rect(self.rect.right - 1, self.rect.y, 1, self.rect.h))
 
     def _style_colors(self, style: tuple) -> tuple[RGB, RGB, int]:
         pal = self.palette
@@ -521,8 +561,11 @@ class Terminal(Widget):
         scr = self.screen
         w, h = self.rect.w, self.rect.h
         gutter = self.gutter
+        content_w = self.content_width
         p.fill(Rect(0, 0, w, h), " ", pal.fg, pal.bg)
         top = self.view_top()
+        sel = self.selection_range()
+        dropped = scr.dropped
 
         for row in range(h):
             li = top + row
@@ -537,7 +580,7 @@ class Terminal(Widget):
             for x, (ch, style) in enumerate(line):
                 if ch == WIDE_CONT:
                     continue
-                if gutter + x >= w:
+                if gutter + x >= content_w:
                     break
                 fg, bg, attr = self._style_colors(style)
                 mark = marks.get(x)
@@ -545,6 +588,9 @@ class Terminal(Widget):
                     fg = mark[0]
                     if mark[1]:
                         attr |= Attr.BOLD
+                if sel is not None and sel[0] <= (li + dropped, x) <= sel[1]:
+                    fg, bg = pal.sel_fg, pal.sel_bg
+                    attr &= ~Attr.REVERSE
                 p.put(gutter + x, row, ch, fg, bg, attr)
 
         if self.focused and scr.cursor_visible and self.scroll_offset == 0:
@@ -557,7 +603,98 @@ class Terminal(Widget):
 
         if self.scroll_offset:
             label = f" ↑{self.scroll_offset} "
-            p.text(max(0, w - len(label)), 0, label, pal.bg, pal.warn)
+            p.text(max(0, content_w - len(label)), 0, label, pal.bg, pal.warn)
+
+    # ---- selection -----------------------------------------------------
+
+    def _cell_at(self, cx: int, cy: int) -> tuple[int, int]:
+        scr = self.screen
+        row = max(0, min(cy - self.rect.y, self.rect.h - 1))
+        li = max(0, min(self.view_top() + row, len(scr.lines) - 1))
+        col = max(0, min(cx - self.rect.x - self.gutter, scr.cols - 1))
+        return li + scr.dropped, col
+
+    def selection_range(self) -> tuple[tuple[int, int], tuple[int, int]] | None:
+        if not self._sel_active or self._sel_anchor is None or self._sel_end is None:
+            return None
+        a, b = sorted((self._sel_anchor, self._sel_end))
+        return a, b
+
+    def clear_selection(self) -> None:
+        if self._sel_anchor is not None or self._sel_active:
+            self._sel_anchor = self._sel_end = None
+            self._sel_active = self._selecting = False
+            self.invalidate()
+
+    def select_all(self) -> None:
+        scr = self.screen
+        last = len(scr.lines) - 1
+        self._sel_anchor = (scr.dropped, 0)
+        self._sel_end = (scr.dropped + last, max(0, len(scr.lines[last]) - 1))
+        self._sel_active = True
+        self.invalidate()
+
+    def select_word(self, abs_line: int, col: int) -> None:
+        scr = self.screen
+        li = abs_line - scr.dropped
+        line = scr.lines[li] if 0 <= li < len(scr.lines) else []
+        if col < len(line) and line[col][0] == WIDE_CONT and col > 0:
+            col -= 1
+        if col >= len(line) or line[col][0] == " ":
+            self.clear_selection()
+            return
+        start = col
+        while start > 0 and line[start - 1][0] != " ":
+            start -= 1
+        end = col
+        while end + 1 < len(line) and line[end + 1][0] != " ":
+            end += 1
+        self._sel_anchor = (abs_line, start)
+        self._sel_end = (abs_line, end)
+        self._sel_active = True
+        self.invalidate()
+
+    def selected_text(self) -> str:
+        rng = self.selection_range()
+        if rng is None:
+            return ""
+        (l0, c0), (l1, c1) = rng
+        scr = self.screen
+        out = []
+        for abs_line in range(l0, l1 + 1):
+            li = abs_line - scr.dropped
+            if not 0 <= li < len(scr.lines):
+                continue
+            line = scr.lines[li]
+            start = c0 if abs_line == l0 else 0
+            end = c1 + 1 if abs_line == l1 else len(line)
+            if 0 < start < len(line) and line[start][0] == WIDE_CONT:
+                start -= 1  # 와이드 문자 오른쪽 절반에서 시작하면 글자 전체를 포함
+            out.append("".join(ch for ch, _ in line[start:end] if ch != WIDE_CONT).rstrip())
+        return "\n".join(out)
+
+    def copy_selection(self) -> bool:
+        text = self.selected_text()
+        if not text:
+            return False
+        clipboard_put(text)
+        return True
+
+    def paste(self) -> None:
+        text = clipboard_get().replace("\r\n", "\n").replace("\n", "\r")
+        self._send(text.encode("utf-8"))
+
+    @staticmethod
+    def clipboard_combo(ev: KeyEvent, key: int) -> bool:
+        """복사/붙여넣기/모두 선택 단축키. macOS 는 Cmd, 그 외는 Ctrl+Shift.
+
+        Windows/Linux 에서 Ctrl+C/V 는 장치로 보내는 제어 문자(^C 중단 등)라 Shift 를 더한 조합을 쓴다.
+        """
+        if ev.key != key:
+            return False
+        if IS_MAC:
+            return bool(ev.mod & Mod.META) and not ev.mod & (Mod.CTRL | Mod.ALT)
+        return bool(ev.mod & Mod.CTRL) and bool(ev.mod & Mod.SHIFT) and not ev.mod & Mod.ALT
 
     def caret_cell(self) -> tuple[int, int] | None:
         if not self.focused:
@@ -596,6 +733,7 @@ class Terminal(Widget):
         if data:
             if self.scroll_offset:
                 self.scroll_offset = 0
+                self._sync_scrollbar()
                 self.invalidate()
             self.send.emit(data)
 
@@ -611,12 +749,17 @@ class Terminal(Widget):
                 page = max(1, self.rect.h - 1)
                 self.scroll(page if k == Key.PAGEUP else -page)
                 return True
-            if ev.primary and k == Key.V:
-                text = clipboard_get().replace("\r\n", "\n").replace("\n", "\r")
-                self._send(text.encode("utf-8"))
+            if self.clipboard_combo(ev, Key.C):
+                self.copy_selection()
                 return True
-            if ev.primary and not ev.mod & Mod.CTRL:
-                return False  # Cmd 단축키는 앱으로 (macOS)
+            if self.clipboard_combo(ev, Key.V):
+                self.paste()
+                return True
+            if self.clipboard_combo(ev, Key.A):
+                self.select_all()
+                return True
+            if IS_MAC and ev.primary:
+                return False  # 그 밖의 Cmd 단축키는 앱으로 (글자 크기 등)
             seq = self.key_bytes(ev)
             if seq is not None:
                 self._send(seq)
@@ -626,5 +769,34 @@ class Terminal(Widget):
             self.scroll(int(round(ev.dy * 3)) or (1 if ev.dy > 0 else -1))
             return True
         if isinstance(ev, MouseEvent):
-            return ev.kind == "down" and ev.button == 1
+            if ev.kind == "down" and ev.button == 1:
+                pos = self._cell_at(ev.cx, ev.cy)
+                if ev.clicks >= 2:
+                    self.select_word(*pos)
+                    self._selecting = False
+                else:
+                    self._sel_anchor = self._sel_end = pos
+                    self._sel_active = False
+                    self._selecting = True
+                    self.invalidate()
+                return True
+            if ev.kind == "move" and self._selecting:
+                # 위/아래 밖으로 끌면 스크롤하면서 선택을 늘린다
+                if ev.cy < self.rect.y:
+                    self.scroll(1)
+                elif ev.cy >= self.rect.bottom:
+                    self.scroll(-1)
+                pos = self._cell_at(ev.cx, ev.cy)
+                if pos != self._sel_anchor:
+                    self._sel_active = True
+                if pos != self._sel_end:
+                    self._sel_end = pos
+                    self.invalidate()
+                return True
+            if ev.kind == "up" and ev.button == 1:
+                self._selecting = False
+                if not self._sel_active:
+                    self._sel_anchor = self._sel_end = None  # 끌지 않은 클릭은 선택 해제
+                self.invalidate()
+                return True
         return False
