@@ -43,7 +43,7 @@ from baram_term.completion import Completer, at_prompt
 from baram_term.outgoing import outgoing_bytes
 from baram_term.highlight import default_rules
 from baram_term.icon import make_icon
-from baram_term.i18n import tr
+from baram_term.i18n import language, tr
 from baram_term.logger import LineCleaner, SessionLog, default_log_dir, log_filename
 from baram_term.plotdata import parse_line, plot_format
 from baram_term.plotfilter import PlotLineFilter
@@ -63,6 +63,8 @@ ENTER_CODES = {"cr": b"\r", "lf": b"\n", "crlf": b"\r\n"}
 BACKSPACE_CODES = {"bs": b"\x08", "del": b"\x7f"}
 RX_LF_MODES = ("crlf", "lf")
 REPO_URL = "https://github.com/chcbaram/baram-term"
+# 언어 이름은 각 언어로 적는다: 화면이 어느 언어여도 자기 언어를 찾을 수 있게
+LANGUAGE_NAMES = {"ko": "한국어", "en": "English"}
 
 
 def _baud_text_ok(text: str) -> bool:
@@ -284,17 +286,30 @@ class BaramTerm:
             shortcut="Ctrl-A M", key="M", checked=self.config.macro_bar,
         )
         self.item_reconnect = MenuItem(tr("menu.view.reconnect"), lambda: self._apply_reconnect(self.item_reconnect.checked), key="A", checked=self.auto_reconnect)
+        # 체크는 "다음 실행부터 쓸 언어" (고르면 저장만 하고 화면은 다시 켤 때 바뀐다)
+        chosen = self.config.lang or language()
+        self.item_lang_ko = MenuItem(LANGUAGE_NAMES["ko"], lambda: self._choose_language("ko"), checked=chosen == "ko")
+        self.item_lang_en = MenuItem(LANGUAGE_NAMES["en"], lambda: self._choose_language("en"), checked=chosen == "en")
         return MenuBar(
             [
+                # 파일을 맨 앞에: 로그 저장·끝은 포트가 아니라 파일 메뉴에 있을 항목이고, 언어 선택도 여기에 둔다
+                Menu(
+                    tr("menu.file"),
+                    [
+                        MenuItem(tr("menu.file.log"), self.toggle_log, shortcut="Ctrl-A L", key="L"),
+                        MenuItem.sep(),
+                        self.item_lang_ko,
+                        self.item_lang_en,
+                        MenuItem.sep(),
+                        MenuItem(tr("menu.file.quit"), self.quit, shortcut="Ctrl-A X", key="X"),
+                    ],
+                ),
                 Menu(
                     tr("menu.port"),
                     [
                         MenuItem(tr("menu.port.connect"), self.connect, shortcut="Ctrl-A R", key="R"),
                         MenuItem(tr("menu.port.disconnect"), self.disconnect, shortcut="Ctrl-A D", key="D"),
                         MenuItem(tr("menu.port.settings"), self.open_port_dialog, shortcut="Ctrl-A O", key="O"),
-                        MenuItem(tr("menu.port.log"), self.toggle_log, shortcut="Ctrl-A L", key="L"),
-                        MenuItem.sep(),
-                        MenuItem(tr("menu.port.quit"), self.quit, shortcut="Ctrl-A X", key="X"),
                     ],
                 ),
                 Menu(
@@ -466,6 +481,20 @@ class BaramTerm:
     PLOT_MAX_SERIES = 12
 
     # ---- 매크로 막대 ----------------------------------------------------
+
+    def _choose_language(self, lang: str) -> None:
+        """화면 언어를 고른다. 메뉴와 라벨은 만들 때 번역되므로 저장만 하고 다음 실행부터 적용한다.
+
+        (바로 바꾸려면 스크롤백·연결·그래프 상태를 옮겨 담아 화면을 다시 만들어야 해서 하지 않았다)
+        """
+        # 체크 항목은 누를 때 먼저 뒤집히므로 둘 다 직접 맞춘다: 이미 고른 쪽을 다시 눌러도 꺼지지 않게
+        self.item_lang_ko.checked = lang == "ko"
+        self.item_lang_en.checked = lang == "en"
+        changed = lang != (self.config.lang or language())
+        self.config.lang = lang
+        self._save()
+        if changed and lang != language():
+            self.notice(tr("notice.lang_next_start", name=LANGUAGE_NAMES[lang]))
 
     def _apply_ascii_input(self, on: bool) -> None:
         """터미널 입력을 입력 언어와 무관하게 영문으로 (미국 배열 물리 키 기준). 한글로 쓰다 와도 바로 명령을 친다."""

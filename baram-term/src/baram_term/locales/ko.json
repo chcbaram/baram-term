@@ -1,10 +1,11 @@
 {
+  "menu.file": "파일(&F)",
   "menu.port": "포트(&P)",
   "menu.port.connect": "연결",
   "menu.port.disconnect": "끊기",
   "menu.port.settings": "포트 설정...",
-  "menu.port.log": "로그 저장 시작/중지...",
-  "menu.port.quit": "끝",
+  "menu.file.log": "로그 저장 시작/중지...",
+  "menu.file.quit": "끝",
   "menu.view": "보기(&V)",
   "menu.view.echo": "로컬 에코",
   "menu.view.timestamps": "타임스탬프",
@@ -105,5 +106,6 @@
   "dialog.macro.key": "키",
   "notice.macro_full": "매크로는 최대 {n}개입니다",
   "macro.add": "매크로 추가",
-  "menu.view.ascii_input": "터미널은 영문으로 입력"
+  "menu.view.ascii_input": "터미널은 영문으로 입력",
+  "notice.lang_next_start": "언어를 {name}(으)로 바꿨습니다 · 다음에 실행할 때부터 적용됩니다"
 }

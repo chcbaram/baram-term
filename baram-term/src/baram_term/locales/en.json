@@ -1,10 +1,11 @@
 {
+  "menu.file": "&File",
   "menu.port": "&Port",
   "menu.port.connect": "Connect",
   "menu.port.disconnect": "Disconnect",
   "menu.port.settings": "Port settings...",
-  "menu.port.log": "Start/stop log...",
-  "menu.port.quit": "Quit",
+  "menu.file.log": "Start/stop log...",
+  "menu.file.quit": "Quit",
   "menu.view": "&View",
   "menu.view.echo": "Local echo",
   "menu.view.timestamps": "Timestamps",
@@ -105,5 +106,6 @@
   "dialog.macro.key": "Key",
   "notice.macro_full": "at most {n} macros",
   "macro.add": "Add Macro",
-  "menu.view.ascii_input": "English-only terminal input"
+  "menu.view.ascii_input": "English-only terminal input",
+  "notice.lang_next_start": "Language set to {name} · takes effect the next time baram-term starts"
 }
