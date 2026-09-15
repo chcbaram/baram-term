@@ -35,7 +35,8 @@ Windows (PowerShell) 는 `.venv/bin/python` 대신 `.venv\Scripts\python.exe`, `
 ```
 
 - 같은 포트를 minicom 등 다른 프로그램이 열고 있으면 수신 데이터를 서로 나눠 가져간다. 먼저 닫는다.
-- 언어: `--lang ko|en`, 또는 환경 변수 `BARAM_TERM_LANG`, 없으면 시스템 로케일.
+- 언어: 기본은 영어. 파일 메뉴에서 한국어/English 를 고르면 저장돼 다음 실행부터 적용된다.
+  `--lang ko|en` 이나 환경 변수 `BARAM_TERM_LANG` 으로도 정한다 (시스템 로케일은 보지 않는다).
 - 설정 파일: macOS `~/Library/Application Support/baram-term/settings.json`, Windows `%APPDATA%\baram-term\settings.json`,
   Linux `~/.config/baram-term/settings.json`. `BARAM_TERM_CONFIG_DIR` 또는 `--config 파일` 로 바꾼다.
   동작이 이상하면 이 파일을 지우고 기본값으로 시작해 본다.

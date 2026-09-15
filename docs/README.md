@@ -74,6 +74,9 @@ baram-term/                 GitHub: https://github.com/chcbaram/baram-term
 - 입력 소스 전환을 Shift+Space 로 쓸 때 스페이스가 찍히던 문제를 고쳤다 (`retroui/input/mac_hotkeys.py`,
   `ImeFilter` 규칙 4). 실제 창에서 확인받음.
 - 터미널 영문 입력 옵션 (보기 메뉴, **기본 켜짐**). 한글 상태로 와도 명령이 영문으로 찍힌다. 실제 창에서 확인받음.
+- **Windows 11 에서 실행해 봤다**: 실행·스크롤은 정상. 글자가 흐렸다 → DPI 힌트를 넣었다 (확인 대기).
+  사용자가 "영문으로 바꾸는 메뉴가 없다" 고 한 것은 화면 언어 이야기였다 → 파일 메뉴를 맨 앞에 두고
+  한국어/English 를 넣었다 (다음 실행부터 적용).
 - 설정 파일 주의: 이전 버전으로 실행한 PC 는 `plot_hide_lines` 가 `true` 로 저장돼 있을 수 있다 (예전 기본값). 보기 메뉴에서 한 번 끄면 된다.
 
 ## 작업 방식 (Claude Code 와 작업할 때)

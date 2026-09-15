@@ -48,5 +48,6 @@
 
 - SpinBox, Table/Tree(가상화, 칸 편집), ScrollArea, Tabs
 - 플롯 확대/이동/십자선
-- Windows/Linux 확인: 한글 IME 이벤트 기록, Windows DPI 설정(`SDL_WINDOWS_DPI_AWARENESS`), Linux IME(IBus/Fcitx)
+- Windows/Linux 확인: 한글 IME 이벤트 기록, Linux IME(IBus/Fcitx)
+  (Windows 11 에서 실행·스크롤 확인함. DPI 힌트를 넣었고 선명해졌는지 확인 대기)
 - 둥근모 폰트 포함 여부 (라이선스 출처 확인 후)

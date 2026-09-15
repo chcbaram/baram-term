@@ -34,7 +34,7 @@
 - **보드 없이 시험** — `--demo` 로 내장 가짜 펌웨어에 붙는다
 - **멀티 플랫폼** — macOS · Windows · Linux 에서 같은 코드로 돌고 화면도 같다.
   OS 기본 대화상자를 쓰지 않고 파일 열기/저장까지 창 안에 직접 그려서 생기는 차이를 줄였다
-- 한국어 / 영어, 테마 5종 (mono, dos_blue, amber, green_phosphor, mono_dark), HiDPI, 한글 IME
+- 영어 / 한국어 (기본 영어, 파일 메뉴에서 선택), 테마 5종 (mono, dos_blue, amber, green_phosphor, mono_dark), HiDPI, 한글 IME
 
 ### 그래프에 값 보내기
 
