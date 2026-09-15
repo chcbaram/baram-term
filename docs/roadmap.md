@@ -18,7 +18,7 @@
 | baram-term 편의 | 7x7 도트 로고 + 그림자, 창 여백, 터미널 아이콘, 포트 이름 오른쪽 정렬, 스크롤바(1/8칸), 드래그/더블클릭 선택과 복사·붙여넣기(편집 메뉴), Tab 명령 자동완성(help 출력 목록 학습, 입력에 따라 목록 갱신) |
 | baram-term 설정 | 설정 저장/불러오기(OS 사용자 설정 폴더 `settings.json`, 실행 인자 우선, 인자 없으면 마지막 포트), 자동 재연결(1초 주기, 보기 메뉴 A), 포트별 Tab 명령 목록 저장, 포트 설정 창 새로고침 버튼/주소 직접 입력/최근 포트 8개, Enter/Backspace/받은 LF 코드 설정, 상태줄 모드 칸 정리, 터미널 테두리 제목 제거, About 링크, 상태줄 포트/속도 클릭으로 바로 전환(열린 포트는 속도만 변경), 속도 직접 입력, 로그 파일 저장(`Ctrl-A L`, 파일 다이얼로그로 위치 선택, 화면에 보이는 줄 그대로, 타임스탬프 선택), 스크롤백 찾기(`Ctrl-A /`, macOS Cmd+F, smartcase, 새 줄이 와도 위치 유지) |
 | baram-term 그래프 | 그래프 패널(`Ctrl-A G`): `>name:value`(Teleplot)와 Arduino 시리얼 플로터 형식, 범례 클릭으로 보이기/숨기기, STOP/START, 시간 폭(초), 터미널/그래프 경계 끌기(비율 저장), 그래프 줄 터미널에서 숨기기 옵션(기본 끔, 켜면 상태줄 PLOT, 형식은 세션마다 고정), CLEAR 버튼, 데모 `plot` 명령 |
-| retro-ui 추가 | VSplit(경계 끌기, 위치별 커서), PlotLegend, Button solid 스타일, LivePlot(header=False)/series_changed/clear_series, Dialog 버튼 같은 폭·가운데, EditableComboBox, 클릭 가능한 Label과 손가락 커서, Link, 기본 문자열 다국어(`retroui.set_language`), 붙여넣기 줄바꿈이 Enter 코드를 따름, ListView, FileDialog(창 안에 그리는 열기/저장, 새 폴더, 패턴, 이어쓰기 확인), App padding/icon, `App.ensure_layout`, Terminal 찾기(`set_search`/`search_matches`/`reveal`), GroupBox title_align, Box 방향별 margin, ScrollBar, 포커스 없는 팝업, 터미널 256색/트루컬러, Tooltip(위젯에 `tooltip` 만 넣으면 App 이 띄움), Button padding, Key F3~F9/F11 |
+| retro-ui 추가 | VSplit(경계 끌기, 위치별 커서), PlotLegend, Button solid 스타일, LivePlot(header=False)/series_changed/clear_series, Dialog 버튼 같은 폭·가운데, EditableComboBox, 클릭 가능한 Label과 손가락 커서, Link, 기본 문자열 다국어(`retroui.set_language`), 붙여넣기 줄바꿈이 Enter 코드를 따름, ListView, FileDialog(창 안에 그리는 열기/저장, 새 폴더, 패턴, 이어쓰기 확인), App padding/icon, `App.ensure_layout`, Terminal 찾기(`set_search`/`search_matches`/`reveal`), GroupBox title_align, Box 방향별 margin, ScrollBar, 포커스 없는 팝업, 터미널 256색/트루컬러, Tooltip(위젯에 `tooltip` 만 넣으면 App 이 띄움), Button padding, Key F3~F9/F11, 휠 스크롤 누적(`Terminal.wheel_lines`) |
 
 ## 다음 할 일 (이 순서로)
 
@@ -38,26 +38,11 @@
 - [ ] PyInstaller 단독 실행 파일 (macOS .app/.dmg, Windows .exe, Linux AppImage)
 - [ ] GitHub Actions: 두 패키지 테스트(3 OS) + 태그 push 시 릴리스 빌드
 
-## 찾아 둔 문제 (고치기 전)
-
-작업하다 발견했고 아직 고치지 않았다. 셋 다 실제로 재현했다.
-
-1. **부분 갱신에서 줄 끝 한글이 빠진다** (retro-ui, 렌더). 화면 일부만 다시 그릴 때
-   `CellBuffer.put` 이 2칸 글자를 **클립 경계**에서 공백으로 바꾼다 (`x + 1 >= area.right`).
-   그 클립은 화면 끝이 아니라 그때 다시 그리는 영역의 끝이라, 경계에 걸린 한글이 사라진다.
-   증상: 상태줄 오른쪽 `… F10 메뉴` 가 `… F10 메` 로 보인다 (폭은 충분한데도).
-   전체를 다시 그리면 정상 → 문서 그림 스크립트는 저장 전에 `app.invalidate()` 를 한 번 한다.
-   고칠 자리: 다시 그릴 영역을 2칸 글자 단위로 넓히거나, 진짜 버퍼 끝에서만 공백으로 바꾸기.
-2. **평범한 로그 줄이 그래프 형식을 채 간다**. `sensor` 의 `temp=42.0 rpm=1200`,
-   `status` 의 `History : 3` 이 Arduino 플로터 줄로 받아들여져 그 세션 형식이 Arduino 로 고정된다.
-   그 뒤 진짜 `>ax:-15` 는 형식이 다르다고 버려져서 그래프가 비고, 숨기기도 걸리지 않는다.
-   (`[OK] sensor temp=42` 는 규칙대로 잘 걸러진다. 앞에 태그가 없는 줄이 문제.)
-3. **숨기기를 켜도 그래프 줄이 가끔 새어 나온다**. 사용자가 입력하는 동안 값이 오면
-   한두 줄이 터미널에 찍힌다 (`_emit_above_prompt` 처럼 줄 앞에 `\r\x1b[K` 가 붙어 올 때).
-
 ## 개선 메모 (급하지 않음)
 
 - 상태줄이 좁을 때 오른쪽 안내(`Ctrl-A Z 도움말 · F10 메뉴`)가 잘린다. 모드 표시(ECHO/TS/LOG/PLOT)가 늘수록 심해짐 → 공간이 모자라면 안내를 먼저 줄이거나 숨기기
+- 로그만 찍는 장치에서 `temp=42 rpm=1200` 같은 줄이 그래프 시리즈로 잡힌다. Arduino 형식이 평범한
+  로그와 구별되지 않아서인데, 진짜 그래프 줄(`>이름:값`)이 오면 되찾으므로 급하지는 않다 (지우기로도 푼다)
 
 ## 라이브러리 남은 항목 (필요해질 때)
 
