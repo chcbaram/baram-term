@@ -44,6 +44,7 @@ from retroui.theme import DARK_GRAY, Theme, get_theme
 from retroui.widgets.base import Widget
 from retroui.widgets.pixel import PixelWidget
 from retroui.widgets.popup import Popup
+from retroui.widgets.tooltip import Tooltip
 
 log = logging.getLogger(__name__)
 
@@ -141,6 +142,10 @@ class App:
         self.root: Widget | None = None
         self.focus: Widget | None = None
         self._popups: list[Popup] = []
+        # 마우스를 올린 채 tooltip_delay 초가 지나면 위젯의 tooltip 을 작은 상자로 띄운다
+        self.tooltip_delay = 0.6
+        self._tooltip: Tooltip | None = None
+        self._hover_since = 0.0
         self._hover: Widget | None = None
         self._capture: Widget | None = None
         self._last_click = (0.0, -1, -1, 0, 0)  # time, cx, cy, button, clicks
@@ -196,6 +201,42 @@ class App:
         self.request_layout()
         self.focus_next(1)
 
+    def _tooltip_deadline(self) -> float | None:
+        """툴팁을 띄울 시각. 띄울 것이 없으면 None."""
+        w = self._hover
+        if self._tooltip is not None or w is None or not w.tooltip:
+            return None
+        if self._popups:
+            return None  # 메뉴/대화상자가 떠 있으면 툴팁을 겹쳐 띄우지 않는다
+        return self._hover_since + self.tooltip_delay
+
+    def _update_tooltip(self, now: float) -> None:
+        if self._popups and self._tooltip is None:
+            # 메뉴/대화상자가 떠 있는 동안은 머문 시각을 계속 미룬다.
+            # 안 그러면 그것을 닫는 순간 툴팁이 곧바로 튀어나온다
+            self._hover_since = now
+            return
+        deadline = self._tooltip_deadline()
+        if deadline is None or now < deadline:
+            return
+        w = self._hover
+        tip = Tooltip(w.tooltip)
+        hint = tip.effective_hint()
+        # 위젯 위에 띄운다: 커서와 겹치면 hover 가 툴팁으로 넘어가 깜빡인다
+        y = w.rect.y - hint.pref_h
+        if y < 0:
+            y = w.rect.bottom
+        self._tooltip = tip
+        self.open_popup(tip, w.rect.x, y, focus=False)
+
+    def close_tooltip(self) -> None:
+        # 머문 시각을 다시 잰다: 클릭으로 닫았을 때 마우스가 그대로면 바로 다시 떠서
+        # 방금 연 메뉴와 겹쳤다. 닫은 뒤에는 다시 tooltip_delay 만큼 기다린다
+        self._hover_since = time.monotonic()
+        tip, self._tooltip = self._tooltip, None
+        if tip is not None and tip.is_open:
+            self.close_popup(tip)
+
     def open_popup(
         self, popup: Popup, x: int, y: int, w: int | None = None, h: int | None = None, *, focus: bool = True
     ) -> None:
@@ -205,6 +246,8 @@ class App:
         (자동완성 목록처럼 타이핑하면서 갱신되는 팝업).
         """
         popup._app = self
+        if not isinstance(popup, Tooltip):
+            self.close_tooltip()
         hint = popup.effective_hint()
         w = min(w or hint.pref_w, self.cols)
         h = min(h or hint.pref_h, self.rows)
@@ -358,6 +401,8 @@ class App:
             self._dispatch_one(e)
 
     def _dispatch_one(self, ev: Event) -> None:
+        if isinstance(ev, KeyEvent) or (isinstance(ev, MouseEvent) and ev.kind == "down"):
+            self.close_tooltip()
         if isinstance(ev, KeyEvent):
             self._dispatch_key(ev)
         elif isinstance(ev, (TextEvent, CompositionEvent)):
@@ -377,7 +422,7 @@ class App:
                 # 픽셀 폴링 시각이 지났어도 fps 상한 전에는 그릴 수 없다. 그 전에 깨면 루프가 헛돈다
                 # (P2 프로파일: 6초에 step() 149k 회, CPU 대부분이 이 busy spin 이었다)
                 paint_at = None if pixel_at is None else max(pixel_at, self._next_frame)
-            candidates = [d for d in (self.timers.next_deadline(), paint_at) if d is not None]
+            candidates = [d for d in (self.timers.next_deadline(), paint_at, self._tooltip_deadline()) if d is not None]
             wake_at = min(candidates) if candidates else now + _MAX_IDLE_WAIT_S
             timeout_s = min(wake_at - now, _MAX_IDLE_WAIT_S)
         else:
@@ -395,6 +440,7 @@ class App:
 
         self._drain_calls()
         self.timers.run_due()
+        self._update_tooltip(time.monotonic())
 
         now = time.monotonic()
         if self._needs_paint(now) and (self.headless or now >= self._next_frame):
@@ -609,6 +655,8 @@ class App:
                         w.hovered = state
                         w.invalidate()
                 self._hover = under
+                self._hover_since = time.monotonic()
+                self.close_tooltip()
             self._update_cursor(self._capture if self._capture is not None else under, ev.cx, ev.cy)
             if self._capture is not None:
                 self._capture.on_event(ev)

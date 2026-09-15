@@ -168,6 +168,9 @@ class Widget:
             h = SizeHint(max(h.min_w, mw), max(h.min_h, mh), max(h.pref_w, mw), max(h.pref_h, mh), h.max_w, h.max_h)
         return h
 
+    # 마우스를 올린 채 잠깐 두면 App 이 이 글을 작은 상자로 띄운다 (App.tooltip_delay 초)
+    tooltip: str = ""
+
     def _do_layout(self, rect: Rect) -> None:
         self.rect = rect
         self.layout_children()
