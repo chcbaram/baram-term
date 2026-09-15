@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# 환경 / 도구
+.venv/
+.pytest_cache/
+.DS_Store
+
+# 스파이크 실행 결과 (IME 기록 등). 테스트에 쓰는 것은 tests/fixtures 로 복사해서 관리한다
+_spike_out/

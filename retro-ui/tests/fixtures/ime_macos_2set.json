@@ -1,0 +1,1636 @@
+[
+ {
+  "t": 1.2977,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "f",
+  "mod": 0,
+  "unicode": "f",
+  "scancode": 9
+ },
+ {
+  "t": 1.2978,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "f"
+ },
+ {
+  "t": 1.3899,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "f"
+ },
+ {
+  "t": 1.7711,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "backspace",
+  "mod": 0,
+  "unicode": "\b",
+  "scancode": 42
+ },
+ {
+  "t": 1.8799,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "backspace"
+ },
+ {
+  "t": 1.9719,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "left shift",
+  "mod": 1,
+  "unicode": "",
+  "scancode": 225
+ },
+ {
+  "t": 2.083,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "space",
+  "mod": 1,
+  "unicode": " ",
+  "scancode": 44
+ },
+ {
+  "t": 2.0831,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": " "
+ },
+ {
+  "t": 2.1601,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "space"
+ },
+ {
+  "t": 2.1985,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "left shift"
+ },
+ {
+  "t": 2.3564,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "ㅈ",
+  "scancode": 26
+ },
+ {
+  "t": 2.3587,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "ㅈ"
+ },
+ {
+  "t": 2.416,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 2.477,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 11
+ },
+ {
+  "t": 2.4771,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "ㅗ",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 2.5966,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 3.156,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "backspace",
+  "mod": 0,
+  "unicode": "ㅗ",
+  "scancode": 42
+ },
+ {
+  "t": 3.1561,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "ㅗ",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 3.1561,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 3.1561,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "ㅗ"
+ },
+ {
+  "t": 3.1561,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 3.2136,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "backspace"
+ },
+ {
+  "t": 3.302,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "backspace",
+  "mod": 0,
+  "unicode": "\b",
+  "scancode": 42
+ },
+ {
+  "t": 3.3987,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "backspace"
+ },
+ {
+  "t": 3.4786,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "backspace",
+  "mod": 0,
+  "unicode": "\b",
+  "scancode": 42
+ },
+ {
+  "t": 3.5574,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "backspace"
+ },
+ {
+  "t": 3.6203,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "backspace",
+  "mod": 0,
+  "unicode": "\b",
+  "scancode": 42
+ },
+ {
+  "t": 3.7188,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "backspace"
+ },
+ {
+  "t": 4.0477,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 26
+ },
+ {
+  "t": 4.0478,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "ㅈ",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 4.1148,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 11
+ },
+ {
+  "t": 4.1149,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "조",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 4.1338,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 4.1714,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 4.2906,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 10
+ },
+ {
+  "t": 4.2907,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "좋",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 4.3775,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "조",
+  "scancode": 14
+ },
+ {
+  "t": 4.3776,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "조",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 4.3776,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 4.3777,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "조"
+ },
+ {
+  "t": 4.3777,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 4.3777,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "하",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 4.3985,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 4.4621,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 22
+ },
+ {
+  "t": 4.4622,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "한",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 4.5024,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 4.5832,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 4.8481,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "한",
+  "scancode": 6
+ },
+ {
+  "t": 4.8482,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "한",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 4.8482,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 4.8482,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "한"
+ },
+ {
+  "t": 4.8482,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 4.8482,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "ㅊ",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 4.9473,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 13
+ },
+ {
+  "t": 4.9474,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "처",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 4.9664,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 5.0587,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 5.0996,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 9
+ },
+ {
+  "t": 5.0997,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "철",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 5.1933,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 5.2576,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "space",
+  "mod": 0,
+  "unicode": "철",
+  "scancode": 44
+ },
+ {
+  "t": 5.2577,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "철 ",
+  "start": 2,
+  "length": 0
+ },
+ {
+  "t": 5.2577,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 5.2577,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "철 "
+ },
+ {
+  "t": 5.2577,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 5.3696,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "space"
+ },
+ {
+  "t": 5.8394,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 7
+ },
+ {
+  "t": 5.8395,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "ㅇ",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 5.9249,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 15
+ },
+ {
+  "t": 5.925,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "이",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 5.9659,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 6.0109,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 6.011,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 9
+ },
+ {
+  "t": 6.011,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "일",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 6.0931,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "이",
+  "scancode": 13
+ },
+ {
+  "t": 6.0931,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "이",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 6.0932,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 6.0932,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "이"
+ },
+ {
+  "t": 6.0932,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 6.0932,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "러",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 6.0932,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 6.1914,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 10
+ },
+ {
+  "t": 6.1915,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "렇",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 6.249,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 6.2491,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 6.3712,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "렇",
+  "scancode": 21
+ },
+ {
+  "t": 6.3712,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "렇",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 6.3712,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 6.3713,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "렇"
+ },
+ {
+  "t": 6.3713,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 6.3713,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "ㄱ",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 6.47,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 19
+ },
+ {
+  "t": 6.47,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "게",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 6.5066,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 6.55,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "space",
+  "mod": 0,
+  "unicode": "게",
+  "scancode": 44
+ },
+ {
+  "t": 6.5501,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "게 ",
+  "start": 2,
+  "length": 0
+ },
+ {
+  "t": 6.5501,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 6.5501,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "게 "
+ },
+ {
+  "t": 6.5501,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 6.6065,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 6.667,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 10
+ },
+ {
+  "t": 6.6671,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "ㅎ",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 6.6866,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "space"
+ },
+ {
+  "t": 6.7483,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 14
+ },
+ {
+  "t": 6.7483,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "하",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 6.7674,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 6.8279,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 20
+ },
+ {
+  "t": 6.8279,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "합",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 6.8849,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 6.9043,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 6.9865,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "합",
+  "scancode": 22
+ },
+ {
+  "t": 6.9866,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "합",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 6.9866,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 6.9866,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "합"
+ },
+ {
+  "t": 6.9866,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 6.9866,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "ㄴ",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 7.0475,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 15
+ },
+ {
+  "t": 7.0475,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "니",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 7.0667,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 7.123,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 7.1632,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 8
+ },
+ {
+  "t": 7.1632,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "닏",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 7.2457,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "니",
+  "scancode": 14
+ },
+ {
+  "t": 7.2458,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "니",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 7.2458,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 7.2458,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "니"
+ },
+ {
+  "t": 7.2458,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 7.2458,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "다",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 7.2879,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 7.2879,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": ".",
+  "mod": 0,
+  "unicode": "다",
+  "scancode": 55
+ },
+ {
+  "t": 7.288,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "다",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 7.288,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 7.288,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "다"
+ },
+ {
+  "t": 7.288,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 7.288,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "."
+ },
+ {
+  "t": 7.3805,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 7.4048,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "space",
+  "mod": 0,
+  "unicode": " ",
+  "scancode": 44
+ },
+ {
+  "t": 7.4049,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": " ",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 7.4049,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 7.4049,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": " "
+ },
+ {
+  "t": 7.4049,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 7.4426,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "."
+ },
+ {
+  "t": 7.5557,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "space"
+ },
+ {
+  "t": 7.7125,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "return",
+  "mod": 0,
+  "unicode": "\r",
+  "scancode": 40
+ },
+ {
+  "t": 7.8269,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "return"
+ },
+ {
+  "t": 8.6171,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 7
+ },
+ {
+  "t": 8.6171,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "ㅇ",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 8.7166,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 15
+ },
+ {
+  "t": 8.7166,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "이",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 8.736,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 8.8317,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 8.8557,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 21
+ },
+ {
+  "t": 8.8557,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "익",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 8.9322,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 8.9578,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "이",
+  "scancode": 13
+ },
+ {
+  "t": 8.9579,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "이",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 8.9579,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 8.9579,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "이"
+ },
+ {
+  "t": 8.9579,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 8.9579,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "거",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 9.0,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 23
+ },
+ {
+  "t": 9.0,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "것",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 9.0748,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 9.094,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 9.1764,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "것",
+  "scancode": 7
+ },
+ {
+  "t": 9.1764,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "것",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 9.1764,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 9.1764,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "것"
+ },
+ {
+  "t": 9.1765,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 9.1765,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "ㅇ",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 9.2564,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 16
+ },
+ {
+  "t": 9.2565,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "으",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 9.2757,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 9.3561,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 22
+ },
+ {
+  "t": 9.3561,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "은",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 9.3757,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 9.4945,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 9.4945,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "space",
+  "mod": 0,
+  "unicode": "은",
+  "scancode": 44
+ },
+ {
+  "t": 9.4945,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "은 ",
+  "start": 2,
+  "length": 0
+ },
+ {
+  "t": 9.4946,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 9.4946,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "은 "
+ },
+ {
+  "t": 9.4946,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 9.6327,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "space"
+ },
+ {
+  "t": 9.6328,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 27
+ },
+ {
+  "t": 9.6328,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "ㅌ",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 9.694,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 19
+ },
+ {
+  "t": 9.6941,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "테",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 9.7327,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 9.796,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 23
+ },
+ {
+  "t": 9.796,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "텟",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 9.796,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 9.8936,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "테",
+  "scancode": 16
+ },
+ {
+  "t": 9.8937,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "테",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 9.8937,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 9.8937,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "테"
+ },
+ {
+  "t": 9.8937,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 9.8937,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "스",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 9.913,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 9.9877,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 10.0854,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "",
+  "scancode": 27
+ },
+ {
+  "t": 10.0855,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "슽",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 10.1891,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "",
+  "mod": 0,
+  "unicode": "스",
+  "scancode": 16
+ },
+ {
+  "t": 10.1892,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "스",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 10.1892,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 10.1892,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "스"
+ },
+ {
+  "t": 10.1892,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 10.1892,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "트",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 10.2089,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 10.3237,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": ""
+ },
+ {
+  "t": 10.5975,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "return",
+  "mod": 0,
+  "unicode": "트",
+  "scancode": 40
+ },
+ {
+  "t": 10.5976,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "트",
+  "start": 1,
+  "length": 0
+ },
+ {
+  "t": 10.5976,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 10.5976,
+  "scenario": 1,
+  "type": "TEXTINPUT",
+  "text": "트"
+ },
+ {
+  "t": 10.5976,
+  "scenario": 1,
+  "type": "TEXTEDITING",
+  "text": "",
+  "start": 0,
+  "length": 0
+ },
+ {
+  "t": 10.7102,
+  "scenario": 1,
+  "type": "KEYUP",
+  "key": "return"
+ },
+ {
+  "t": 11.0951,
+  "scenario": 1,
+  "type": "KEYDOWN",
+  "key": "escape",
+  "mod": 0,
+  "unicode": "\u001b",
+  "scancode": 41
+ }
+]
