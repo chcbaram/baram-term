@@ -99,3 +99,42 @@ def test_expected_format_limits_what_is_held_and_accepted():
     )
     assert f.feed("p:34") == ("p:34", [])  # > 없는 조각은 기다리지 않는다
     assert f.feed("\r\n>ax:1\r\np:34\r\n") == ("\r\np:34\r\n", [">ax:1"])
+
+
+def test_echo_before_the_value_is_still_a_plot_line():
+    """방금 친 글자의 에코가 값 앞에 붙어 와도 값은 터미널에 안 보인다.
+
+    펌웨어가 `"n\\r\\x1b[K>ax:949\\r\\n"` 처럼 보낸다: 에코 뒤 CR 로 커서가 0열로 돌아가고
+    지운 다음 값을 찍는다. 줄 *앞*의 CR 만 보던 때는 이 줄을 놓쳐 값이 그대로 찍혔다.
+    """
+    f = PlotLineFilter()
+    f._line_start = False  # 프롬프트 뒤, 입력 중
+    shown, plots = f.feed("n\r\x1b[K>ax:949\r\n")
+    assert plots == [">ax:949"]
+    assert ">ax" not in shown
+    assert shown.startswith("n\r")  # 에코와 지우는 코드는 넘긴다 (프롬프트가 겹치지 않게)
+
+
+def test_typed_line_echo_is_not_eaten_as_a_plot_line():
+    """반대로, 사용자가 친 `1,2,3` 의 에코는 그래프 줄로 먹으면 안 된다 (끝 CR 은 CRLF 일 뿐)."""
+    f = PlotLineFilter()
+    f._line_start = False
+    shown, plots = f.feed("1,2,3\r\n")
+    assert plots == []
+    assert "1,2,3" in shown
+
+
+def test_escape_split_across_chunks_still_hides_the_value():
+    """수신이 ESC 시퀀스 중간에서 잘려도 다음 조각의 값을 놓치지 않는다."""
+    burst = "\r\x1b[K>ax:639\r\n"
+    for cut in range(1, len(burst)):
+        f = PlotLineFilter()
+        f._line_start = False
+        shown = f.feed(burst[:cut])[0] + f.feed(burst[cut:])[0] + f.flush(force=True)
+        assert ">ax" not in shown, cut
+
+
+def test_chunk_ending_inside_an_escape_does_not_raise():
+    """ESC 시퀀스 중간에서 끊긴 조각에 줄 정리를 돌리면 줄이 하나도 안 나온다 (예전에 IndexError)."""
+    f = PlotLineFilter()
+    assert f.feed("\r\x1b") == ("\r", [])

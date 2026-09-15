@@ -20,16 +20,26 @@ from baram_term.plotdata import parse_line, plot_format
 _LEAD = re.compile(r"(?:\r|\x1b\[[0-9;?]*[@-~]|\x1b[@-Z\\-_])*")
 # 그래프 줄에 나올 수 있는 글자만으로 된 조각 (Teleplot ">", 이름, 숫자, 구분자)
 _PLOT_CHARS = re.compile(r"[>\w.:=,;+\-§| \t]*")
+# 끝에서 잘린 ESC 시퀀스 ("\x1b", "\x1b[", "\x1b[0;3" ...)
+_INCOMPLETE_ESC = re.compile(r"\x1b(?:\[[0-9;?]*)?$")
 _MAX_HOLD_LEN = 256
 
 
 def _clean(raw: str) -> str:
-    return LineCleaner().feed(raw + "\n")[0]
+    # 수신이 ESC 시퀀스 중간에서 잘리면 붙인 "\n" 까지 그 시퀀스에 먹혀 줄이 하나도 안 나온다
+    lines = LineCleaner().feed(raw + "\n")
+    return lines[0] if lines else ""
 
 
-def _starts_with_cr(raw: str) -> bool:
-    """줄 앞 코드에 CR 이 있으면 커서가 0열로 간다: 펌웨어가 프롬프트 줄을 지우고 새로 찍는 경우."""
-    return "\r" in _LEAD.match(raw).group(0)  # type: ignore[union-attr]
+def _column_reset(raw: str, partial: bool = False) -> bool:
+    """줄 도중에 CR 이 있으면 커서가 0열로 돌아간다: 앞에 찍힌 글자는 지워지고 뒤엣것만 남는다.
+
+    펌웨어가 프롬프트 줄을 지우고 값을 찍을 때 앞에 방금 친 글자의 에코가 붙어 오기도 한다
+    (`"n\r\x1b[K>ax:949"`). 줄 앞 CR 만 보면 이런 줄을 놓쳐 값이 터미널에 찍혔다.
+    맨 끝 CR 은 CRLF 의 일부라 뺀다: `"1,2,3\r\n"` 같은 입력 에코까지 그래프 줄로 보면 안 된다.
+    다만 아직 줄바꿈이 오지 않은 조각(partial)에서는 맨 끝 CR 도 커서를 0열로 보낸 것이 맞다.
+    """
+    return "\r" in (raw if partial else raw.rstrip("\r"))
 
 
 class PlotLineFilter:
@@ -64,20 +74,34 @@ class PlotLineFilter:
         for i, raw in enumerate(parts[:-1]):
             line = _clean(raw)
             # 줄 중간부터 이어진 조각(프롬프트 뒤 에코 등)은 그래프 줄로 보지 않는다
-            if (start or i > 0 or _starts_with_cr(raw)) and self.accept(line):
+            if (start or i > 0 or _column_reset(raw)) and self.accept(line):
                 plots.append(line)
-                shown.append(_LEAD.match(raw).group(0))  # type: ignore[union-attr]
+                # 값 글자만 빼고 앞의 코드는 그대로 넘긴다 (지우는 코드까지 버리면 프롬프트가 겹친다).
+                # 값 앞에 에코가 붙어 온 경우 그 에코도 넘긴다 — 뒤따르는 CR/지우기가 알아서 지운다
+                at = raw.rfind(line) if line else -1
+                shown.append(raw[:at] if at > 0 else _LEAD.match(raw).group(0))  # type: ignore[union-attr]
             else:
                 shown.append(raw + "\n")
         tail = parts[-1]
-        tail_at_start = (start if len(parts) == 1 else True) or _starts_with_cr(tail)
+        # 끝이 잘린 ESC 시퀀스는 그 부분만 다음 조각까지 들고 있는다. 그냥 흘려보내면 다음 조각의
+        # "[K>ax:1" 이 ESC 없는 보통 글자로 읽혀 그래프 줄을 놓치고 터미널에 찍혔다
+        esc = _INCOMPLETE_ESC.search(tail)
+        pending_esc = tail[esc.start() :] if esc else ""
+        tail = tail[: esc.start()] if esc else tail
+        tail_at_start = (start if len(parts) == 1 else True) or _column_reset(tail or pending_esc, partial=True)
         if tail and tail_at_start and self._could_be_plot(tail):
-            self._partial = tail
+            self._partial = tail + pending_esc
             self._since = self.clock()
             self._line_start = True
         else:
             shown.append(tail)
-            self._line_start = tail_at_start if not tail else False
+            self._partial = pending_esc
+            if pending_esc:
+                self._since = self.clock()
+            # 커서 코드만 있는 조각(프롬프트를 지우는 "\r\x1b[K" 등)은 글자를 찍지 않았으니
+            # 다음 조각도 줄 처음이다. 여기서 False 로 두면 수신 조각이 그 코드와 값 사이에서
+            # 잘렸을 때 다음 값 줄을 줄 중간으로 보고 터미널에 흘려보냈다
+            self._line_start = tail_at_start and not _clean(tail).strip()
         return "".join(shown), plots
 
     def flush(self, force: bool = False) -> str:
@@ -85,7 +109,7 @@ class PlotLineFilter:
         if not self._partial or (not force and self.clock() - self._since < self.HOLD_S):
             return ""
         text, self._partial = self._partial, ""
-        self._line_start = False
+        self._line_start = not _clean(text).strip()  # 커서 코드만이면 여전히 줄 처음이다
         return text
 
     def _could_be_plot(self, tail: str) -> bool:
