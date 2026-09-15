@@ -46,6 +46,7 @@ class Painter:
         title: str | None = None,
         title_fg: RGB | None = None,
         fill: bool = True,
+        title_align: str = "left",
     ) -> None:
         if rect.w < 2 or rect.h < 2:
             return
@@ -63,8 +64,15 @@ class Painter:
         self.put(x1, y1, style.br, fg, bg)
         if title and rect.w >= 6:
             label = truncate(title, rect.w - 6)
-            self.put(x0 + 1, y0, style.tee_left, fg, bg)
-            end = self.text(x0 + 2, y0, f" {label} ", title_fg or fg, bg)
+            span = str_width(label) + 4  # ┤ + 공백 + 제목 + 공백 + ├
+            if title_align == "right":
+                start = x1 - span
+            elif title_align == "center":
+                start = x0 + (rect.w - span) // 2
+            else:
+                start = x0 + 1
+            self.put(start, y0, style.tee_left, fg, bg)
+            end = self.text(start + 1, y0, f" {label} ", title_fg or fg, bg)
             self.put(end, y0, style.tee_right, fg, bg)
 
     @staticmethod

@@ -12,3 +12,6 @@ dist/
 
 # 스파이크 실행 결과 (IME 기록 등). 테스트에 쓰는 것은 tests/fixtures 로 복사해서 관리한다
 _spike_out/
+
+# 실제 장치에서 기록한 CLI 세션 (회사 보드 정보가 들어갈 수 있으므로 절대 커밋하지 않는다, docs/device-testing.md)
+retro-ui/tests/fixtures/local/

@@ -19,13 +19,16 @@ class Renderer:
     def __init__(self, fonts: FontSet, buf: CellBuffer):
         self.fonts = fonts
         self.buf = buf
+        # 격자를 그리기 시작하는 픽셀 위치 (창 여백 + 셀로 나누고 남은 자투리의 절반)
+        self.ox = 0
+        self.oy = 0
 
     def grid_size(self, px_w: int, px_h: int) -> tuple[int, int]:
         return max(1, px_w // self.fonts.cw), max(1, px_h // self.fonts.ch)
 
     def cell_rect(self, x: int, y: int, w: int = 1, h: int = 1) -> pygame.Rect:
         cw, ch = self.fonts.cw, self.fonts.ch
-        return pygame.Rect(x * cw, y * ch, w * cw, h * ch)
+        return pygame.Rect(self.ox + x * cw, self.oy + y * ch, w * cw, h * ch)
 
     def draw_cell(self, surface: pygame.Surface, x: int, y: int, cell: Cell, width: int) -> None:
         ch, fg, bg, attr = cell

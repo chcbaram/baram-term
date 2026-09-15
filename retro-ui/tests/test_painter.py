@@ -32,3 +32,19 @@ def test_nested_sub_clip_is_intersection():
     inner = outer.sub(Rect(2, 0, 10, 1))  # 부모 영역 밖으로 넘어가는 자식
     inner.text(0, 0, "xxxxxxxx", FG, BG)
     assert buf.row_text(0) == "   xx     "
+
+
+def test_box_title_alignment():
+    buf = CellBuffer(12, 3, FG, BG)
+    Painter(buf).box(Rect(0, 0, 12, 3), BOX_SINGLE, FG, BG, title="Ab", title_align="right")
+    assert buf.row_text(0) == "┌────┤ Ab ├┐"
+    Painter(buf).box(Rect(0, 0, 12, 3), BOX_SINGLE, FG, BG, title="Ab", title_align="center")
+    assert buf.row_text(0) == "┌──┤ Ab ├──┐"
+    Painter(buf).box(Rect(0, 0, 12, 3), BOX_SINGLE, FG, BG, title="Ab")
+    assert buf.row_text(0) == "┌┤ Ab ├────┐"
+
+
+def test_right_aligned_wide_title():
+    buf = CellBuffer(14, 3, FG, BG)
+    Painter(buf).box(Rect(0, 0, 14, 3), BOX_SINGLE, FG, BG, title="포트", title_align="right")
+    assert buf.row_text(0) == "┌────┤ 포트 ├┐"

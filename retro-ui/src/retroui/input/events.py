@@ -151,13 +151,14 @@ def normalize_key(key: int, name: str, scancode: int) -> tuple[int, str]:
     return key, name
 
 
-def _to_cells(pos: tuple[float, float], scale: float, cw: int, ch: int) -> tuple[int, int, int, int]:
-    px = int(pos[0] * scale)
-    py = int(pos[1] * scale)
+def _to_cells(pos: tuple[float, float], scale: float, cw: int, ch: int, ox: int, oy: int) -> tuple[int, int, int, int]:
+    # 여백 안쪽 격자 원점 기준. 여백을 누르면 음수 셀이 되어 어떤 위젯에도 맞지 않는다
+    px = int(pos[0] * scale) - ox
+    py = int(pos[1] * scale) - oy
     return px // cw, py // ch, px, py
 
 
-def translate(ev: pygame.event.Event, scale: float, cw: int, ch: int) -> Event | None:
+def translate(ev: pygame.event.Event, scale: float, cw: int, ch: int, ox: int = 0, oy: int = 0) -> Event | None:
     t = ev.type
     if t == pygame.KEYDOWN:
         key, name = normalize_key(ev.key, pygame.key.name(ev.key), getattr(ev, "scancode", 0))
@@ -170,14 +171,14 @@ def translate(ev: pygame.event.Event, scale: float, cw: int, ch: int) -> Event |
         # pygame 은 휠을 버튼 4/5 로도 보낸다: MOUSEWHEEL 로만 처리
         if ev.button > 3:
             return None
-        cx, cy, px, py = _to_cells(ev.pos, scale, cw, ch)
+        cx, cy, px, py = _to_cells(ev.pos, scale, cw, ch, ox, oy)
         kind = "down" if t == pygame.MOUSEBUTTONDOWN else "up"
         return MouseEvent(kind, ev.button, cx, cy, px, py, mod_from_pygame(pygame.key.get_mods()))
     if t == pygame.MOUSEMOTION:
-        cx, cy, px, py = _to_cells(ev.pos, scale, cw, ch)
+        cx, cy, px, py = _to_cells(ev.pos, scale, cw, ch, ox, oy)
         return MouseEvent("move", 0, cx, cy, px, py, mod_from_pygame(pygame.key.get_mods()))
     if t == pygame.MOUSEWHEEL:
-        cx, cy, px, py = _to_cells(pygame.mouse.get_pos(), scale, cw, ch)
+        cx, cy, px, py = _to_cells(pygame.mouse.get_pos(), scale, cw, ch, ox, oy)
         dx = getattr(ev, "precise_x", ev.x)
         dy = getattr(ev, "precise_y", ev.y)
         if getattr(ev, "flipped", False):

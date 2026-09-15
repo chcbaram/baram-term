@@ -6,7 +6,7 @@
 - [uv](https://docs.astral.sh/uv/) — 가상환경/패키지 설치
 - git, (선택) GitHub CLI `gh`
 
-pygame-ce, numpy 는 macOS / Windows / Linux 용 설치 파일이 있어 별도 빌드가 필요 없다.
+pygame-ce, numpy, pyserial 은 macOS / Windows / Linux 용 설치 파일이 있어 별도 빌드가 필요 없다.
 D2Coding 폰트는 저장소에 포함돼 있어 따로 설치하지 않아도 된다.
 
 ## 저장소 받기와 가상환경
@@ -15,25 +15,40 @@ D2Coding 폰트는 저장소에 포함돼 있어 따로 설치하지 않아도 �
 git clone https://github.com/chcbaram/baram-term.git
 cd baram-term
 uv venv --python 3.12 .venv
-uv pip install --python .venv/bin/python -e "retro-ui[dev]"
+uv pip install --python .venv/bin/python -e "retro-ui[dev]" -e "baram-term[dev]"
 ```
 
-Windows (PowerShell) 는 `.venv/bin/python` 대신 `.venv\Scripts\python.exe` 를 쓴다.
+Windows (PowerShell) 는 `.venv/bin/python` 대신 `.venv\Scripts\python.exe`, `.venv/bin/baram-term` 대신
+`.venv\Scripts\baram-term.exe` 를 쓴다.
 
 > `.venv` 는 안에 절대 경로가 들어가므로 **폴더를 옮기거나 이름을 바꾸면 다시 만든다.**
 > `rm -rf .venv` 후 위 두 줄을 다시 실행.
 
+## baram-term 실행
+
+```bash
+.venv/bin/baram-term --demo                         # 보드 없이 가짜 펌웨어(demo://)에 연결
+.venv/bin/baram-term --list                         # 시리얼 포트 목록
+.venv/bin/baram-term /dev/cu.usbmodemXXXX           # 실제 장치 (기본 115200)
+.venv/bin/baram-term /dev/ttyUSB0 -b 921600 --lang en --font-size 16 --size 120x40
+.venv/bin/baram-term                                # 포트 없이 시작 → Ctrl-A O 로 선택
+```
+
+- 같은 포트를 minicom 등 다른 프로그램이 열고 있으면 수신 데이터를 서로 나눠 가져간다. 먼저 닫는다.
+- 언어: `--lang ko|en`, 또는 환경 변수 `BARAM_TERM_LANG`, 없으면 시스템 로케일.
+
 ## 테스트
 
 ```bash
-cd retro-ui
-../.venv/bin/python -m pytest -q
+(cd retro-ui   && ../.venv/bin/python -m pytest -q)
+(cd baram-term && ../.venv/bin/python -m pytest -q)
 ```
 
 - 헤드리스 테스트는 `SDL_VIDEODRIVER=dummy` 로 창 없이 돈다. CI 에서도 그대로 동작한다.
-- `tests/fixtures/ime_macos_2set.json` 은 실제 macOS 두벌식 입력 기록이다. IME 보정 코드를 바꾸면 이 재생 테스트가 기준이다.
+- `retro-ui/tests/fixtures/ime_macos_2set.json` 은 실제 macOS 두벌식 입력 기록이다. IME 보정 코드를 바꾸면 이 재생 테스트가 기준이다.
+- 실제 장치 CLI 재생 테스트는 로컬 기록이 있을 때만 돈다: [device-testing.md](device-testing.md).
 
-## 예제 실행
+## retro-ui 예제
 
 ```bash
 cd retro-ui
@@ -79,3 +94,4 @@ git config --local --add credential.https://github.com.helper \
 - 커밋 메시지는 영어, 짧게 (subject + 짧은 본문). 자세한 설명은 PR 에.
 - PR 설명은 한국어, 변경 전/후 대비로.
 - 라이브러리(`retro-ui/`)는 앱(`baram-term/`)을 import 하지 않는다 (분리 가능 구조 유지).
+- **커밋 전**: `git status --short --ignored retro-ui/tests/fixtures` 로 장치 기록(`local/`)이 무시되는지 확인한다.

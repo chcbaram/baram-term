@@ -90,6 +90,8 @@ class App:
         fps: int = 60,
         headless: bool = False,
         resizable: bool = True,
+        padding: int = 0,
+        icon: "pygame.Surface | str | None" = None,
     ):
         self.headless = headless
         if headless:
@@ -102,26 +104,29 @@ class App:
         self.fps = fps
         self.fonts = FontSet(font, font_size, 1.0)
 
+        # 창 가장자리와 격자 사이 여백 (창 기준 point). 글자가 창 테두리에 붙으면 답답해 보인다
+        self.padding = max(0, int(padding))
+        self.origin = (0, 0)
         cols, rows = size
         if headless:
             pygame.display.set_mode((1, 1))  # 이벤트 큐 사용에 비디오 초기화가 필요하다
             self.window = None
             self.scale = 1.0
-            self.surface = pygame.Surface((cols * self.fonts.cw, rows * self.fonts.ch))
+            self.surface = pygame.Surface(self._surface_size_for(cols, rows))
         else:
+            self.scale = 1.0
             self.window = pygame.Window(
-                title, (cols * self.fonts.cw, rows * self.fonts.ch), allow_high_dpi=True, resizable=resizable
+                title, self._window_size_for(cols, rows), allow_high_dpi=True, resizable=resizable
             )
             self.surface = self.window.get_surface()
             self.scale = self.surface.get_width() / self.window.size[0]
             if self.scale != 1.0:
                 # 2x 폰트의 셀 크기는 1x 의 정확히 2배가 아닐 수 있어(px 반올림) 요청한 열/행 수가 되도록 창을 다시 맞춘다
                 self.fonts.reload(self.scale)
-                self.window.size = (
-                    math.ceil(cols * self.fonts.cw / self.scale),
-                    math.ceil(rows * self.fonts.ch / self.scale),
-                )
+                self.window.size = self._window_size_for(cols, rows)
                 self.surface = self.window.get_surface()
+            if icon is not None:
+                self.set_icon(icon)
 
         pal = self.theme.palette
         self.buf = CellBuffer(1, 1, pal.fg, pal.bg)
@@ -258,6 +263,16 @@ class App:
         """포커스 위젯보다 먼저 키를 받는다. True 를 돌려주면 그 키는 소비된다 (minicom 식 Ctrl-A 접두키 등)."""
         self._key_filters.append(fn)
 
+    def set_icon(self, icon: "pygame.Surface | str") -> None:
+        """창/Dock 아이콘. 지정하지 않으면 pygame 기본 아이콘(뱀)이 보인다."""
+        if self.window is None:
+            return
+        try:
+            surface = icon if isinstance(icon, pygame.Surface) else pygame.image.load(icon)
+            self.window.set_icon(surface)
+        except (pygame.error, FileNotFoundError, OSError) as e:
+            log.warning("set_icon failed: %s", e)
+
     def set_font_size(self, size: int) -> None:
         """글자 크기(pt)를 바꾼다. 열/행 수는 유지하고 창(또는 헤드리스 서피스) 크기를 새 셀 크기에 맞춘다."""
         size = max(6, int(size))
@@ -268,13 +283,10 @@ class App:
         self.fonts.reload(self.scale)
         if self.window is not None:
             # 화면보다 커지면 SDL 이 창을 줄이고, 그만큼 열/행 수가 줄어든다
-            self.window.size = (
-                math.ceil(cols * self.fonts.cw / self.scale),
-                math.ceil(rows * self.fonts.ch / self.scale),
-            )
+            self.window.size = self._window_size_for(cols, rows)
             self.surface = self.window.get_surface()
         else:
-            self.surface = pygame.Surface((cols * self.fonts.cw, rows * self.fonts.ch))
+            self.surface = pygame.Surface(self._surface_size_for(cols, rows))
         self.buf.invalidate_all()
         self._fit_grid()
 
@@ -399,10 +411,31 @@ class App:
 
     # ---- internals -----------------------------------------------------
 
+    @property
+    def padding_px(self) -> int:
+        return round(self.padding * self.scale)
+
+    def _window_size_for(self, cols: int, rows: int) -> tuple[int, int]:
+        return (
+            math.ceil(cols * self.fonts.cw / self.scale) + 2 * self.padding,
+            math.ceil(rows * self.fonts.ch / self.scale) + 2 * self.padding,
+        )
+
+    def _surface_size_for(self, cols: int, rows: int) -> tuple[int, int]:
+        pad = self.padding_px
+        return cols * self.fonts.cw + 2 * pad, rows * self.fonts.ch + 2 * pad
+
     def _fit_grid(self) -> None:
         # 격자 크기가 바뀌면 팝업 위치가 의미 없어지므로 닫는다
         self.close_all_popups()
-        cols, rows = self.renderer.grid_size(self.surface.get_width(), self.surface.get_height())
+        pad = self.padding_px
+        w, h = self.surface.get_width(), self.surface.get_height()
+        cols, rows = self.renderer.grid_size(max(1, w - 2 * pad), max(1, h - 2 * pad))
+        # 셀로 나누고 남는 자투리 픽셀은 양쪽에 반씩 나눠 여백을 대칭으로 맞춘다
+        ox = pad + max(0, w - 2 * pad - cols * self.fonts.cw) // 2
+        oy = pad + max(0, h - 2 * pad - rows * self.fonts.ch) // 2
+        self.origin = (ox, oy)
+        self.renderer.ox, self.renderer.oy = ox, oy
         self.buf.resize(cols, rows)
         # 셀 격자로 나누고 남는 오른쪽/아래 자투리 픽셀
         self.surface.fill(self.theme.palette.bg)
@@ -437,7 +470,7 @@ class App:
         elif t == pygame.WINDOWFOCUSLOST:
             self._release_pointer()
         else:
-            ev = translate(e, self.scale, self.fonts.cw, self.fonts.ch)
+            ev = translate(e, self.scale, self.fonts.cw, self.fonts.ch, *self.origin)
             if ev is not None:
                 self.dispatch(ev)
 
@@ -466,7 +499,13 @@ class App:
             return
         cx, cy = pos
         s = self.scale
-        rect = (int(cx * self.fonts.cw / s), int(cy * self.fonts.ch / s), int(2 * self.fonts.cw / s), int(self.fonts.ch / s))
+        ox, oy = self.origin
+        rect = (
+            int((ox + cx * self.fonts.cw) / s),
+            int((oy + cy * self.fonts.ch) / s),
+            int(2 * self.fonts.cw / s),
+            int(self.fonts.ch / s),
+        )
         if rect != self._text_input_rect:
             self._text_input_rect = rect
             try:
@@ -693,6 +732,7 @@ class App:
         force = self._pixels_force
         self._pixels_force = False
         cw, ch = self.fonts.cw, self.fonts.ch
+        ox, oy = self.origin
         occluders = [p.outer_rect() for p in self._popups]
         out = []
         for w in self._pixel_widgets:
@@ -700,7 +740,7 @@ class App:
             if area.empty:
                 continue
             size = (area.w * cw, area.h * ch)
-            dest = pygame.Rect(area.x * cw, area.y * ch, *size)
+            dest = pygame.Rect(ox + area.x * cw, oy + area.y * ch, *size)
 
             redraw = w._pixels_dirty
             if w._surface is None or w._surface.get_size() != size:
@@ -722,6 +762,6 @@ class App:
                 parts = [q for part in parts for q in part.subtract(occ)]
             for part in parts:
                 src = pygame.Rect((part.x - area.x) * cw, (part.y - area.y) * ch, part.w * cw, part.h * ch)
-                self.surface.blit(w._surface, (part.x * cw, part.y * ch), src)
-                out.append(pygame.Rect(part.x * cw, part.y * ch, src.w, src.h))
+                self.surface.blit(w._surface, (ox + part.x * cw, oy + part.y * ch), src)
+                out.append(pygame.Rect(ox + part.x * cw, oy + part.y * ch, src.w, src.h))
         return out

@@ -12,49 +12,38 @@
 | P3 입력 | LineEdit(선택, 클립보드, 이력), ComboBox/ListPopup, Dialog/message_box, ImeFilter |
 | 테마 | mono(기본, 검정 흑백 + 박스 버튼 + 컬러 그래프), dos_blue, amber, green_phosphor, mono_dark |
 | 기타 | D2Coding 폰트 포함(OFL), `App.set_font_size`, 한글 입력 상태 키 이름 복원 |
-| 터미널 | Terminal/TerminalScreen (VT100 일부, 스크롤백, 타임스탬프, 강조 규칙, 펌웨어 키 매핑) |
+| 터미널 | Terminal/TerminalScreen (VT100 일부, 스크롤백, 타임스탬프, 강조 규칙, 펌웨어 키 매핑), 장치 기록 도구와 재생 테스트 |
+| baram-term 뼈대 | 패키지/실행 명령, 다국어(`tr`, ko/en), 시리얼 계층(수신 스레드/송신 큐/통계/끊김 감지), 가짜 펌웨어 `demo://` |
+| baram-term 화면 | BARAM 블록 로고, 메뉴(포트/보기/도움말), 터미널, 상태줄(연결, 포트, 8N1, TX/RX, 전송률, 모드), 포트 설정 대화상자, Ctrl-A 명령(O P R D E N C X Z), 로컬 에코, 타임스탬프, 글자 크기 |
 
 ## 다음 할 일 (이 순서로)
 
-### 1. baram-term 뼈대
-- [ ] `baram-term/pyproject.toml` (의존: `retro-ui`, `pyserial`), 실행 명령 `baram-term`
-- [ ] 다국어 구조: `baram_term/i18n.py` 의 `tr(key, **fmt)`, `locales/ko.json`, `locales/en.json`
-      (시스템 언어 자동 선택 + 설정으로 변경). retroui 기본 문자열(Dialog "확인/취소")도 같은 방식으로 뺀다
-- [ ] 시리얼 계층 `serial_port.py`: 수신 스레드 → 버퍼 → `app.call_soon` 으로 프레임당 한 번 묶어서 전달,
-      송신 큐, 통계(TX/RX 바이트, 초당 전송률), 끊김 감지. pyserial URL(`loop://`, `socket://`) 지원
-- [ ] 가짜 펌웨어 `fake_device.py`: `demo://` 포트. `cli# ` 프롬프트, 줄 편집/이력, `help`/`info` 명령,
-      주기적 `[OK]`/`[E_]` 로그와 `temp=42.5` 같은 값 출력. 보드 없이 데모/헤드리스 테스트용
+### 1. baram-term 기본기 마무리
+- [ ] 설정 저장/불러오기 (최근 포트, 속도, 테마, 글자 크기, 언어, 에코/타임스탬프) — OS 별 사용자 설정 폴더
+- [ ] 자동 재연결 (USB CDC 장치가 리셋으로 사라졌다 다시 생길 때)
+- [ ] 포트 설정 대화상자: 포트 목록 새로고침 버튼, 직접 입력(`socket://` 등)
+- [ ] 받은 LF 처리/보내는 Enter(CR/LF/CRLF)/Backspace 코드(0x08/0x7F) 설정
+- [ ] 로그 파일 저장 (`Ctrl-A L`, 타임스탬프 포함 여부)
+- [ ] 스크롤백 검색 (`Ctrl-A /`)
+- [ ] 터미널 드래그 선택/복사
+- [ ] retroui 기본 문자열(Dialog "확인/취소") 다국어화
 
-### 2. baram-term 메인 화면 (minicom 핵심)
-- [ ] 메뉴바, 터미널, 상태줄(포트, 115200 8N1, TX/RX 표시등, 전송률, ECHO/TS/LOG), 입력 모드 표시
-- [ ] 포트 설정 대화상자 (포트 목록 새로고침, 속도, 데이터/패리티/정지 비트, 흐름 제어)
-- [ ] 연결/끊기, 자동 재연결
-- [ ] `Ctrl-A` 접두키 (`App.add_key_filter` 사용): O 포트, P 통신설정, E 에코, L 로그, N 타임스탬프, C 지우기, W 줄바꿈, Z 도움말, X 종료
-- [ ] 설정 저장/불러오기 (최근 포트, 속도, 테마, 글자 크기, 언어)
-
-### 3. minicom 부가 기능
-- [ ] 로그 파일 저장 (타임스탬프 포함 여부 선택)
-- [ ] 로컬 에코, 줄 끝 변환(CR/LF/CRLF), Backspace 코드(0x08/0x7F) 선택
-- [ ] 검색 (스크롤백)
+### 2. baram-term 개성 기능
+- [ ] 수신 줄의 `key=value` 추출 → LivePlot 실시간 그래프 패널 (보기 메뉴로 켜고 끔)
+- [ ] HEX 분할 보기
+- [ ] 매크로 막대 (F1~F12, 클릭 전송, 설정 저장)
+- [ ] 강조 규칙 사용자 추가 (정규식 + 색)
+- [ ] 전송률 미니 그래프(`▁▂▄▆█`)
 - [ ] 줄 단위 입력창 모드 (보조)
 
-### 4. baram-term 개성 기능
-- [ ] 펌웨어 로그 태그 색상 규칙 (`[OK]` 초록, `[E_]` 빨강, `WARN` 노랑, 사용자 정규식 추가)
-- [ ] 수신 줄의 `key=value` 추출 → LivePlot 실시간 그래프 패널
-- [ ] HEX 분할 보기
-- [ ] 매크로 막대 (F1~F12, 클릭 전송)
-- [ ] TX/RX 표시등 깜박임, 전송률 미니 그래프(`▁▂▄▆█`)
-
-### 5. 배포
-- [ ] `pipx install git+https://github.com/chcbaram/baram-term#subdirectory=baram-term`
+### 3. 배포
+- [ ] `pipx install git+https://github.com/chcbaram/baram-term#subdirectory=baram-term` (retro-ui 의존성 해결 방법 포함)
 - [ ] PyInstaller 단독 실행 파일 (macOS .app/.dmg, Windows .exe, Linux AppImage)
-- [ ] GitHub Actions: 테스트(3 OS) + 태그 push 시 릴리스 빌드
+- [ ] GitHub Actions: 두 패키지 테스트(3 OS) + 태그 push 시 릴리스 빌드
 
 ## 라이브러리 남은 항목 (필요해질 때)
 
 - SpinBox, Table/Tree(가상화, SDO/PDO 편집), ScrollArea, Tabs, FileDialog(앱 내부 그리기)
 - 플롯 확대/이동/십자선
-- 라이브러리 기본 문자열 다국어화
 - Windows/Linux 확인: 한글 IME 이벤트 기록, Windows DPI 설정(`SDL_WINDOWS_DPI_AWARENESS`), Linux IME(IBus/Fcitx)
-- 드래그 선택/복사 (Terminal)
 - 둥근모 폰트 포함 여부 (라이선스 출처 확인 후)

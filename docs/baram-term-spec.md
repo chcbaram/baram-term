@@ -65,21 +65,25 @@
 - 포트 URL: 실제 장치 경로, pyserial `loop://`, `socket://host:port`, 가짜 펌웨어 `demo://`.
 - 문자열은 전부 `tr("key")` (ko 기본, en).
 
-## 패키지 구성 (예정)
+## 패키지 구성
 
 ```
 baram-term/
 ├── pyproject.toml          의존: retro-ui, pyserial / 실행: baram-term
+├── tests/                  i18n, 가짜 펌웨어 바이트, 헤드리스 앱
 └── src/baram_term/
-    ├── __main__.py         인자: 포트, 속도, --theme, --font-size, --lang, --demo
-    ├── app.py              메인 화면, 메뉴, Ctrl-A, 상태줄
-    ├── serial_port.py      수신/송신 스레드, 통계, 끊김 감지
-    ├── fake_device.py      demo:// 가짜 펌웨어 CLI
-    ├── highlight.py        태그 색상 규칙
-    ├── settings.py         설정 저장 (OS 별 사용자 설정 폴더)
-    ├── i18n.py
-    └── locales/ko.json, en.json
+    ├── __main__.py         인자: 포트, -b, --demo, --list, --theme, --font-size, --size, --lang
+    ├── app.py              메인 화면, 메뉴, Ctrl-A, 상태줄, 포트 설정 대화상자
+    ├── serial_port.py      PortSettings, 수신/송신 스레드, 통계, 끊김 감지, list_ports
+    ├── fake_device.py      demo:// 가짜 펌웨어 CLI (공개 펌웨어 cli.c 와 같은 바이트)
+    ├── logo.py             시작 로고 (BARAM 블록 문자)
+    ├── highlight.py        태그 색상 규칙 ([OK] [E_] WARN, 프롬프트 `...# `)
+    ├── i18n.py             tr(), 언어 선택
+    ├── locales/ko.json, en.json
+    └── (예정) settings.py  설정 저장
 ```
+
+프롬프트 강조는 특정 문자열이 아니라 "줄 처음의 공백 없는 단어 + `# `" 패턴으로 한다.
 
 ## 기본값
 

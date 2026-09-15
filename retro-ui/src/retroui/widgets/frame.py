@@ -12,10 +12,20 @@ from retroui.widgets.base import SizeHint, Widget
 class GroupBox(Widget):
     repaint_on_focus_within = True
 
-    def __init__(self, title: str = "", child: Widget | None = None, *, box: BoxStyle | None = None, **kw):
+    def __init__(
+        self,
+        title: str = "",
+        child: Widget | None = None,
+        *,
+        box: BoxStyle | None = None,
+        title_align: str = "left",
+        **kw,
+    ):
         super().__init__(**kw)
         self.title = title
         self.box = box
+        # 제목 위치: left | center | right. 메뉴바 바로 아래에서는 오른쪽에 두면 메뉴와 섞여 보이지 않는다
+        self.title_align = title_align
         if child is not None:
             self.add(child)
 
@@ -42,7 +52,15 @@ class GroupBox(Widget):
             style, border = theme.box_focus, pal.border_focus
         else:
             style, border = self.box or theme.box, pal.border
-        p.box(Rect(0, 0, self.rect.w, self.rect.h), style, border, pal.bg, title=self.title or None, title_fg=pal.accent)
+        p.box(
+            Rect(0, 0, self.rect.w, self.rect.h),
+            style,
+            border,
+            pal.bg,
+            title=self.title or None,
+            title_fg=pal.accent,
+            title_align=self.title_align,
+        )
 
 
 class Frame(GroupBox):
