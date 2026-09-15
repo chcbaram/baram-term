@@ -4,7 +4,7 @@
 
 | 모듈 | 역할 |
 |---|---|
-| `app.py` | App: 창, HiDPI 배율, 이벤트 루프, 포커스, 팝업 스택, damage 기반 페인트, 픽셀 위젯 합성, IME 켜고 끄기 |
+| `app.py` | App: 창, HiDPI 배율, 이벤트 루프, 포커스, 팝업 스택, damage 기반 페인트, 픽셀 위젯 합성, IME 켜고 끄기, 툴팁 띄우기 |
 | `theme.py` | Palette(역할별 색), BoxStyle, 테마 프리셋, `resolve_color`, `lighten` |
 | `core/geometry.py` | Rect (셀/픽셀 공용), `subtract` (팝업 가림 계산) |
 | `core/wcwidth.py` | 글자 폭 (한글 2칸, 모호폭 1칸), NFC 정규화, `slice_cols`, `truncate` |
@@ -18,7 +18,11 @@
 | `render/renderer.py` | 변경된 셀만 서피스에 그림 |
 | `input/events.py` | pygame 이벤트 → Key/Text/Composition/Mouse/Wheel 이벤트, scancode 로 키 이름 복원 |
 | `input/ime.py` | ImeFilter (macOS 한글 조합 보정), `hangul_backspace` |
-| `widgets/*` | base, containers, label, button, checkbox, frame, pixel, plot, popup, menu, lineedit, combobox, dialog, terminal |
+| `widgets/*` | base, containers, label, button, checkbox, frame, pixel, plot, popup, tooltip, menu, lineedit, combobox, dialog, terminal |
+
+툴팁은 위젯마다 만들지 않는다. 위젯에 `tooltip = "설명"` 만 넣으면 App 이 hover 를 재서
+`App.tooltip_delay` 초 뒤에 위젯 **위**로 띄우고, hover 가 바뀌거나 키/클릭이 오면 지운다
+(커서와 겹치면 hover 가 툴팁으로 넘어가 깜빡인다).
 
 ## 그리기 흐름
 
