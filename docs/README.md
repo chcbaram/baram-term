@@ -35,7 +35,7 @@ baram-term/                 GitHub: https://github.com/chcbaram/baram-term
 | 메뉴·언어 (파일 메뉴 맨 앞, 화면 언어 기본 영어·파일 메뉴에서 선택) | 완료, 헤드리스 확인 |
 | Windows 11 | 실행·스크롤 확인. 글자 선명도(DPI)·파일 메뉴는 푸시했고 **확인 대기** |
 | Linux | 아직 실행해 보지 않음 |
-| 다음 | 전송률 미니 그래프 → 줄 단위 입력창 → 배포 ([roadmap.md](roadmap.md)) |
+| 다음 | 줄 단위 입력창 → 배포 ([roadmap.md](roadmap.md)). 전송률 미니 그래프는 개선 메모로 미룸 |
 | 테스트 | retro-ui 290개, baram-term 229개 (+ 로컬 장치 기록이 있으면 재생 테스트) |
 
 ## 이어서 할 때 먼저 볼 것 (2026-09-16)
