@@ -140,39 +140,6 @@ def test_x_axis_is_arrival_time(bt):
     assert bt.plot.window == 10.0
 
 
-def test_plot_window_dialog_sets_validates_and_persists(tmp_path):
-    path = tmp_path / "settings.json"
-    term = make(config=Settings(), config_path=path)
-    try:
-        d = term.ask_plot_window()
-        assert d.combo.text == "10" and term.app.focus is d.combo
-        d.combo.set_text("30")
-        d.finish(0)
-        assert term.plot.window == 30.0
-
-        d = term.ask_plot_window()
-        d.combo.set_text("")
-        d.finish(0)
-        assert term.plot.window == 30.0 and "invalid time window" in "\n".join(term.app.screen_text())
-
-        d = term.ask_plot_window()
-        for ch in "2.5x":
-            term.app.dispatch(TextEvent(ch))  # 전체 선택된 30 을 바꿔 쓴다, x 는 무시
-        term.app.dispatch(KeyEvent(Key.RETURN, Mod.NONE, ""))
-        assert term.plot.window == 2.5
-    finally:
-        term.port.close()
-        term.app.close()
-    saved = store.load(path)[0]
-    assert saved.plot_window == 2.5
-    again = make(config=saved, config_path=path)
-    try:
-        assert again.plot.window == 2.5
-    finally:
-        again.port.close()
-        again.app.close()
-
-
 def click(term, widget, dx=1):
     from retroui.input.events import MouseEvent
 
@@ -251,9 +218,7 @@ def test_window_combo_sits_bottom_right_and_applies(bt):
     bt.app.dispatch(KeyEvent(Key.RETURN, Mod.NONE, ""))
     assert combo.text == "2.5" and "invalid time window" in "\n".join(bt.app.screen_text())
 
-    d = bt.ask_plot_window()  # 메뉴 대화상자로 바꾸면 아래 칸도 따라간다
-    d.combo.set_text("30")
-    d.finish(0)
+    bt.set_plot_window(30)  # 프로그램에서 바꿔도 아래 칸이 따라간다
     assert combo.text == "30" and bt.plot.window == 30.0
 
 
@@ -392,3 +357,22 @@ def test_typed_echo_is_not_delayed_while_hiding_plot_lines(bt):
     # 붙잡는 시간(0.2초)보다 훨씬 빨리 보여야 한다
     assert pump(bt, lambda: scr.line_text(scr.cy) == "cli# s", timeout=0.1)
     run_command(bt, "plot off")
+
+
+def test_plot_window_is_saved_and_restored(tmp_path):
+    path = tmp_path / "settings.json"
+    term = make(config=Settings(), config_path=path)
+    try:
+        assert term.plot.window == 10.0
+        term.set_plot_window(2.5)
+    finally:
+        term.port.close()
+        term.app.close()
+    saved = store.load(path)[0]
+    assert saved.plot_window == 2.5
+    again = make(config=saved, config_path=path)
+    try:
+        assert again.plot.window == 2.5 and again.plot_window_combo.text == "2.5"
+    finally:
+        again.port.close()
+        again.app.close()

@@ -335,9 +335,6 @@ class BaramTerm:
                         MenuItem.sep(),
                         self.item_plot,
                         self.item_plot_hide,
-                        MenuItem(tr("menu.view.plot_pause"), self.toggle_plot_pause),
-                        MenuItem(tr("menu.view.plot_clear"), self.clear_plot),
-                        MenuItem(tr("menu.view.plot_window"), self.ask_plot_window),
                         MenuItem(tr("menu.view.clear"), self.clear, shortcut="Ctrl-A C", key="C"),
                         MenuItem.sep(),
                         MenuItem(tr("menu.view.bigger"), lambda: self.zoom(+1), shortcut="Primary+="),
@@ -713,32 +710,6 @@ class BaramTerm:
             self.notice(tr("notice.bad_plot_window", text=text), error=True)
             self.plot_window_combo.set_text(_format_seconds(self.plot.window), emit=False)
         self.app.set_focus(self.terminal)
-
-    def ask_plot_window(self) -> Dialog:
-        combo = EditableComboBox(PLOT_WINDOWS, _format_seconds(self.plot.window), validator=_seconds_text_ok, min_size=(10, 1))
-
-        def done(index: int) -> None:
-            if index != 0:
-                return
-            seconds = _parse_seconds(combo.text)
-            if seconds is None:
-                self.notice(tr("notice.bad_plot_window", text=combo.text), error=True)
-                return
-            self.set_plot_window(seconds)
-
-        dialog = Dialog(
-            tr("dialog.plot_window.title"),
-            HBox(combo, Label(tr("dialog.plot_window.unit")), spacing=1),
-            (tr("button.ok"), tr("button.cancel")),
-            on_result=done,
-        )
-        dialog.combo = combo
-        dialog.open(self.app)
-        self.app.set_focus(combo)
-        combo.select_all()
-        return dialog
-
-    # ---- search --------------------------------------------------------
 
     def open_search(self) -> None:
         if self.search is not None and self.search.is_open:
