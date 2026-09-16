@@ -119,7 +119,9 @@ def test_banner_colors_in_terminal_screen():
 
 
 def test_icon_is_rounded_terminal_window():
-    pygame.init()
+    # 아이콘은 Surface 에 도형만 그린다. pygame.init() 은 오디오까지 올려서 사운드 장치가
+    # 없는 윈도우 러너에서 8 초를 먹었다 (baram-term 스위트에서 가장 느린 테스트였다)
+    pygame.display.init()
     icon = make_icon(128)
     assert icon.get_size() == (128, 128)
     assert icon.get_at((0, 0)).a == 0  # 둥근 모서리 바깥은 투명

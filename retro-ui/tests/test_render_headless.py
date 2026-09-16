@@ -15,7 +15,9 @@ BG = (0, 0, 170)
 
 @pytest.fixture(scope="module")
 def fonts():
-    pygame.init()
+    # pygame.init() 은 오디오까지 올린다. 사운드 장치가 없는 윈도우 러너에서 그 실패가
+    # 8 초를 먹어 이 파일 하나가 스위트에서 가장 느렸다 (App 도 같은 이유로 고쳤다)
+    pygame.display.init()
     try:
         f = FontSet("d2coding", 16, 1.0)
     except (FileNotFoundError, ValueError) as e:
