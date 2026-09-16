@@ -144,3 +144,24 @@ def test_hex_collects_only_on_its_tab(bt):
     assert bt.hex_view.rows == []
     bt.right_tabs.select(0)
     assert bt.hex_active
+
+
+def test_menu_picks_hex_or_memo_and_toggles_off(bt):
+    bt._apply_hex(False)
+    assert not bt.right_frame.visible and not bt.item_hex.checked and not bt.item_memo.checked
+
+    bt._show_right_tab(0)  # 보기 메뉴 > HEX 보기
+    assert bt.right_frame.visible and bt.right_tabs.selected == 0
+    assert bt.item_hex.checked and not bt.item_memo.checked
+
+    bt._show_right_tab(0)  # 같은 것을 다시 고르면 닫는다
+    assert not bt.right_frame.visible and not bt.item_hex.checked
+
+    dialog = bt._show_right_tab(1) or bt.app.popups[-1]  # 메모가 없으면 먼저 만든다
+    dialog.edit.set_text("boot")
+    dialog.finish(0)
+    assert bt.right_frame.visible and bt.right_tabs.selected == 1
+    assert bt.item_memo.checked and not bt.item_hex.checked
+
+    bt.right_tabs.select(0)  # 탭을 직접 눌러도 메뉴 표시가 따라간다
+    assert bt.item_hex.checked and not bt.item_memo.checked

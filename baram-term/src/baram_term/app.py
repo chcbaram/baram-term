@@ -366,9 +366,12 @@ class BaramTerm:
         self.item_plot = MenuItem(
             tr("menu.view.plot"), lambda: self._apply_plot(self.item_plot.checked), shortcut="Ctrl-A G", key="P", checked=self.config.plot
         )
+        # 오른쪽 패널을 HEX / 메모로 나눠서 고른다 (보고 싶은 것을 바로 고르고, 같은 것을 다시 고르면 닫는다)
         self.item_hex = MenuItem(
-            tr("menu.view.hex"), lambda: self._apply_hex(self.item_hex.checked),
-            shortcut="Ctrl-A H", key="H", checked=self.config.hex,
+            tr("menu.view.hex"), lambda: self._show_right_tab(0), shortcut="Ctrl-A H", key="H", checked=False,
+        )
+        self.item_memo = MenuItem(
+            tr("menu.view.memo"), lambda: self._show_right_tab(1), shortcut="Ctrl-A T", key="T", checked=False,
         )
         self.item_plot_hide = MenuItem(
             tr("menu.view.plot_hide"), lambda: self._apply_plot_hide(self.item_plot_hide.checked), checked=self.plot_hide_lines
@@ -432,6 +435,7 @@ class BaramTerm:
                         self.item_plot,
                         self.item_plot_hide,
                         self.item_hex,
+                        self.item_memo,
                         MenuItem(tr("menu.view.rules"), self.open_rules_dialog),
                         MenuItem(tr("menu.view.clear"), self.clear, shortcut="Ctrl-A C", key="C"),
                         MenuItem.sep(),
@@ -883,10 +887,15 @@ class BaramTerm:
         """오른쪽 패널이 보이고 HEX 탭일 때만 바이트를 모은다."""
         return self.right_frame.visible and self.right_tabs.selected == 0
 
+    def _sync_panel_menu(self) -> None:
+        showing = self.right_frame.visible
+        self.item_hex.checked = showing and self.right_tabs.selected == 0
+        self.item_memo.checked = showing and self.right_tabs.selected > 0
+
     def _tab_titles(self) -> list[str]:
         return [tr("hex.title"), *(note.title for note in self.notes)]
 
-    NOTE_ONE_ROW_MIN = 52  # 버튼 둘 + 대기 방식 + 간격이 한 줄에 들어가는 최소 폭
+    NOTE_ONE_ROW_MIN = 62  # 버튼 둘 + 대기 방식(17) + 간격 칸 + ms 가 눌리지 않고 들어가는 폭
 
     def _fit_note_footer(self) -> None:
         """넓으면 버튼과 옵션을 한 줄에, 좁으면 옵션을 둘째 줄로."""
@@ -914,6 +923,7 @@ class BaramTerm:
         if index > 0 and index - 1 < len(self.notes):
             self.note_area.set_text(self.notes[index - 1].text, emit=False)
         self.config.right_tab = index
+        self._sync_panel_menu()
         self._save()
         self._update_status()
 
@@ -1165,9 +1175,22 @@ class BaramTerm:
         dialog.open(self.app)
         return dialog
 
+    def _show_right_tab(self, tab: int) -> None:
+        """메뉴에서 HEX/메모 고르기: 이미 그 탭이 보이는 중이면 패널을 닫는다."""
+        if self.right_frame.visible and (self.right_tabs.selected == 0) == (tab == 0):
+            self._apply_hex(False)
+            return
+        if tab > 0 and not self.notes:
+            self.add_note()  # 메모가 하나도 없으면 먼저 만든다
+        if tab == 0:
+            self.right_tabs.select(0)
+        elif self.notes:
+            self.right_tabs.select(max(1, self.right_tabs.selected))
+        self._apply_hex(True)
+
     def _apply_hex(self, on: bool) -> None:
-        self.item_hex.checked = on
         self.right_frame.visible = on
+        self._sync_panel_menu()
         if not on:
             self.hex_view.clear()  # 꺼 두는 동안 받은 바이트는 모으지 않으므로 오프셋이 이어지지 않는다
         self._save()
@@ -1635,7 +1658,8 @@ class BaramTerm:
                 "l": self.toggle_log,
                 "/": self.open_search,
                 "g": lambda: self._apply_plot(not self.plot_frame.visible),
-                "h": lambda: self._apply_hex(not self.right_frame.visible),
+                "h": lambda: self._show_right_tab(0),
+                "t": lambda: self._show_right_tab(1),
                 "m": lambda: self._apply_macro_bar(not self.macro_bar.visible),
                 "f": self.open_search,
             }.get(name)
