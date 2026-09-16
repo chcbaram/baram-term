@@ -21,19 +21,27 @@ uv pip install --python .venv/bin/python -e "retro-ui[dev]" -e "baram-term[dev]"
 Windows (PowerShell) 는 `.venv/bin/python` 대신 `.venv\Scripts\python.exe`, `.venv/bin/baram-term` 대신
 `.venv\Scripts\baram-term.exe` 를 쓴다.
 
-uv 가 없으면 표준 도구로 같은 환경을 만든다. 테스트까지 돌리려면 `[dev]` 를 꼭 붙인다 (빼면 pytest 가 없다):
+uv 가 없으면 표준 도구로 같은 환경을 만든다. 테스트까지 돌리려면 `[dev]` 를 꼭 붙인다 (빼면 pytest 가 없다).
+**두 줄로 나누고 순서를 지켜야 한다** — 한 줄로 합치면 pip 이 충돌로 막는다:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -e "retro-ui[dev]" -e "baram-term[dev]"
+.venv/bin/pip install -e "baram-term[dev]"   # retro-ui 가 git URL 로 딸려온다
+.venv/bin/pip install -e "retro-ui[dev]"     # 그 사본을 이 저장소 소스로 덮어쓴다
 ```
+
+`baram-term` 은 retro-ui 를 git URL 로 의존한다 (PyPI 에 없는데 `pipx install` 이 되게 하려는 것).
+평범한 pip 은 그 URL 과 로컬 `-e retro-ui` 를 같은 이름의 다른 소스로 보고 `ResolutionImpossible`
+을 낸다. 그래서 나중 줄이 앞 줄을 덮어쓰게 나눈다. **순서를 뒤집으면 에러 없이 설치되지만**
+retro-ui 가 editable 이 아니라 git 사본으로 남아, `retro-ui/src` 를 고쳐도 반영되지 않는다.
+uv 는 `[tool.uv.sources]` 가 URL 을 덮어쓰므로 위쪽 명령 한 줄이면 된다.
 
 Windows 메모 (Windows 11 에서 확인):
 - `py` 런처가 없을 수 있다. 그때는 `python -m venv .venv` 로 만든다. Microsoft Store 판 Python 3.13 도 동작한다.
 - 편집 가능 설치(`-e`)라서 `git pull` 만 하면 새 코드가 반영된다. `pyproject.toml` 의 의존성이 바뀌었을 때만 다시 설치한다.
 
 > `.venv` 는 안에 절대 경로가 들어가므로 **폴더를 옮기거나 이름을 바꾸면 다시 만든다.**
-> `rm -rf .venv` 후 위 두 줄을 다시 실행.
+> `rm -rf .venv` 후 위 설치 명령을 다시 실행.
 
 ## baram-term 실행
 

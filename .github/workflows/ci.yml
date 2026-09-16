@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 같은 브랜치에 새로 푸시하면 돌던 것은 취소한다 (러너 시간 절약)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test ${{ matrix.os }} py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false # 한 OS 가 깨져도 나머지 결과를 봐야 한다
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.10", "3.12"] # requires-python 하한과 개발 기준
+    env:
+      SDL_VIDEODRIVER: dummy # 창 없이 렌더링한다 (러너에는 디스플레이가 없다)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      # 설치 순서가 중요하다. baram-term 을 먼저 넣으면 retro-ui 가 git URL 로 딸려오고,
+      # 이어서 retro-ui 를 editable 로 넣으면 그 사본을 소스 트리로 덮어쓴다.
+      # 한 번에 넣으면 pip 이 URL 과 로컬 경로를 충돌로 보고 막는다 (docs/dev-setup.md)
+      - name: install baram-term (retro-ui comes from git)
+        run: pip install -e "baram-term[dev]"
+
+      - name: override retro-ui with this checkout
+        run: pip install -e "retro-ui[dev]"
+
+      - name: retro-ui tests
+        run: python -m pytest retro-ui/tests -q
+
+      - name: baram-term tests
+        run: python -m pytest baram-term/tests -q
+
+  install:
+    name: install like pipx
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # pipx / uv tool 이 쓰는 경로 그대로: retro-ui 는 git URL 로 딸려와야 한다
+      - name: install from the checkout
+        run: pip install ./baram-term
+
+      - name: run it
+        run: baram-term --version
