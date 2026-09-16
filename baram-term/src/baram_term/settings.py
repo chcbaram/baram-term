@@ -60,6 +60,8 @@ class Settings:
     # 로그 저장 창의 마지막 폴더와 타임스탬프 선택
     log_dir: str = ""
     log_timestamps: bool = True
+    # 사용자 강조 규칙 ("색[ bold]|정규식", 위에 있는 것이 먼저 적용된다)
+    rules: list[str] = field(default_factory=list)
     # 포트별로 help 출력에서 배운 명령 목록 (Tab 자동완성)
     commands: dict[str, list[str]] = field(default_factory=dict)
 

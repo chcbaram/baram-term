@@ -25,6 +25,7 @@ from retroui import (
     LineEdit,
     Link,
     ListPopup,
+    ListView,
     LivePlot,
     PlotLegend,
     VSplit,
@@ -46,6 +47,7 @@ from baram_term.completion import Completer, at_prompt
 from baram_term.outgoing import outgoing_bytes
 from baram_term.hexinfo import as_hex, describe
 from baram_term.highlight import default_rules
+from baram_term.rules import COLORS, DEFAULT_COLOR, RulePreview, compile_rules, entry_label, format_entry, parse_entry, pattern_error
 from baram_term.icon import make_icon
 from baram_term.i18n import language, tr
 from baram_term.logger import LineCleaner, SessionLog, default_log_dir, log_filename
@@ -166,7 +168,7 @@ class BaramTerm:
         self._rx_rate = 0.0
 
         self.terminal = Terminal(max_lines=5000, scrollbar=True)
-        self.terminal.rules = default_rules()
+        self._apply_rules()
         self.terminal.ascii_input = self.config.ascii_input  # set_focus 전에: IME 켜기 여부를 이 값으로 정한다
         self.terminal.send.connect(self.send)
         self._apply_line_codes()
@@ -373,6 +375,7 @@ class BaramTerm:
                         self.item_plot,
                         self.item_plot_hide,
                         self.item_hex,
+                        MenuItem(tr("menu.view.rules"), self.open_rules_dialog),
                         MenuItem(tr("menu.view.clear"), self.clear, shortcut="Ctrl-A C", key="C"),
                         MenuItem.sep(),
                         MenuItem(tr("menu.view.bigger"), lambda: self.zoom(+1), shortcut="Primary+="),
@@ -715,6 +718,104 @@ class BaramTerm:
         self._save()
 
     # ---- hex view ------------------------------------------------------
+
+    # ---- highlight rules -----------------------------------------------
+
+    def _apply_rules(self) -> None:
+        """사용자 규칙을 기본 규칙 앞에 놓는다 (같은 글자는 먼저 맞는 규칙의 색)."""
+        self.terminal.rules = compile_rules(self.config.rules) + default_rules()
+        self.terminal.invalidate()
+
+    def open_rules_dialog(self) -> Dialog:
+        entries = list(self.config.rules)
+        listing = ListView(min_size=(52, 8))
+        preview = RulePreview()
+
+        def refresh(selected: int = 0) -> None:
+            listing.set_items([entry_label(e) for e in entries], selected=selected)
+            preview.set_rules(compile_rules(entries) + default_rules())
+
+        def edit(index: int) -> None:
+            def done(entry: str) -> None:
+                if index < len(entries):
+                    entries[index] = entry
+                else:
+                    entries.append(entry)
+                refresh(min(index, len(entries) - 1))
+
+            self.ask_rule(entries[index] if index < len(entries) else None, done)
+
+        def remove() -> None:
+            if entries and 0 <= listing.selected < len(entries):
+                del entries[listing.selected]
+                refresh(max(0, min(listing.selected, len(entries) - 1)))
+
+        def on_result(index: int) -> None:
+            if index != 0:
+                return
+            self.config.rules = entries
+            self._apply_rules()
+            self._save()
+
+        body = VBox(
+            listing,
+            preview,
+            HBox(
+                Button(tr("dialog.rules.add"), on_click=lambda: edit(len(entries)), style="solid", color="dim"),
+                Button(tr("dialog.rules.edit"), on_click=lambda: edit(listing.selected), style="solid", color="dim"),
+                Button(tr("dialog.rules.delete"), on_click=remove, style="solid", color="dim"),
+                Spacer(),
+                spacing=1,
+            ),
+            spacing=1,
+        )
+        dialog = Dialog(tr("dialog.rules.title"), body, (tr("button.ok"), tr("button.cancel")), on_result=on_result)
+        dialog.listing, dialog.preview, dialog.entries = listing, preview, entries
+        refresh()
+        dialog.open(self.app)
+        return dialog
+
+    def ask_rule(self, entry: str | None, on_done: Callable[[str], None]) -> Dialog:
+        color, bold, pattern = parse_entry(entry or "") or (DEFAULT_COLOR, False, "")
+        names = list(COLORS)
+        pattern_edit = LineEdit(pattern, min_size=(36, 1), on_change=lambda _text: validate())
+        color_combo = ComboBox(names, index=names.index(color), on_change=lambda *_: validate())
+        bold_box = CheckBox(tr("dialog.rule.bold"), checked=bold, on_toggle=lambda *_: validate())
+        error = Label("", fg="error")
+        preview = RulePreview()
+
+        def current() -> str:
+            return format_entry(color_combo.text, bold_box.checked, pattern_edit.text)
+
+        def problem() -> str:
+            if not pattern_edit.text:
+                return tr("dialog.rule.empty")
+            return pattern_error(pattern_edit.text) or ""
+
+        def validate() -> None:
+            trouble = problem()
+            error.set_text(trouble)
+            preview.set_rules(([] if trouble else compile_rules([current()])) + default_rules())
+            dialog.buttons[0].enabled = not trouble
+
+        def done(index: int) -> None:
+            if index == 0 and not problem():
+                on_done(current())
+
+        body = VBox(
+            HBox(Label(tr("dialog.rule.pattern"), min_size=(8, 1)), pattern_edit, spacing=1),
+            HBox(Label(tr("dialog.rule.color"), min_size=(8, 1)), color_combo, bold_box, Spacer(), spacing=1),
+            preview,
+            error,
+            spacing=1,
+        )
+        dialog = Dialog(tr("dialog.rule.title"), body, (tr("button.ok"), tr("button.cancel")), on_result=done)
+        dialog.pattern_edit, dialog.color_combo, dialog.bold_box = pattern_edit, color_combo, bold_box
+        dialog.preview, dialog.error = preview, error
+        validate()
+        dialog.open(self.app)
+        self.app.set_focus(pattern_edit)
+        return dialog
 
     def _apply_hex(self, on: bool) -> None:
         self.item_hex.checked = on
