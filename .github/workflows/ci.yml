@@ -37,11 +37,13 @@ jobs:
       - name: override retro-ui with this checkout
         run: pip install -e "retro-ui[dev]"
 
+      # --timeout: 멈추면 6시간 타임아웃까지 로그가 열리지 않는다. 60초면 끊고
+      # 스택 트레이스백을 남기므로 어디서 멈췄는지 바로 보인다 (로컬은 스위트 전체가 30초 남짓)
       - name: retro-ui tests
-        run: python -m pytest retro-ui/tests -q
+        run: python -m pytest retro-ui/tests -q --timeout=60
 
       - name: baram-term tests
-        run: python -m pytest baram-term/tests -q
+        run: python -m pytest baram-term/tests -q --timeout=60
 
   install:
     name: install like pipx

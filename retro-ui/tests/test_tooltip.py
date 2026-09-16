@@ -158,7 +158,11 @@ def test_tooltip_waits_again_after_the_popup_closes(app):
     hover(app, button)
     settle(app)
     app.close_popup(popup)
-    app.step()
+    # 닫은 직후 아직 안 떴다는 것만 보면 벽시계 여유(tooltip_delay=0.05)에 기대게 된다.
+    # settle 의 sleep 과 close_popup 이 그 여유를 깎아서 느린 기계에서 넘어간다
+    # (CI macOS py3.10 에서 실제로 실패). 기한이 미래로 되감겼는지를 직접 본다
     assert not app.popups, "메뉴를 닫은 직후에 툴팁이 바로 뜨면 안 된다"
+    deadline = app._tooltip_deadline()
+    assert deadline is not None and deadline > time.monotonic(), "닫은 뒤에는 다시 기다려야 한다"
     settle(app)
     assert any(isinstance(p, Tooltip) for p in app.popups)

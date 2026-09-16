@@ -478,17 +478,24 @@ class App:
                 self.step(block=True)
         finally:
             self.close()
+            pygame.quit()  # 프로그램이 끝나는 자리. SDL 을 내리는 것은 여기서만 한다
 
     def quit(self) -> None:
         self.running = False
 
     def close(self) -> None:
+        """이 App 의 창만 정리한다. SDL 자체는 내리지 않는다.
+
+        전에는 여기서 pygame.quit() 을 불렀다. 인스턴스 메서드가 프로세스 전역 상태를 내리는
+        것이라 한 프로세스에서 App 을 닫았다 다시 여는 경우가 깨졌고, 비용도 컸다 (create+close
+        왕복 134ms -> 11ms). 테스트는 App 을 수백 번 만들었다 닫으므로 Windows CI 에서
+        테스트당 9 초씩 걸려 잡이 끝나지 않았다. SDL 종료는 run() 이 끝나는 자리에만 둔다.
+        """
         self.running = False
         set_dispatcher(None)
         if self.window is not None:
             self.window.destroy()
             self.window = None
-        pygame.quit()
 
     def screen_text(self) -> list[str]:
         """현재 화면 글자 (테스트용). 그릴 것이 남아 있으면 먼저 그린다."""
