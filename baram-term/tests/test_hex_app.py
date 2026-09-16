@@ -127,3 +127,80 @@ def test_drag_boundary_changes_width_and_persists(tmp_path):
         term.port.close()
         term.app.close()
     assert store.load(path)[0].hex_split == round(ratio, 4)
+
+
+def byte_pos(term, offset):
+    """오프셋이 그려진 화면 좌표. 한 줄 바이트 수는 패널 폭에 따라 달라지므로 줄을 찾아서 계산한다."""
+    term.app.ensure_layout()
+    view = term.hex_view
+    top = view.view_top()
+    for row_index in range(top, len(view.rows)):
+        start, _direction, data = view.rows[row_index]
+        if start <= offset < start + len(data):
+            x = view.rect.x + 8 + 1 + 2 + 1 + 3 * (offset - start)
+            return x, view.rect.y + (row_index - top)
+    raise AssertionError(f"offset {offset} is not on screen")
+
+
+def test_selection_shows_info_and_copy(bt, monkeypatch):
+    copied = []
+    monkeypatch.setattr("baram_term.app.clipboard_put", copied.append)
+    bt._apply_hex(True)
+    bt.hex_view.append(b"cli# help", "rx")
+    bt.app.step()
+    assert bt.hex_info.text == "" and not bt.hex_copy_button.enabled
+
+    x, y = byte_pos(bt, 2)
+    bt.app.dispatch(MouseEvent("down", 1, x, y, 0, 0))
+    bt.app.dispatch(MouseEvent("up", 1, x, y, 0, 0))
+    assert bt.hex_info.text == "@00000002  69  105  'i'" and bt.hex_copy_button.enabled
+
+    x2, y2 = byte_pos(bt, 5)  # 줄이 바뀔 수도 있다
+    bt.app.dispatch(MouseEvent("down", 1, x, y, 0, 0))
+    bt.app.dispatch(MouseEvent("move", 0, x2, y2, 0, 0))
+    bt.app.dispatch(MouseEvent("up", 1, x2, y2, 0, 0))
+    info = bt.hex_info.text
+    assert "4 bytes" in info and info.startswith("@00000002") and len(info) <= bt.hex_info.rect.w
+
+    click(bt, bt.hex_copy_button)
+    assert copied == ["69 23 20 68"] and bt.app.focus is bt.terminal
+    assert "copied 4 bytes as hex" in "\n".join(bt.app.screen_text())
+
+
+def test_clearing_the_view_clears_the_info_line(bt):
+    bt._apply_hex(True)
+    bt.hex_view.append(b"ab", "rx")
+    bt.app.step()
+    x, y = byte_pos(bt, 0)
+    bt.app.dispatch(MouseEvent("down", 1, x, y, 0, 0))
+    bt.app.dispatch(MouseEvent("up", 1, x, y, 0, 0))
+    assert bt.hex_info.text
+    click(bt, bt.hex_clear_button)
+    assert bt.hex_info.text == "" and not bt.hex_copy_button.enabled
+
+
+def hex_lines(term):
+    """화면에서 HEX 패널의 데이터 줄만 잘라낸다 (버튼 글자가 있는 조작줄은 뺀다)."""
+    view = term.hex_view
+    x, y = view.rect.x, view.rect.y
+    return [line[x : x + view.rect.w] for line in term.app.screen_text()[y : y + view.rect.h]]
+
+
+def test_stop_freezes_the_panel_even_when_not_full(bt):
+    bt._apply_hex(True)
+    bt.hex_view.append(b"AAAA", "rx")
+    bt.app.step()
+    before = hex_lines(bt)
+
+    click(bt, bt.hex_run_button)
+    assert bt.hex_view.paused and bt.hex_run_button.text == "START"
+    bt.hex_view.append(b"BBBB", "rx")
+    bt.hex_view.append(b"CCCCCCCC", "rx")
+    bt.app.step()
+    assert hex_lines(bt) == before  # 정지 중에는 화면이 그대로
+    assert bt.hex_view.next_offset == 16  # 데이터는 계속 쌓인다
+
+    click(bt, bt.hex_run_button)
+    bt.app.step()
+    assert bt.hex_run_button.text == "STOP"
+    assert "42 42 42 42" in "\n".join(hex_lines(bt))  # START 를 누르면 밀린 줄이 보인다

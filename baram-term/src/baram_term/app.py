@@ -38,11 +38,13 @@ from retroui import (
     message_box,
 )
 from retroui.core.wcwidth import str_width
+from retroui.widgets.lineedit import clipboard_put
 from retroui.input.events import IS_MAC, Key, KeyEvent
 
 from baram_term import __version__
 from baram_term.completion import Completer, at_prompt
 from baram_term.outgoing import outgoing_bytes
+from baram_term.hexinfo import as_hex, describe
 from baram_term.highlight import default_rules
 from baram_term.icon import make_icon
 from baram_term.i18n import language, tr
@@ -219,7 +221,13 @@ class BaramTerm:
         hex_toolbar = HBox(
             Label(tr("hex.title"), fg="accent", bold=True), Spacer(), self.hex_clear_button, self.hex_run_button, spacing=1
         )
-        self.hex_frame = GroupBox("", VBox(hex_toolbar, self.hex_view), stretch=1, visible=self.config.hex)
+        # 고른 바이트 설명 줄 (없으면 빈 줄로 둔다: 줄이 생겼다 없어지면 내용이 밀린다)
+        self.hex_info = Label("", fg="dim")
+        self.hex_copy_button = Button(tr("hex.copy"), on_click=self.copy_hex_selection, style="solid", color="dim", enabled=False)
+        self.hex_copy_button.focusable = False
+        self.hex_view.selection_changed.connect(self._on_hex_selection)
+        hex_footer = HBox(self.hex_info, Spacer(), self.hex_copy_button, spacing=1)
+        self.hex_frame = GroupBox("", VBox(hex_toolbar, self.hex_view, hex_footer), stretch=1, visible=self.config.hex)
         # 터미널과 HEX 를 좌우로 나눈다 (경계를 끌어 폭 조절, 비율 저장)
         self.terminal_split = HSplit(
             self.frame,
@@ -717,6 +725,8 @@ class BaramTerm:
         self._update_status()
 
     def _on_hex_split_changed(self, ratio: float) -> None:
+        self.app.ensure_layout()
+        self._on_hex_selection()  # 폭이 바뀌면 설명을 다시 맞춘다
         self.config.hex_split = round(ratio, 4)
         self._save()
 
@@ -725,6 +735,19 @@ class BaramTerm:
         self.hex_view.set_paused(paused)
         self.hex_run_button.set_text(tr("hex.start") if paused else tr("hex.stop"))
         self.hex_run_button.set_color("ok" if paused else "error")
+        self.app.set_focus(self.terminal)
+
+    def _on_hex_selection(self) -> None:
+        data = self.hex_view.selected_bytes()
+        start = self.hex_view.selection[0] if self.hex_view.selection else 0
+        self.hex_info.set_text(describe(start, data, self.hex_info.rect.w or None))
+        self.hex_copy_button.enabled = bool(data)
+
+    def copy_hex_selection(self) -> None:
+        data = self.hex_view.selected_bytes()
+        if data:
+            clipboard_put(as_hex(data))
+            self.notice(tr("notice.hex_copied", count=len(data)))
         self.app.set_focus(self.terminal)
 
     def clear_hex(self) -> None:
