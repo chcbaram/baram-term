@@ -333,7 +333,9 @@ class TextArea(Widget):
             # 왼쪽이 잘려 있다는 표시: 앞부분이 안 보이는데 그냥 두면 다른 글로 읽힌다
             for y in range(min(h, len(self.lines) - self.scroll_row)):
                 p.put(0, y, "‹", pal.dim, pal.input_bg)
-        if self.focused:
+        # 선택 중에는 캐럿을 그리지 않는다. 이미 선택 색으로 칠한 칸에 반전을 한 번 더 걸면
+        # 그 칸만 색이 튀어서 (여기서는 더 하얗게) 선택에서 빠진 것처럼 보인다
+        if self.focused and span is None:
             cy = self.row - self.scroll_row
             cx = self._col_x(self.row, self.col) + str_width(self.preedit) - self.scroll_col
             if 0 <= cy < h and 0 <= cx < w:

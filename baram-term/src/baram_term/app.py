@@ -1538,7 +1538,7 @@ class BaramTerm:
 
     def open_baud_menu(self) -> ListPopup | None:
         current = str(self.settings.baud)
-        rates = sorted({*BAUD_RATES, current}, key=int)
+        rates = sorted({*BAUD_RATES, *self.config.recent_bauds, current}, key=int)
         items = [*rates, tr("status.custom_baud")]
 
         def choose(item: str) -> None:
@@ -1584,6 +1584,7 @@ class BaramTerm:
         if baud <= 0 or baud == self.settings.baud:
             return
         self.settings = replace(self.settings, baud=baud)
+        self._remember_baud(baud)
         if self.port.is_open:
             try:
                 self.port.set_baud(baud)
@@ -1596,7 +1597,16 @@ class BaramTerm:
         self._update_status()
 
     def ask_custom_baud(self) -> Dialog:
-        edit = LineEdit(str(self.settings.baud), validator=_baud_text_ok, min_size=(12, 1))
+        """상태줄 속도 메뉴의 '직접 입력...': 받은 값을 바로 적용한다."""
+        return self.ask_baud_value(self.settings.baud, self.switch_baud)
+
+    def ask_baud_value(self, current: int, on_done: Callable[[int], None]) -> Dialog:
+        """속도를 직접 받아 on_done 에 넘긴다. 적용 여부는 부르는 쪽이 정한다.
+
+        포트 설정 대화상자는 OK 를 눌러야 반영되는 구조다. 여기서 곧바로 switch_baud 를
+        부르면 취소를 눌러도 속도가 이미 바뀌어 있어서, '묻기' 와 '적용' 을 나눠 둔다.
+        """
+        edit = LineEdit(str(current), validator=_baud_text_ok, min_size=(12, 1))
 
         def done(index: int) -> None:
             if index != 0:
@@ -1605,7 +1615,7 @@ class BaramTerm:
             if baud is None:
                 self.notice(tr("notice.bad_baud", text=edit.text), error=True)
                 return
-            self.switch_baud(baud)
+            on_done(baud)
 
         dialog = Dialog(
             tr("dialog.baud.title"),
@@ -1620,14 +1630,23 @@ class BaramTerm:
         return dialog
 
     RECENT_PORTS_MAX = 8
+    RECENT_BAUDS_MAX = 8
 
     def _port_choices(self) -> list[str]:
-        """현재 포트(목록에 없으면 맨 앞), 찾은 포트, 최근에 쓴 포트/주소, demo 순."""
+        """고를 수 있는 것만: 지금 꽂혀 있는 포트, 스캔으로 못 찾는 최근 주소, demo 순.
+
+        뽑아 둔 장치는 넣지 않는다. 골라 봐야 반드시 연결에 실패하고, 전에는 연결 중이던
+        포트와 최근 포트를 무조건 끼워 넣어서 **장치를 뽑고 새로고침해도 목록이 그대로였다**
+        (버튼이 안 눌린 것처럼 보이던 원인). 연결돼 있는 포트는 어차피 탐지되므로 따로
+        앞세울 필요가 없다.
+
+        다만 `socket://` `rfc2217://` 처럼 스캔에 잡히지 않는 주소는 남긴다. 그런 주소는
+        최근 목록이 유일한 재사용 수단이라, 지우면 매번 손으로 다시 쳐야 한다.
+        """
         detected = list_ports()
-        current = self.settings.port
-        head = [current] if current and current not in detected else []
+        remembered = [p for p in self.config.recent_ports if "://" in p]
         choices: list[str] = []
-        for port in (*head, *detected, *self.config.recent_ports, DEMO_PORT):
+        for port in (*detected, *remembered, DEMO_PORT):
             if port and port not in choices:
                 choices.append(port)
         return choices
@@ -1637,6 +1656,14 @@ class BaramTerm:
             return
         recent = [p for p in self.config.recent_ports if p != port]
         self.config.recent_ports = [port, *recent][: self.RECENT_PORTS_MAX]
+
+    def _remember_baud(self, baud: int) -> None:
+        """직접 입력한 속도를 기억한다. 표준 속도는 늘 목록에 있으니 기억하지 않는다."""
+        text = str(baud)
+        if baud <= 0 or text in BAUD_RATES:
+            return
+        recent = [b for b in self.config.recent_bauds if b != text]
+        self.config.recent_bauds = [text, *recent][: self.RECENT_BAUDS_MAX]
 
     def open_port_dialog(self) -> Dialog:
         ports = self._port_choices()
@@ -1650,16 +1677,63 @@ class BaramTerm:
         stop = str(int(s.stopbits)) if float(s.stopbits).is_integer() else str(s.stopbits)
         port_cb = combo(ports, current)
         # 목록에서 고르면 주소 칸에 채우고, 확인은 주소 칸 값으로 연결한다 (socket://, rfc2217:// 직접 입력)
-        address = LineEdit(current or port_cb.text, placeholder="socket://host:port", min_size=(32, 1))
+        # padding=1: 위아래 줄이 모두 ComboBox 라 한 칸 들여 그린다. 이 칸만 붙어 보이면 어긋나 보인다
+        address = LineEdit(current or port_cb.text, placeholder="socket://host:port", min_size=(32, 1), padding=1)
         port_cb.changed.connect(lambda _index, text: address.set_text(text))
+
+        def sync_combo() -> None:
+            """목록과 주소 칸이 늘 같은 것을 가리키게 한다.
+
+            설정된 포트가 뽑혀 있으면 목록에 없다. 그때 주소만 남겨 두면 목록은 다른 포트를
+            가리켜 화면이 서로 다른 말을 하고, 목록을 비우면 고장난 것처럼 보인다. 그래서
+            찾은 포트 중 첫 번째로 옮기고 주소도 거기에 맞춘다. 어차피 없는 포트로는 연결이
+            안 되고, 취소하면 기존 설정은 그대로 남는다.
+            """
+            if port_cb.set_text(address.text.strip(), emit=False):
+                return
+            port_cb.set_index(0, emit=False)
+            address.set_text(port_cb.text)
 
         def refresh() -> None:
             port_cb.set_items(self._port_choices())
+            sync_combo()
+
+        sync_combo()
 
         # 박스 버튼은 3줄이라 한 줄짜리로: 포트 줄 높이를 늘리지 않는다
         refresh_button = Button(tr("dialog.port.refresh"), on_click=refresh, style="fill")
-        # 목록에 없는 속도(250000 등)는 직접 입력한다
-        baud_cb = EditableComboBox(BAUD_RATES, str(s.baud), validator=_baud_text_ok, min_size=(12, 1))
+        refresh_button.focusable = False  # 마우스로만 쓴다. 눌렀을 때 ►◄ 포커스 표시가 뜨지 않게
+        # 목록 밖 속도(250000 등)는 맨 아래 '직접 입력...' 으로 받는다. 상태줄 속도 메뉴와 같은
+        # 창을 띄우고, 받은 값은 목록 끝에 넣어 고른 상태로 만든다. 콤보박스를 편집까지 되게
+        # 하면 "고르는 것인지 쓰는 것인지" 가 헷갈려서 고르는 쪽으로만 둔다.
+        custom_baud = tr("status.custom_baud")
+        # 저장해 둔 커스텀 속도도 목록에 넣는다. 없으면 combo() 가 첫 항목(9600)으로 떨어뜨린다.
+        # 끝에 붙이지 않고 숫자 순으로 끼우는 것은 상태줄 속도 메뉴와 같은 방식이다
+        rates = sorted({*BAUD_RATES, *self.config.recent_bauds, str(s.baud)}, key=int)
+        baud_cb = ComboBox(
+            [*rates, custom_baud],
+            index=rates.index(str(s.baud)),
+            visible_rows=len(rates) + 1,  # 안내 항목이 스크롤해야 보이면 넣으나 마나다
+        )
+        last_baud_index = [baud_cb.index]
+
+        def use_baud(baud: int) -> None:
+            kept = [i for i in baud_cb.items if i != custom_baud]
+            items = sorted({*kept, str(baud)}, key=int)
+            baud_cb.set_items([*items, custom_baud], keep_text=False)
+            baud_cb.visible_rows = len(items) + 1
+            baud_cb.set_text(str(baud), emit=False)
+            last_baud_index[0] = baud_cb.index
+
+        def baud_picked(index: int, text: str) -> None:
+            if text != custom_baud:
+                last_baud_index[0] = index
+                return
+            # 먼저 고르기 전 값으로 되돌려 둔다: 창을 취소해도 안내 문구가 골라진 채 남지 않는다
+            baud_cb.set_index(last_baud_index[0], emit=False)
+            self.ask_baud_value(_parse_baud(baud_cb.text) or s.baud, use_baud)
+
+        baud_cb.changed.connect(baud_picked)
         bits_cb = combo(BYTESIZES, str(s.bytesize))
         parity_cb = combo(PARITIES, s.parity)
         stop_cb = combo(STOPBITS, stop)
@@ -1699,6 +1773,7 @@ class BaramTerm:
                 return
             port = address.text.strip()
             self._remember_port(port)
+            self._remember_baud(baud)
             self.settings = PortSettings(
                 port=port,
                 baud=baud,

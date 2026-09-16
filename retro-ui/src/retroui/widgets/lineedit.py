@@ -53,6 +53,7 @@ class LineEdit(Widget):
         placeholder: str = "",
         max_length: int | None = None,
         validator: Callable[[str], bool] | None = None,
+        padding: int = 0,
         clear_on_submit: bool = False,
         history: bool = False,
         on_submit: Callable[[str], None] | None = None,
@@ -64,6 +65,9 @@ class LineEdit(Widget):
         self.placeholder = placeholder
         self.max_length = max_length
         self.validator = validator
+        # 글자를 왼쪽 끝에서 이만큼 띄워 그린다. ComboBox 와 나란히 놓이는 칸만 1 로 준다.
+        # 그리기·가로 스크롤·클릭 위치·IME 후보창 좌표가 모두 이 값을 함께 쓴다
+        self.padding = max(0, int(padding))
         self.clear_on_submit = clear_on_submit
         self.changed = Signal()
         self.submitted = Signal()
@@ -163,12 +167,12 @@ class LineEdit(Widget):
     def caret_cell(self) -> tuple[int, int] | None:
         if not self.focused or self.rect.w <= 0:
             return None
-        x = max(0, min(self.caret_col - self.scroll, self.rect.w - 1))
-        return self.rect.x + x, self.rect.y
+        x = max(0, min(self.caret_col - self.scroll, max(0, self.rect.w - self.padding - 1)))
+        return self.rect.x + self.padding + x, self.rect.y
 
     def index_at(self, cx: int) -> int:
         """셀 열 위치를 글자 인덱스로. 와이드 문자의 오른쪽 절반을 누르면 그 글자 뒤."""
-        target = cx - self.rect.x + self.scroll
+        target = cx - self.rect.x - self.padding + self.scroll
         col = 0
         for i, ch in enumerate(self.text):
             w = char_width(ch)
@@ -178,7 +182,7 @@ class LineEdit(Widget):
         return len(self.text)
 
     def _scroll_to_caret(self, display: str) -> None:
-        w = self.rect.w
+        w = max(1, self.rect.w - self.padding)  # 여백을 뺀 실제 글자 폭
         caret = self.caret_col
         after = self.cursor + len(self.preedit)
         caret_w = char_width(display[after]) if after < len(display) else 1
@@ -190,7 +194,7 @@ class LineEdit(Widget):
             self.scroll = caret + caret_w - w
 
     def size_hint(self) -> SizeHint:
-        w = max(10, str_width(self.text) + 2, str_width(self.placeholder) + 2)
+        w = max(10, str_width(self.text) + 2 + self.padding, str_width(self.placeholder) + 2 + self.padding)
         return SizeHint(4, 1, w, 1, max_h=1)
 
     # ---- paint ---------------------------------------------------------
@@ -208,10 +212,10 @@ class LineEdit(Widget):
         if not self.text and not self.preedit:
             self.scroll = 0
             if self.placeholder:
-                p.text(0, 0, truncate(self.placeholder, w), pal.dim, bg)
+                p.text(self.padding, 0, truncate(self.placeholder, max(0, w - self.padding)), pal.dim, bg)
             if focused:
                 first = self.placeholder[:1] or " "
-                p.put(0, 0, first, pal.dim if self.placeholder else fg, bg, Attr.REVERSE)
+                p.put(self.padding, 0, first, pal.dim if self.placeholder else fg, bg, Attr.REVERSE)
             return
 
         display = self.text[: self.cursor] + self.preedit + self.text[self.cursor :]
@@ -224,9 +228,9 @@ class LineEdit(Widget):
             cw = char_width(ch)
             if cw == 0:
                 continue
-            x = col - self.scroll
+            x = col - self.scroll + self.padding
             col += cw
-            if x < 0:
+            if x < self.padding:
                 continue  # 왼쪽으로 스크롤돼 나간 글자 (경계에 걸친 와이드 문자 포함)
             if x >= w:
                 break
@@ -237,13 +241,15 @@ class LineEdit(Widget):
                 ti = i if i < pre_start else i - len(self.preedit)
                 if sel and sel[0] <= ti < sel[1]:
                     cfg, cbg = pal.sel_fg, pal.sel_bg
-            if focused and i == pre_end:
+            # 선택 중에는 캐럿을 그리지 않는다. 이미 반전된 선택 칸에 반전을 한 번 더 걸면
+            # 그 칸만 색이 튀어서 (여기서는 검게) 선택에서 빠진 것처럼 보인다
+            if focused and i == pre_end and sel is None:
                 attr |= Attr.REVERSE
             p.put(x, 0, ch, cfg, cbg, attr)
 
-        if focused and pre_end >= len(display):
-            x = self.caret_col - self.scroll
-            if 0 <= x < w:
+        if focused and pre_end >= len(display) and sel is None:
+            x = self.caret_col - self.scroll + self.padding
+            if self.padding <= x < w:
                 p.put(x, 0, " ", fg, bg, Attr.REVERSE)
 
     # ---- events --------------------------------------------------------

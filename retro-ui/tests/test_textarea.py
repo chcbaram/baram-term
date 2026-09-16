@@ -2,6 +2,7 @@ import pytest
 
 from retroui import App, TextArea, VBox
 from retroui.input.events import CompositionEvent, Key, KeyEvent, Mod, MouseEvent, TextEvent, WheelEvent
+from retroui.render.cellbuffer import Attr
 
 
 @pytest.fixture
@@ -150,3 +151,20 @@ def test_horizontal_scroll_marks_cut_lines(app):
     area.move_to(2, 0)
     app.step()
     assert area.scroll_col == 0 and not app.screen_text()[0].startswith("‹")
+
+
+def test_caret_is_not_drawn_over_a_selection(app):
+    """선택한 칸에 캐럿 반전을 덧칠하면 그 칸만 더 하얗게 떠서 선택에서 빠진 것처럼 보였다.
+
+    오른쪽에서 왼쪽으로 고르면 캐럿이 선택 범위의 첫 글자에 놓여 특히 눈에 띈다.
+    """
+    area, _ = setup(app, "reset")
+    area.move_to(0, 5)
+    area.move_to(0, 0, extend=True)
+    app.screen_text()
+
+    pal = app.theme.palette
+    for i in range(5):
+        ch, _fg, bg, attr = app.buf.get(area.rect.x + i, area.rect.y)
+        assert bg == pal.sel_bg, (i, ch)
+        assert not attr & Attr.REVERSE, (i, ch)

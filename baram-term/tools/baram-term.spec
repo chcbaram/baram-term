@@ -89,7 +89,7 @@ if sys.platform == "darwin":
         icon=None,
         bundle_identifier="com.chcbaram.baram-term",
         info_plist={
-            "CFBundleShortVersionString": "0.1.0",
+            "CFBundleShortVersionString": "0.1.1",
             "NSHighResolutionCapable": True,  # 없으면 Retina 에서 2배 확대돼 흐려진다
         },
     )

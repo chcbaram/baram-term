@@ -106,15 +106,32 @@ def test_custom_baud_from_status_bar(term):
     assert "250000" in term._status_popup.items  # 목록에 없던 현재 속도도 보인다
 
 
-def test_port_dialog_accepts_typed_baud_and_rejects_empty(term):
+def test_port_dialog_baud_goes_through_the_custom_dialog(term):
     d = term.open_port_dialog()
-    assert isinstance(d.baud_combo.text, str) and d.baud_combo.text == "115200"
-    d.baud_combo.set_text("")
-    d.finish(0)
-    assert term.settings.baud == 115200 and "invalid baud rate" in "\n".join(term.app.screen_text())
+    assert d.baud_combo.text == "115200"
 
+    # 속도는 목록이나 '직접 입력...' 창으로만 정한다 (콤보박스에 직접 치던 방식을 걷어냈다).
+    # 빈 값은 그 창에서 걸러지고, 고르기 전 값이 그대로 남아야 한다
+    d.baud_combo.set_index(len(d.baud_combo.items) - 1)
+    ask = term.app.popups[-1]
+    ask.edit.set_text("")
+    ask.finish(0)
+
+    assert d.baud_combo.text == "115200"  # 고르기 전 값이 남는다
+
+    # notice() 는 상태줄이 아니라 터미널에 쓴다. 대화상자가 그 위를 덮고 있으므로 닫고 본다
+    d.finish(0)
+    assert term.settings.baud == 115200
+    assert "invalid baud rate" in "\n".join(term.app.screen_text())
+
+    # 목록 밖 속도는 '직접 입력...' 창으로 받는다. 받은 값은 목록에 끼워 고른 상태가 된다
     d = term.open_port_dialog()
-    d.baud_combo.set_text("256000")
+    d.baud_combo.set_index(len(d.baud_combo.items) - 1)
+    ask = term.app.popups[-1]
+    ask.edit.set_text("256000")
+    ask.finish(0)
+    assert d.baud_combo.text == "256000"
+
     d.finish(0)
     assert term.settings.baud == 256000 and term.port.is_open
 

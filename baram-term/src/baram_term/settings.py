@@ -55,6 +55,8 @@ class Settings:
     note_delay_ms: int = 50
     # 포트 설정 창에서 고른 포트/직접 입력한 주소 (최근 것이 앞)
     recent_ports: list[str] = field(default_factory=list)
+    # 직접 입력한 통신 속도 (최근 것이 앞). 숫자가 아니라 글자로 둔다: 설정 검증이 list[str] 만 받는다
+    recent_bauds: list[str] = field(default_factory=list)
     # F1~F12 매크로 막대: 보이기와 슬롯 12개 ("이름=명령", 빈 문자열이면 빈 칸)
     macro_bar: bool = False
     macros: list[str] = field(default_factory=list)
