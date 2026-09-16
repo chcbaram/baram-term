@@ -95,6 +95,7 @@
   "dialog.rules.delete": "삭제",
   "dialog.rule.title": "규칙",
   "dialog.rule.pattern": "정규식",
+  "dialog.rule.example": "예: \\bTIMEOUT\\b   retry=\\d+   ^\\d+ ms   (대소문자 무시는 앞에 (?i))",
   "dialog.rule.color": "색",
   "dialog.rule.bold": "굵게",
   "dialog.rule.empty": "정규식을 입력하세요",

@@ -95,6 +95,7 @@
   "dialog.rules.delete": "Delete",
   "dialog.rule.title": "Rule",
   "dialog.rule.pattern": "Regex",
+  "dialog.rule.example": "e.g. \\bTIMEOUT\\b   retry=\\d+   ^\\d+ ms   (ignore case: start with (?i))",
   "dialog.rule.color": "Color",
   "dialog.rule.bold": "Bold",
   "dialog.rule.empty": "enter a regular expression",

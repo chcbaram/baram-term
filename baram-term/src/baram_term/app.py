@@ -736,6 +736,9 @@ class BaramTerm:
             preview.set_rules(compile_rules(entries) + default_rules())
 
         def edit(index: int) -> None:
+            if not 0 <= index < len(entries):
+                index = len(entries)  # 목록이 비었거나 고른 것이 없으면 새 규칙을 추가한다
+
             def done(entry: str) -> None:
                 if index < len(entries):
                     entries[index] = entry
@@ -804,6 +807,7 @@ class BaramTerm:
 
         body = VBox(
             HBox(Label(tr("dialog.rule.pattern"), min_size=(8, 1)), pattern_edit, spacing=1),
+            HBox(Label("", min_size=(8, 1)), Label(tr("dialog.rule.example"), fg="dim"), Spacer(), spacing=1),
             HBox(Label(tr("dialog.rule.color"), min_size=(8, 1)), color_combo, bold_box, Spacer(), spacing=1),
             preview,
             error,

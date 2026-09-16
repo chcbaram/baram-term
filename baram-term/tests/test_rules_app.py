@@ -111,3 +111,25 @@ def test_broken_entries_in_settings_are_skipped(tmp_path):
     finally:
         term.port.close()
         term.app.close()
+
+
+def test_edit_button_with_nothing_selected_adds_instead(bt):
+    """목록이 비어 있을 때 수정을 눌러도 터지지 않고 추가 창이 열린다."""
+    dialog = bt.open_rules_dialog()
+    assert dialog.listing.selected == -1 and dialog.entries == []
+
+    edit_button = next(b for b in dialog.iter_tree() if getattr(b, "text", None) == "Edit")
+    edit_button.click()
+    rule_dialog = bt.app.popups[-1]
+    assert rule_dialog is not dialog and rule_dialog.pattern_edit.text == ""
+
+    rule_dialog.pattern_edit.set_text("boot")
+    rule_dialog.finish(0)
+    assert dialog.entries == ["yellow|boot"] and dialog.listing.items == ["yellow         boot"]
+
+
+def test_rule_dialog_shows_an_example(bt):
+    bt.ask_rule(None, lambda entry: None)
+    bt.app.step()
+    screen = "\n".join(bt.app.screen_text())
+    assert r"e.g. \bTIMEOUT\b" in screen and "(?i)" in screen
