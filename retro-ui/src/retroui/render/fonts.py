@@ -49,15 +49,32 @@ FONT_SPECS: dict[str, FontSpec] = {
 FALLBACK_PATTERNS = ("AppleSDGothicNeo.ttc", "malgun.ttf", "Menlo.ttc", "consola.ttf", "DejaVuSansMono.ttf")
 
 
+_FIND_CACHE: dict[tuple[str, ...], "str | None"] = {}
+
+
 def _find(patterns: tuple[str, ...]) -> str | None:
+    """패턴에 맞는 첫 폰트 파일. 못 찾으면 None.
+
+    결과를 기억한다. 프로세스가 도는 동안 폰트 파일은 옮겨 다니지 않는데, 캐시가 없으면
+    App 을 하나 만들 때마다 폰트 폴더를 22 번 glob 했다 (본체 1 + 폴백 5 패턴 x 폴더들).
+    윈도우는 C:/Windows/Fonts 에 파일이 수천 개인 데다 폴백 목록 첫 항목인
+    AppleSDGothicNeo.ttc 가 아예 없어서, 매번 모든 폴더를 끝까지 훑고 실패했다.
+    """
+    if patterns in _FIND_CACHE:  # None 도 유효한 결과라 get 이 아니라 in 으로 본다
+        return _FIND_CACHE[patterns]
+    found = None
     for d in _SEARCH_DIRS:
         if not os.path.isdir(d):
             continue
         for pat in patterns:
             hits = sorted(glob.glob(os.path.join(d, pat)))
             if hits:
-                return hits[0]
-    return None
+                found = hits[0]
+                break
+        if found is not None:
+            break
+    _FIND_CACHE[patterns] = found
+    return found
 
 
 def resolve_font(font: str) -> tuple[str, FontSpec]:
