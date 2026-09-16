@@ -3,8 +3,13 @@ name = "baram-term"
 version = "0.1.0"
 description = "Firmware CLI serial terminal with a retro TUI look"
 requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Hancheol Cho" }]
 dependencies = [
-    "retro-ui",
+    # retro-ui 는 PyPI 에 없다. pipx/pip 이 같은 저장소의 하위 폴더에서 바로 받도록 URL 로 적는다.
+    # 로컬 개발은 아래 [tool.uv.sources] 가 이 줄보다 우선해서 editable 설치로 남는다.
+    "retro-ui @ git+https://github.com/chcbaram/baram-term.git#subdirectory=retro-ui",
     "pyserial>=3.5",
 ]
 
@@ -17,6 +22,10 @@ baram-term = "baram_term.__main__:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+# retro-ui 를 git URL 로 적었다. hatchling 은 직접 참조를 기본으로 막으므로 열어 준다
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/baram_term"]

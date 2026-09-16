@@ -3,6 +3,9 @@ name = "retro-ui"
 version = "0.0.1"
 description = "TUI-looking desktop GUI library with real pixel graphics (pygame-ce backend)"
 requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Hancheol Cho" }]
 dependencies = [
     "pygame-ce>=2.5",
     "numpy>=1.24",
