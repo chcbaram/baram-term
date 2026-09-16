@@ -157,6 +157,7 @@ baram-term/
 | `Ctrl-A L` | 로그 저장 시작/중지 |
 | `Ctrl-A /` (macOS `Cmd+F`) | 스크롤백 찾기 |
 | `Ctrl-A G` | 그래프 패널 |
+| `Ctrl-A H` / `Ctrl-A T` | 오른쪽 패널의 HEX 보기 / 메모 (보기 메뉴 `오른쪽 패널 ▸`) |
 | `Ctrl-A C` | 화면 지우기 |
 | `Ctrl-A X` / `Q` | 끝내기 |
 | `Ctrl-A Z` | 도움말 |

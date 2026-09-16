@@ -14,6 +14,7 @@
   "menu.view.reconnect": "자동 재연결",
   "menu.view.plot": "그래프 패널",
   "menu.view.plot_hide": "그래프 줄은 터미널에 표시하지 않음",
+  "menu.view.panel": "오른쪽 패널",
   "menu.view.hex": "HEX 보기",
   "menu.view.memo": "메모 보기",
   "menu.view.rules": "강조 규칙...",

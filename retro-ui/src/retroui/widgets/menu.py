@@ -20,6 +20,7 @@ from retroui.widgets.button import draw_mnemonic, parse_mnemonic
 from retroui.widgets.popup import Popup
 
 CHECK_MARK = "√"
+SUBMENU_MARK = "▸"
 
 
 class MenuItem:
@@ -33,6 +34,7 @@ class MenuItem:
         checked: bool | None = None,
         enabled: bool = True,
         separator: bool = False,
+        submenu: Sequence["MenuItem"] | None = None,
     ):
         """
         shortcut: 오른쪽에 표시할 단축키 글자 ('F1', 'Primary+Q' -> macOS 'Cmd+Q'). 표시만 한다.
@@ -46,6 +48,8 @@ class MenuItem:
         self.checked = checked
         self.enabled = enabled
         self.separator = separator
+        # 2단 메뉴: 이 항목을 고르면 옆에 다시 펼쳐지는 항목들
+        self.submenu = list(submenu) if submenu else []
 
     @classmethod
     def sep(cls) -> MenuItem:
@@ -228,11 +232,39 @@ class MenuBar(Widget):
 class MenuPopup(Popup):
     focusable = True
 
-    def __init__(self, bar: MenuBar, menu: Menu):
+    def __init__(self, bar: MenuBar, menu: Menu, parent_popup: "MenuPopup | None" = None):
         super().__init__()
         self.bar = bar
         self.menu = menu
+        self.parent_popup = parent_popup
+        self.child: MenuPopup | None = None
         self.selected = next((i for i, it in enumerate(menu.items) if it.selectable), -1)
+
+    def open_submenu(self, row: int) -> "MenuPopup | None":
+        """row 항목의 2단 메뉴를 옆에 연다. 오른쪽이 좁으면 왼쪽으로."""
+        item = self.menu.items[row]
+        app = self.app
+        if not item.submenu or app is None:
+            return None
+        if self.child is not None and self.child.menu.items is item.submenu:
+            return self.child
+        self.close_submenu()
+        popup = MenuPopup(self.bar, Menu(item.text, item.submenu), parent_popup=self)
+        popup.owner = self
+        popup._app = app
+        hint = popup.effective_hint()
+        x = self.rect.right - 1
+        if x + hint.pref_w > app.cols:
+            x = max(0, self.rect.x - hint.pref_w + 1)
+        y = min(self.rect.y + row + 1, max(0, app.rows - hint.pref_h))
+        self.child = popup
+        app.open_popup(popup, x, y)
+        return popup
+
+    def close_submenu(self) -> None:
+        if self.child is not None:
+            child, self.child = self.child, None
+            child.close()
 
     def _columns(self) -> tuple[bool, int, int, bool]:
         items = [i for i in self.menu.items if not i.separator]
@@ -240,7 +272,7 @@ class MenuPopup(Popup):
         text_w = max((str_width(i.text) for i in items), default=0)
         shortcut_w = max((str_width(i.shortcut_label) for i in items), default=0)
         has_key = any(i.key for i in items)
-        return has_check, text_w, shortcut_w, has_key
+        return has_check, text_w, shortcut_w, has_key or any(i.submenu for i in items)
 
     def size_hint(self) -> SizeHint:
         has_check, text_w, shortcut_w, has_key = self._columns()
@@ -284,7 +316,9 @@ class MenuPopup(Popup):
             if item.shortcut:
                 label = item.shortcut_label
                 p.text(shortcut_end - str_width(label), y, label, fg if plain else pal.dim, bg)
-            if item.key:
+            if item.submenu:
+                p.put(w - 3, y, SUBMENU_MARK, fg if plain else pal.accent, bg)
+            elif item.key:
                 p.put(w - 3, y, item.key, fg if plain else pal.accent, bg)
 
     # ---- selection -----------------------------------------------------
@@ -295,6 +329,7 @@ class MenuPopup(Popup):
     def select(self, row: int) -> None:
         if row != self.selected:
             self.selected = row
+            self.close_submenu()
             self.invalidate()
 
     def move(self, delta: int) -> None:
@@ -316,11 +351,17 @@ class MenuPopup(Popup):
         row = self._row_at(ev.cx, ev.cy)
         if row is not None:
             self.select(row)
+            if self.menu.items[row].submenu:
+                self.open_submenu(row)
 
     def release(self, ev: MouseEvent) -> None:
         row = self._row_at(ev.cx, ev.cy)
-        if row is not None:
-            self.bar.activate(self.menu.items[row])
+        if row is None:
+            return
+        if self.menu.items[row].submenu:
+            self.open_submenu(row)  # 2단 항목은 실행 대신 펼치기
+            return
+        self.bar.activate(self.menu.items[row])
 
     # ---- input ---------------------------------------------------------
 
@@ -340,19 +381,33 @@ class MenuPopup(Popup):
             elif k == Key.END and rows:
                 self.select(rows[-1])
             elif k == Key.LEFT:
-                self.bar.open_adjacent(-1)
+                if self.parent_popup is not None:
+                    self.parent_popup.close_submenu()  # 2단에서는 한 단계만 접는다
+                else:
+                    self.bar.open_adjacent(-1)
             elif k == Key.RIGHT:
-                self.bar.open_adjacent(1)
+                if self.selected >= 0 and self.menu.items[self.selected].submenu:
+                    self.open_submenu(self.selected)
+                else:
+                    self.bar.open_adjacent(1)
             elif ev.is_enter or k == Key.SPACE:
-                if self.selected >= 0:
+                if self.selected >= 0 and self.menu.items[self.selected].submenu:
+                    self.open_submenu(self.selected)
+                elif self.selected >= 0:
                     self.bar.activate(self.menu.items[self.selected])
+            elif k == Key.ESCAPE and self.parent_popup is not None:
+                self.parent_popup.close_submenu()
             elif k in (Key.ESCAPE, Key.F10):
                 self.bar.close_menu()
             elif len(ev.name) == 1:
                 name = ev.name.lower()
-                for item in self.menu.items:
+                for row, item in enumerate(self.menu.items):
                     if item.selectable and name in item.hotkeys():
-                        self.bar.activate(item)
+                        if item.submenu:
+                            self.select(row)
+                            self.open_submenu(row)
+                        else:
+                            self.bar.activate(item)
                         break
             # 메뉴가 열려 있는 동안 나머지 키(Tab 등)는 아래 위젯으로 새지 않게 먹는다
             return True
@@ -366,4 +421,9 @@ class MenuPopup(Popup):
         return False
 
     def on_close(self) -> None:
+        self.close_submenu()
+        if self.parent_popup is not None:
+            if self.parent_popup.child is self:
+                self.parent_popup.child = None
+            return  # 2단 팝업이 닫혀도 메뉴 전체가 닫힌 것은 아니다
         self.bar._popup_closed(self)

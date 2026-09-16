@@ -373,6 +373,8 @@ class BaramTerm:
         self.item_memo = MenuItem(
             tr("menu.view.memo"), lambda: self._show_right_tab(1), shortcut="Ctrl-A T", key="T", checked=False,
         )
+        # 오른쪽 패널은 2단 메뉴로: 항목이 늘어도 보기 메뉴가 길어지지 않는다
+        self.item_panel = MenuItem(tr("menu.view.panel"), submenu=[self.item_hex, self.item_memo])
         self.item_plot_hide = MenuItem(
             tr("menu.view.plot_hide"), lambda: self._apply_plot_hide(self.item_plot_hide.checked), checked=self.plot_hide_lines
         )
@@ -434,8 +436,7 @@ class BaramTerm:
                         MenuItem.sep(),
                         self.item_plot,
                         self.item_plot_hide,
-                        self.item_hex,
-                        self.item_memo,
+                        self.item_panel,
                         MenuItem(tr("menu.view.rules"), self.open_rules_dialog),
                         MenuItem(tr("menu.view.clear"), self.clear, shortcut="Ctrl-A C", key="C"),
                         MenuItem.sep(),
@@ -965,6 +966,8 @@ class BaramTerm:
         def done(title: str) -> None:
             self.notes.append(Note(notes_store.unique_title(title, [n.title for n in self.notes])))
             self._refresh_tabs(len(self.notes))
+            self.right_frame.visible = True  # 탭만 바꾸고 패널이 닫힌 채로 남지 않게
+            self._sync_panel_menu()
             self._save_notes()
             self.app.set_focus(self.note_area)
 
