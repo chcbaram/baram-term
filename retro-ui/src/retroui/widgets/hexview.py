@@ -41,7 +41,9 @@ class HexView(Widget):
         # 정지: 자동으로 최신을 따라가지 않는다. 데이터는 계속 쌓이고, 정지 중에도 스크롤로 볼 수 있다.
         # 보여줄 마지막 줄 번호를 잡아 둔다 (화면이 덜 찼을 때도 새 줄이 그려지지 않게)
         self._frozen_rows: int | None = None
-        self._sealed = False  # 정지 중에는 마지막 줄에 바이트를 덧붙이지 않는다 (그 줄이 변하면 멈춘 게 아니다)
+        # 정지한 순간의 줄만 닫는다: 그 줄이 계속 자라면 멈춘 게 아니다.
+        # 그 뒤에 오는 바이트는 평소처럼 줄을 채운다 (조각마다 새 줄을 만들면 짧은 줄이 줄줄이 생긴다)
+        self._sealed = False
         self.wheel_lines = 1 if IS_MAC else 3
         self._wheel_accum = 0.0
         self.scrollbar = ScrollBar(on_scroll=self._on_scrollbar)
@@ -70,6 +72,7 @@ class HexView(Widget):
             rows.append((self.next_offset + start, direction, bytearray(data[start : start + take])))
             added += 1
             start += take
+        self._sealed = False  # 닫는 것은 정지 직후 한 번뿐
         self.next_offset += len(data)
         if len(rows) > self.max_rows + self.trim_slack:
             removed = len(rows) - self.max_rows

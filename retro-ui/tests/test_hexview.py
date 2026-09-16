@@ -112,6 +112,8 @@ def test_pause_freezes_the_rows_on_screen(app):
 
     # 스크롤바는 전체 데이터 기준이라 손잡이가 줄어든다 (데이터가 들어오고 있다는 표시)
     assert view.scrollbar.total == len(view.rows) == 3
+    # 정지 순간의 줄만 닫는다: 그 뒤 조각들은 평소처럼 한 줄을 채운다
+    assert [bytes(row[2]) for row in view.rows] == [b"AAAA", b"BBBBCCCC", b"CCCC"]
 
     view.set_paused(False)
     app.step()
