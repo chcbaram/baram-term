@@ -26,6 +26,8 @@ from retroui import (
     Link,
     ListPopup,
     ListView,
+    TabBar,
+    TextArea,
     LivePlot,
     PlotLegend,
     VSplit,
@@ -54,6 +56,8 @@ from baram_term.logger import LineCleaner, SessionLog, default_log_dir, log_file
 from baram_term.plotdata import parse_line, plot_format
 from baram_term.plotfilter import PlotLineFilter
 from baram_term.logo import banner
+from baram_term import notes as notes_store
+from baram_term.notes import MAX_NOTES, Note
 from baram_term.macros import SLOTS as MACRO_SLOTS, MacroBar, free_keys, join_entry, split_entry
 from baram_term.search import SearchBar
 from baram_term.serial_port import DEMO_PORT, PortSettings, SerialPort, list_ports, open_device
@@ -84,6 +88,9 @@ def _parse_baud(text: str) -> int | None:
 
 
 PLOT_WINDOWS = ("1", "5", "10", "30", "60", "300")
+NOTE_DELAYS = ("0", "20", "50", "100", "200", "500")
+NOTE_WAIT_PREFIX = "#wait"
+NOTE_PROMPT_TIMEOUT_S = 2.0
 PLOT_WINDOW_MAX_S = 3600.0
 
 
@@ -112,6 +119,11 @@ WINDOW_PADDING = 8
 # TX/RX 표시등을 켜 두는 시간. 상태줄 갱신 주기(100ms)보다 길어야 짧은 전송도 보인다
 _LED_HOLD_S = 0.15
 _NOT_CONNECTED_NOTICE_S = 2.0
+
+
+def file_dialog_text() -> dict[str, str]:
+    """파일 다이얼로그에서 앱 말로 바꿀 글자 (나머지는 retroui 기본 글자)."""
+    return {"save": tr("button.ok")}
 
 
 def _human_rate(bps: float) -> str:
@@ -229,11 +241,54 @@ class BaramTerm:
         self.hex_copy_button.focusable = False
         self.hex_view.selection_changed.connect(self._on_hex_selection)
         hex_footer = HBox(self.hex_info, Spacer(), self.hex_copy_button, spacing=1)
-        self.hex_frame = GroupBox("", VBox(hex_toolbar, self.hex_view, hex_footer), stretch=1, visible=self.config.hex)
+        self.hex_page = VBox(hex_toolbar, self.hex_view, hex_footer, stretch=1)
+        # 메모 탭: CLI 에 순서대로 넣을 명령을 적어 둔다 (오른쪽 패널을 HEX 와 탭으로 나눠 쓴다)
+        self.notes_path = (config_path.parent / "notes.json") if config_path is not None else None
+        self.notes: list[Note] = notes_store.load(self.notes_path)[0] if self.notes_path else []
+        self.note_area = TextArea(on_change=lambda _text: self._note_edited())
+        self.note_send_button = Button(tr("note.send_line"), on_click=self.send_note_line, style="solid", color="dim")
+        self.note_all_button = Button(tr("note.send_all"), on_click=self.send_note_block, style="solid", color="ok", min_size=(14, 1))
+        self.note_stop_button = Button(tr("note.stop"), on_click=self.stop_note_send, style="solid", color="error", visible=False)
+        for button in (self.note_send_button, self.note_all_button, self.note_stop_button):
+            button.focusable = False  # 마우스용: 눌러도 메모 편집 자리를 뺏지 않는다
+        self.note_wait_combo = ComboBox(
+            [tr("note.wait.prompt"), tr("note.wait.delay")],
+            index=0 if self.config.note_wait == "prompt" else 1,
+            on_change=lambda index, _text: self._set_note_wait(index),
+        )
+        self.note_delay_combo = EditableComboBox(
+            NOTE_DELAYS, str(self.config.note_delay_ms), validator=_baud_text_ok, min_size=(6, 1),
+            on_change=self._note_delay_typed,
+        )
+        self.note_delay_combo.chosen.connect(lambda _text: self.app.set_focus(self.note_area))
+        note_buttons = HBox(self.note_send_button, self.note_all_button, self.note_stop_button, Spacer(), spacing=1)
+        note_options = HBox(
+            Spacer(), self.note_wait_combo, self.note_delay_combo, Label("ms", fg="dim"), spacing=1
+        )
+        self.note_page = VBox(self.note_area, note_buttons, note_options, stretch=1, visible=False)
+        self._note_queue: list[int] = []
+        self._note_timer = None
+        self._note_waiting_until = 0.0
+        self._note_save_timer = None
+        self.right_tabs = TabBar(
+            self._tab_titles(),
+            selected=min(self.config.right_tab, len(self.notes)),
+            on_select=self._select_right_tab,
+            on_add=self.add_note,
+            on_menu=self.open_note_menu,
+        )
+        self.right_frame = GroupBox(
+            "", VBox(self.right_tabs, self.hex_page, self.note_page), stretch=1, visible=self.config.hex
+        )
+        if self.right_tabs.selected > 0:
+            # 저장된 탭이 메모면 그 글을 편집기에 올린다 (TabBar 는 만들 때 선택 신호를 내지 않는다)
+            self.hex_page.visible = False
+            self.note_page.visible = True
+            self.note_area.set_text(self.notes[self.right_tabs.selected - 1].text, emit=False)
         # 터미널과 HEX 를 좌우로 나눈다 (경계를 끌어 폭 조절, 비율 저장)
         self.terminal_split = HSplit(
             self.frame,
-            self.hex_frame,
+            self.right_frame,
             ratio=self.config.hex_split,
             default_ratio=Settings().hex_split,
             min_left=20,
@@ -481,7 +536,7 @@ class BaramTerm:
                 self.notice(tr("notice.not_connected"), error=True)
             return
         self.port.write(data)
-        if self.hex_frame.visible:
+        if self.hex_active:
             self.hex_view.append(data, "tx")
         if self.local_echo:
             self.terminal.feed(data.decode("utf-8", errors="replace").replace("\r", "\r\n"))
@@ -821,9 +876,274 @@ class BaramTerm:
         self.app.set_focus(pattern_edit)
         return dialog
 
+    @property
+    def hex_active(self) -> bool:
+        """오른쪽 패널이 보이고 HEX 탭일 때만 바이트를 모은다."""
+        return self.right_frame.visible and self.right_tabs.selected == 0
+
+    def _tab_titles(self) -> list[str]:
+        return [tr("hex.title"), *(note.title for note in self.notes)]
+
+    def _select_right_tab(self, index: int) -> None:
+        self.hex_page.visible = index == 0
+        self.note_page.visible = index > 0
+        if index > 0 and index - 1 < len(self.notes):
+            self.note_area.set_text(self.notes[index - 1].text, emit=False)
+        self.config.right_tab = index
+        self._save()
+        self._update_status()
+
+    # ---- memo tabs ------------------------------------------------------
+
+    @property
+    def current_note(self) -> Note | None:
+        index = self.right_tabs.selected - 1
+        return self.notes[index] if 0 <= index < len(self.notes) else None
+
+    def _note_edited(self) -> None:
+        note = self.current_note
+        if note is None:
+            return
+        note.text = self.note_area.text
+        if self._note_save_timer is not None:
+            self._note_save_timer.stop()
+        # 글자를 칠 때마다 파일에 쓰지 않는다: 잠시 멈추면 저장
+        self._note_save_timer = self.app.set_timeout(1000, self._save_notes)
+
+    def _save_notes(self) -> None:
+        self._note_save_timer = None
+        if self.notes_path is None:
+            return
+        try:
+            notes_store.save(self.notes, self.notes_path)
+        except OSError as e:
+            self.notice(tr("notice.notes_save_failed", error=e), error=True)
+
+    def _refresh_tabs(self, selected: int | None = None) -> None:
+        self.right_tabs.set_titles(self._tab_titles(), selected)
+        self._select_right_tab(self.right_tabs.selected)
+
+    def add_note(self) -> Dialog | None:
+        if len(self.notes) >= MAX_NOTES:
+            self.notice(tr("notice.notes_full", n=MAX_NOTES), error=True)
+            return None
+
+        def done(title: str) -> None:
+            self.notes.append(Note(notes_store.unique_title(title, [n.title for n in self.notes])))
+            self._refresh_tabs(len(self.notes))
+            self._save_notes()
+            self.app.set_focus(self.note_area)
+
+        return self.ask_note_title("", done)
+
+    def ask_note_title(self, title: str, on_done: Callable[[str], None]) -> Dialog:
+        edit = LineEdit(title, min_size=(24, 1))
+
+        def done(index: int) -> None:
+            if index == 0 and edit.text.strip():
+                on_done(edit.text)
+
+        dialog = Dialog(
+            tr("dialog.note.title"),
+            HBox(Label(tr("dialog.note.name"), min_size=(6, 1)), edit, spacing=1),
+            (tr("button.ok"), tr("button.cancel")),
+            on_result=done,
+        )
+        dialog.edit = edit
+        dialog.open(self.app)
+        self.app.set_focus(edit)
+        edit.select_all()
+        return dialog
+
+    def open_note_menu(self, index: int, x: int, y: int) -> ListPopup:
+        """탭 오른쪽 클릭: 이름 바꾸기 / 내보내기 / 삭제 / 가져오기."""
+        note_index = index - 1
+        items = [tr("note.menu.import")]
+        if 0 <= note_index < len(self.notes):
+            items = [tr("note.menu.rename"), tr("note.menu.export"), tr("note.menu.delete"), *items]
+
+        def chosen(choice: int) -> None:
+            action = items[choice]
+            if action == tr("note.menu.rename"):
+                self.ask_note_title(self.notes[note_index].title, lambda title: self._rename_note(note_index, title))
+            elif action == tr("note.menu.export"):
+                self.export_note(note_index)
+            elif action == tr("note.menu.delete"):
+                self.delete_note(note_index)
+            else:
+                self.import_notes()
+
+        popup = ListPopup(items, 0, on_choose=chosen)
+        popup._app = self.app
+        hint = popup.effective_hint()
+        self.app.open_popup(popup, x, max(0, min(y + 1, self.app.rows - hint.pref_h)))
+        return popup
+
+    # ---- sending memo lines ---------------------------------------------
+
+    def _set_note_wait(self, index: int) -> None:
+        self.config.note_wait = "prompt" if index == 0 else "delay"
+        self._save()
+
+    def _note_delay_typed(self, text: str) -> None:
+        value = _parse_baud(text)
+        if value is not None and value <= 60000:
+            self.config.note_delay_ms = value
+            self._save()
+
+    def send_note_line(self) -> None:
+        """커서가 있는 줄을 보내고 다음 줄로 내려간다."""
+        if self.current_note is None:
+            return
+        row = self.note_area.row
+        self._send_note_rows([row])
+        self.note_area.move_to(min(row + 1, self.note_area.line_count - 1), 0)
+
+    def send_note_block(self) -> None:
+        """선택한 줄들, 선택이 없으면 전체."""
+        if self.current_note is None:
+            return
+        span = self.note_area.selected_rows()
+        rows = range(span[0], span[1] + 1) if span else range(self.note_area.line_count)
+        self._send_note_rows(list(rows))
+
+    def _send_note_rows(self, rows: list[int]) -> None:
+        self.stop_note_send(quiet=True)
+        self._note_queue = rows
+        if len(rows) > 1:
+            self.note_all_button.visible = False
+            self.note_stop_button.visible = True
+        self._note_step()
+
+    def stop_note_send(self, quiet: bool = False) -> None:
+        if self._note_timer is not None:
+            self._note_timer.stop()
+            self._note_timer = None
+        had_queue = bool(self._note_queue)
+        self._note_queue = []
+        self.note_area.marked_row = None
+        self.note_all_button.visible = True
+        self.note_stop_button.visible = False
+        if had_queue and not quiet:
+            self.notice(tr("notice.note_send_stopped"))
+        self.note_area.invalidate()
+
+    def _note_step(self) -> None:
+        self._note_timer = None
+        if not self._note_queue:
+            self.stop_note_send(quiet=True)
+            return
+        row = self._note_queue.pop(0)
+        line = self.note_area.line(row).strip()
+        self.note_area.marked_row = row
+        self.note_area.invalidate()
+        wait_ms = self.config.note_delay_ms
+        if line.startswith(NOTE_WAIT_PREFIX):
+            # "#wait 2000": 이 줄에서 기다린다 (리셋 뒤 부팅을 기다릴 때)
+            wait_ms = _parse_baud(line[len(NOTE_WAIT_PREFIX) :]) or wait_ms
+        elif not line or line.startswith("#"):
+            self._note_after(0)  # 빈 줄과 주석은 건너뛴다
+            return
+        else:
+            self.send(line.encode("utf-8", "replace") + ENTER_CODES[self.settings.enter], raw=True)
+            if self.config.note_wait == "prompt" and self._note_queue:
+                self._note_waiting_until = time.monotonic() + NOTE_PROMPT_TIMEOUT_S
+                self._note_timer = self.app.set_interval(50, self._note_wait_prompt)
+                return
+        self._note_after(wait_ms if self._note_queue else 0)
+
+    def _note_wait_prompt(self) -> None:
+        """프롬프트가 다시 나오면 다음 줄로. 안 나오면 정해진 시간 뒤에 넘어간다."""
+        if at_prompt(self.terminal):
+            self._note_after(0)
+        elif time.monotonic() >= self._note_waiting_until:
+            self.notice(tr("notice.note_wait_timeout"), error=True)
+            self._note_after(0)
+
+    def _note_after(self, delay_ms: int) -> None:
+        if self._note_timer is not None:
+            self._note_timer.stop()
+        if not self._note_queue:
+            self.stop_note_send(quiet=True)
+            return
+        self._note_timer = self.app.set_timeout(max(1, delay_ms), self._note_step)
+
+    def _rename_note(self, index: int, title: str) -> None:
+        others = [n.title for i, n in enumerate(self.notes) if i != index]
+        self.notes[index].title = notes_store.unique_title(title, others)
+        self._refresh_tabs()
+        self._save_notes()
+
+    def delete_note(self, index: int) -> None:
+        if not 0 <= index < len(self.notes):
+            return
+        del self.notes[index]
+        self._refresh_tabs(min(index, len(self.notes)))
+        self._save_notes()
+
+    def export_note(self, index: int) -> FileDialog | None:
+        if not 0 <= index < len(self.notes):
+            return None
+        note = self.notes[index]
+        folder = Path(self.config.log_dir) if self.config.log_dir else default_log_dir()
+
+        def done(path: Path | None) -> None:
+            if path is None:
+                return
+            try:
+                notes_store.export_text(note, path)
+            except OSError as e:
+                self.notice(tr("notice.notes_save_failed", error=e), error=True)
+                return
+            self.notice(tr("notice.note_exported", path=path))
+
+        dialog = FileDialog(
+            tr("dialog.note.export"),
+            mode="save",
+            directory=folder,
+            filename=f"{note.title}.txt",
+            confirm_existing=tr("dialog.log.exists"),
+            text=file_dialog_text(),
+            on_result=done,
+        )
+        dialog.open(self.app)
+        return dialog
+
+    def import_notes(self) -> FileDialog:
+        folder = Path(self.config.log_dir) if self.config.log_dir else default_log_dir()
+
+        def done(path: Path | None) -> None:
+            if path is None:
+                return
+            try:
+                found = notes_store.import_file(path)
+            except OSError as e:
+                self.notice(tr("notice.notes_load_failed", error=e), error=True)
+                return
+            room = MAX_NOTES - len(self.notes)
+            if room <= 0:
+                self.notice(tr("notice.notes_full", n=MAX_NOTES), error=True)
+                return
+            for note in found[:room]:
+                note.title = notes_store.unique_title(note.title, [n.title for n in self.notes])
+                self.notes.append(note)
+            self._refresh_tabs(len(self.notes))
+            self._save_notes()
+            self.notice(tr("notice.notes_imported", count=min(len(found), room)))
+
+        dialog = FileDialog(
+            tr("dialog.note.import"),
+            mode="open",
+            directory=folder,
+            text=file_dialog_text(),
+            on_result=done,
+        )
+        dialog.open(self.app)
+        return dialog
+
     def _apply_hex(self, on: bool) -> None:
         self.item_hex.checked = on
-        self.hex_frame.visible = on
+        self.right_frame.visible = on
         if not on:
             self.hex_view.clear()  # 꺼 두는 동안 받은 바이트는 모으지 않으므로 오프셋이 이어지지 않는다
         self._save()
@@ -1026,7 +1346,8 @@ class BaramTerm:
             )
         c.enter, c.backspace, c.rx_lf = s.enter, s.backspace, s.rx_lf
         c.plot = self.plot_frame.visible
-        c.hex = self.hex_frame.visible
+        c.hex = self.right_frame.visible
+        c.right_tab = self.right_tabs.selected
         c.plot_hide_lines = self.plot_hide_lines
         c.local_echo = self.local_echo
         c.timestamps = self.terminal.show_timestamps
@@ -1290,7 +1611,7 @@ class BaramTerm:
                 "l": self.toggle_log,
                 "/": self.open_search,
                 "g": lambda: self._apply_plot(not self.plot_frame.visible),
-                "h": lambda: self._apply_hex(not self.hex_frame.visible),
+                "h": lambda: self._apply_hex(not self.right_frame.visible),
                 "m": lambda: self._apply_macro_bar(not self.macro_bar.visible),
                 "f": self.open_search,
             }.get(name)
@@ -1314,7 +1635,7 @@ class BaramTerm:
     def _on_rx(self) -> None:
         data = self.port.take()
         if data:
-            if self.hex_frame.visible:
+            if self.hex_active:
                 self.hex_view.append(data, "rx")  # 디코딩 전 바이트 그대로
             text = self.decoder.decode(data)
             if self.plot_frame.visible and self.plot_hide_lines:
@@ -1368,14 +1689,19 @@ class BaramTerm:
         if getattr(self, "log", None) is not None:
             flags.append("LOG")
         if self.plot_frame.visible and self.plot_hide_lines:
-            flags.append("PLOT")
-        if self.hex_frame.visible:
-            flags.append("HEX")  # 그래프 줄이 터미널에서 빠지고 있다는 표시
+            flags.append("PLOT")  # 그래프 줄이 터미널에서 빠지고 있다는 표시
             self._release_plot_partial(force=False)
+        if self.hex_active:
+            flags.append("HEX")
         if getattr(self, "_reconnect_timer", None) is not None:
             flags.append(tr("status.reconnecting"))
         self.st_flags.set_text(" ".join(flags))
         self.st_flags.visible = self.st_flags_sep.visible = bool(flags)
+        if getattr(self, "note_all_button", None) is not None and self.note_page.visible:
+            picked = self.note_area.selected_rows() is not None
+            label = tr("note.send_selection") if picked else tr("note.send_all")
+            if self.note_all_button.text != label:
+                self.note_all_button.set_text(label)
         search = getattr(self, "search", None)
         if search is not None and search.is_open:
             search.tick()

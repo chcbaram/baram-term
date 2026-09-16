@@ -48,7 +48,10 @@ class Settings:
     plot_split: float = 2 / 3  # 터미널 : 그래프 높이 비율 (터미널 몫)
     # HEX 보기: 받은/보낸 바이트를 16진수로 보여주는 오른쪽 패널
     hex: bool = False
-    hex_split: float = 0.6  # 터미널 : HEX 폭 비율 (터미널 몫). 0.6 이면 폭 120칸에서 한 줄 8바이트가 들어간다
+    hex_split: float = 0.6  # 터미널 : 오른쪽 패널 폭 비율 (터미널 몫). 0.6 이면 폭 120칸에서 HEX 한 줄 8바이트
+    right_tab: int = 0  # 오른쪽 패널에서 보던 탭 (0 = HEX, 1 부터 메모)
+    note_wait: str = "prompt"  # 메모를 여러 줄 보낼 때: prompt(프롬프트를 기다림) | delay(고정 간격)
+    note_delay_ms: int = 50
     # 포트 설정 창에서 고른 포트/직접 입력한 주소 (최근 것이 앞)
     recent_ports: list[str] = field(default_factory=list)
     # F1~F12 매크로 막대: 보이기와 슬롯 12개 ("이름=명령", 빈 문자열이면 빈 칸)

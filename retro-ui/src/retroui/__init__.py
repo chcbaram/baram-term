@@ -38,7 +38,9 @@ from retroui.widgets import (
     SizeHint,
     Spacer,
     Terminal,
+    TabBar,
     TerminalScreen,
+    TextArea,
     HighlightRule,
     VBox,
     Widget,
@@ -48,7 +50,7 @@ from retroui.widgets import (
 __version__ = "0.0.1"
 
 __all__ = [
-    "HSplit", "HexView", "VSplit",
+    "HSplit", "HexView", "TabBar", "TextArea", "VSplit",
     "PlotLegend",
     "EditableComboBox",
     "Link", "set_language",

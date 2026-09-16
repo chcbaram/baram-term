@@ -20,10 +20,12 @@ from retroui.widgets.plotlegend import PlotLegend
 from retroui.widgets.popup import Popup
 from retroui.widgets.scrollbar import ScrollBar
 from retroui.widgets.split import HSplit, VSplit
+from retroui.widgets.tabbar import TabBar
 from retroui.widgets.terminal import HighlightRule, Terminal, TerminalScreen
+from retroui.widgets.textarea import TextArea
 
 __all__ = [
-    "HSplit", "HexView", "VSplit",
+    "HSplit", "HexView", "TabBar", "TextArea", "VSplit",
     "PlotLegend",
     "EditableComboBox",
     "Link",

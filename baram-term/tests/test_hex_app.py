@@ -52,17 +52,17 @@ def test_ctrl_a_h_toggles_panel_and_persists(tmp_path):
     path = tmp_path / "settings.json"
     term = make(config=Settings(), config_path=path)
     try:
-        assert not term.hex_frame.visible and not term.item_hex.checked
+        assert not term.right_frame.visible and not term.item_hex.checked
         term.app.dispatch(KeyEvent(pygame.K_a, Mod.CTRL, "a"))
         term.app.dispatch(KeyEvent(pygame.K_h, Mod.NONE, "h"))
         term.app.step()
-        assert term.hex_frame.visible and term.item_hex.checked
+        assert term.right_frame.visible and term.item_hex.checked
         term._update_status()
         term.app.step()
         assert "HEX" in term.app.screen_text()[-1]
         # 터미널 오른쪽에 붙고, 세로 자리는 터미널과 같다 (그래프 패널은 그 아래)
-        assert term.frame.rect.right == term.hex_frame.rect.x
-        assert (term.hex_frame.rect.y, term.hex_frame.rect.h) == (term.frame.rect.y, term.frame.rect.h)
+        assert term.frame.rect.right == term.right_frame.rect.x
+        assert (term.right_frame.rect.y, term.right_frame.rect.h) == (term.frame.rect.y, term.frame.rect.h)
     finally:
         term.port.close()
         term.app.close()
@@ -114,13 +114,13 @@ def test_drag_boundary_changes_width_and_persists(tmp_path):
         term._apply_hex(True)
         term.app.step()
         split = term.terminal_split
-        before = term.hex_frame.rect.w
+        before = term.right_frame.rect.w
         x = split.split_x - 1
         term.app.dispatch(MouseEvent("down", 1, x, term.frame.rect.y + 2, 0, 0))
         term.app.dispatch(MouseEvent("move", 0, x - 8, term.frame.rect.y + 2, 0, 0))
         term.app.dispatch(MouseEvent("up", 1, x - 8, term.frame.rect.y + 2, 0, 0))
         term.app.step()
-        assert term.hex_frame.rect.w == before + 8
+        assert term.right_frame.rect.w == before + 8
         assert term.app.cursor_name(term.frame, split.split_x - 1, term.frame.rect.y + 2) == "resize_ew"
         ratio = split.ratio
     finally:

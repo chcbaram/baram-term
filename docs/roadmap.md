@@ -19,8 +19,9 @@
 | baram-term 설정 | 설정 저장/불러오기(OS 사용자 설정 폴더 `settings.json`, 실행 인자 우선, 인자 없으면 마지막 포트), 자동 재연결(1초 주기, 보기 메뉴 A), 포트별 Tab 명령 목록 저장, 포트 설정 창 새로고침 버튼/주소 직접 입력/최근 포트 8개, Enter/Backspace/받은 LF 코드 설정, 상태줄 모드 칸 정리, 터미널 테두리 제목 제거, About 링크, 상태줄 포트/속도 클릭으로 바로 전환(열린 포트는 속도만 변경), 속도 직접 입력, 로그 파일 저장(`Ctrl-A L`, 파일 다이얼로그로 위치 선택, 화면에 보이는 줄 그대로, 타임스탬프 선택), 스크롤백 찾기(`Ctrl-A /`, macOS Cmd+F, smartcase, 새 줄이 와도 위치 유지) |
 | baram-term 그래프 | 그래프 패널(`Ctrl-A G`): `>name:value`(Teleplot)와 Arduino 시리얼 플로터 형식, 범례 클릭으로 보이기/숨기기, STOP/START, 시간 폭(초), 터미널/그래프 경계 끌기(비율 저장), 그래프 줄 터미널에서 숨기기 옵션(기본 끔, 켜면 상태줄 PLOT, 형식은 세션마다 고정), CLEAR 버튼, 데모 `plot` 명령 |
 | baram-term HEX | HEX 보기(`Ctrl-A H`, 터미널 오른쪽 패널): 받은/보낸 바이트를 오프셋 + RX/TX + 16진수 + ASCII 로, 폭에 따라 한 줄 4/8/16 바이트, 바이트 선택(클릭·드래그·Shift, 16진수/ASCII 동시 강조)과 설명 줄·복사, 정지/지우기, 좌우 경계 끌기(비율 저장) |
+| baram-term 메모 탭 | 오른쪽 패널을 탭으로 (HEX + 메모 최대 8개): 여러 줄 편집, 자동 저장(`notes.json`), 탭 추가/이름 바꾸기/삭제, 줄·선택·전체 보내기(프롬프트 대기 또는 고정 간격, `#wait 밀리초`, 중지), .txt/.json 내보내기·가져오기 |
 | baram-term 강조 규칙 | 사용자 규칙(보기 메뉴 → 강조 규칙): 정규식 + 색 8종 + 굵게, 목록 창에서 추가/수정/삭제, 예시 줄 미리보기, 잘못된 정규식은 이유를 보여주고 저장 안 함, 설정 저장 (`"색[ bold]|정규식"`) |
-| retro-ui 추가 | HexView, HSplit(좌우 경계 끌기), VSplit(경계 끌기, 위치별 커서), PlotLegend, Button solid 스타일, LivePlot(header=False)/series_changed/clear_series, Dialog 버튼 같은 폭·가운데, EditableComboBox, 클릭 가능한 Label과 손가락 커서, Link, 기본 문자열 다국어(`retroui.set_language`), 붙여넣기 줄바꿈이 Enter 코드를 따름, ListView, FileDialog(창 안에 그리는 열기/저장, 새 폴더, 패턴, 이어쓰기 확인), App padding/icon, `App.ensure_layout`, Terminal 찾기(`set_search`/`search_matches`/`reveal`), GroupBox title_align, Box 방향별 margin, ScrollBar, 포커스 없는 팝업, 터미널 256색/트루컬러, Tooltip(위젯에 `tooltip` 만 넣으면 App 이 띄움), Button padding, Key F3~F9/F11, 휠 스크롤 누적(`Terminal.wheel_lines`) |
+| retro-ui 추가 | TextArea(여러 줄 편집, 선택, IME), TabBar(탭 줄, `+`, 오른쪽 클릭 메뉴), HexView, HSplit(좌우 경계 끌기), VSplit(경계 끌기, 위치별 커서), PlotLegend, Button solid 스타일, LivePlot(header=False)/series_changed/clear_series, Dialog 버튼 같은 폭·가운데, EditableComboBox, 클릭 가능한 Label과 손가락 커서, Link, 기본 문자열 다국어(`retroui.set_language`), 붙여넣기 줄바꿈이 Enter 코드를 따름, ListView, FileDialog(창 안에 그리는 열기/저장, 새 폴더, 패턴, 이어쓰기 확인), App padding/icon, `App.ensure_layout`, Terminal 찾기(`set_search`/`search_matches`/`reveal`), GroupBox title_align, Box 방향별 margin, ScrollBar, 포커스 없는 팝업, 터미널 256색/트루컬러, Tooltip(위젯에 `tooltip` 만 넣으면 App 이 띄움), Button padding, Key F3~F9/F11, 휠 스크롤 누적(`Terminal.wheel_lines`) |
 | baram-term 입력·메뉴 (2026-09) | 매크로 막대, 원본 이미지에서 뽑은 배너 로고, 터미널 영문 입력(기본 켜짐), 파일 메뉴 맨 앞 + 화면 언어 선택(기본 영어, 다음 실행부터), 그래프 값 줄 누출 수정, 로그 줄이 채 간 그래프 형식 되찾기 |
 | retro-ui 입력·표시 (2026-09) | 입력 전환 단축키의 스페이스 버리기(`input/mac_hotkeys.py`), `KeyEvent.scancode`/`caps` + `us_ascii`, `Terminal.ascii_input`, `App.refresh_text_input`, 휠이 OS 방향(`flipped` 재반전 제거)·macOS 속도 그대로, Windows DPI 힌트, 부분 갱신 경계의 한글 유지, Tooltip, Button padding |
 
@@ -32,6 +33,7 @@
 
 - [x] 매크로 막대 (F 키 선택·전송, 오른쪽 클릭 수정/삭제, `+` 등록, 이름 줄임, hover 툴팁, 설정 저장) — macOS 실제 창 확인
 - [ ] 줄 단위 입력창 모드 (보조)
+- [x] 메모 탭 (오른쪽 패널 탭: 명령을 적어 두고 줄/선택/전체 보내기, `#wait`, 내보내기/가져오기)
 
 ### 2. 배포
 - [ ] `pipx install git+https://github.com/chcbaram/baram-term#subdirectory=baram-term` (retro-ui 의존성 해결 방법 포함)
