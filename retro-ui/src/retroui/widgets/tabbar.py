@@ -28,6 +28,7 @@ class TabBar(Widget):
         *,
         selected: int = 0,
         add_label: str = "+",
+        show_add: bool = True,
         on_select: Callable[[int], None] | None = None,
         on_add: Callable[[], None] | None = None,
         on_menu: Callable[[int, int, int], None] | None = None,
@@ -37,6 +38,7 @@ class TabBar(Widget):
         self.titles = [str(t) for t in titles]
         self.selected = max(0, min(selected, len(self.titles) - 1)) if self.titles else -1
         self.add_label = add_label
+        self._show_add = bool(show_add)
         self.selected_changed = Signal()  # int
         self.add_requested = Signal()
         self.menu_requested = Signal()  # (index, cx, cy)
@@ -51,6 +53,19 @@ class TabBar(Widget):
     @property
     def cursor(self) -> str | None:
         return "hand"
+
+    @property
+    def show_add(self) -> bool:
+        return self._show_add
+
+    @show_add.setter
+    def show_add(self, on: bool) -> None:
+        """탭을 더할 수 없는 상태면 '+' 를 감춘다. 그만큼 제목 폭이 넓어진다."""
+        on = bool(on)
+        if on != self._show_add:
+            self._show_add = on
+            self.relayout()
+            self.invalidate()
 
     # ---- model ---------------------------------------------------------
 
@@ -74,16 +89,20 @@ class TabBar(Widget):
 
     # ---- layout / paint ------------------------------------------------
 
+    def _add_width(self) -> int:
+        """'+' 가 차지하는 폭. 감춰 두면 0 이다."""
+        return str_width(self.add_label) + 2 * _PAD if self._show_add else 0
+
     def _title_width(self) -> int:
         """한 탭에 쓸 제목 폭. 좁으면 모든 탭을 같은 폭으로 줄인다."""
         widest = max((str_width(t) for t in self.titles), default=MIN_TITLE)
-        room = self.rect.w - (str_width(self.add_label) + 2 * _PAD + 1)
+        room = self.rect.w - (self._add_width() + 1)
         per_tab = room // max(1, len(self.titles)) - (2 * _PAD + 1)
         return max(MIN_TITLE, min(widest, per_tab)) if self.titles else widest
 
     def size_hint(self) -> SizeHint:
         tabs = sum(str_width(t) + 2 * _PAD + 1 for t in self.titles)
-        width = tabs + str_width(self.add_label) + 2 * _PAD
+        width = tabs + self._add_width()
         return SizeHint(MIN_TITLE + 4, 1, max(width, MIN_TITLE + 4), 1, max_h=1)
 
     def paint(self, p: Painter) -> None:
@@ -96,7 +115,7 @@ class TabBar(Widget):
         for i, title in enumerate(self.titles):
             label = truncate(title, title_w)
             span = str_width(label) + 2 * _PAD
-            if x + span > w - (str_width(self.add_label) + 2 * _PAD):
+            if x + span > w - self._add_width():
                 p.put(max(0, min(x, w - 1)), 0, "…", pal.dim, pal.bg)
                 x += 1
                 break
@@ -109,7 +128,7 @@ class TabBar(Widget):
             if i + 1 < len(self.titles):
                 p.put(x, 0, _SEP, pal.dim, pal.bg)
                 x += 1
-        if x < w:
+        if self._show_add and x < w:
             p.put(x, 0, _SEP, pal.dim, pal.bg)
             add_span = str_width(self.add_label) + 2 * _PAD
             p.text(x + 1 + _PAD, 0, self.add_label, pal.accent, pal.bg)

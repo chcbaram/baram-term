@@ -112,9 +112,10 @@ def test_alt_mnemonic_and_hotkey_toggle_check(ui):
     assert bar.open_index == 1
     app.dispatch(key(pygame.K_o, Mod.NONE, "o"))
     assert bar.menus[1].items[0].checked is True
-    assert not app.popups
-    app.dispatch(key(pygame.K_e, Mod.ALT, "e"))
+    assert app.popups  # 체크 항목은 메뉴를 열어 둔다
     assert "√" in app.screen_text()[2]
+    app.dispatch(key(Key.ESCAPE, Mod.NONE, "escape"))
+    assert not app.popups
 
 
 def test_escape_closes(ui):

@@ -272,21 +272,28 @@ class BaramTerm:
         self._note_timer = None
         self._note_waiting_until = 0.0
         self._note_save_timer = None
+        # 탭 줄에 무엇을 둘지: 둘은 따로 켜고 끈다 (HEX 를 꺼도 메모 탭은 남는다)
+        self.show_hex = self.config.hex
+        self.show_memo = self.config.memo
         self.right_tabs = TabBar(
             self._tab_titles(),
-            selected=min(self.config.right_tab, len(self.notes)),
+            selected=min(self.config.right_tab, max(0, len(self._tab_kinds()) - 1)),
             on_select=self._select_right_tab,
             on_add=self.add_note,
             on_menu=self.open_note_menu,
+            show_add=self.show_memo,  # HEX 만 켜져 있으면 더할 탭이 없다
         )
         self.right_frame = GroupBox(
-            "", VBox(self.right_tabs, self.hex_page, self.note_page), stretch=1, visible=self.config.hex
+            "", VBox(self.right_tabs, self.hex_page, self.note_page), stretch=1, visible=bool(self._tab_kinds())
         )
-        if self.right_tabs.selected > 0:
-            # 저장된 탭이 메모면 그 글을 편집기에 올린다 (TabBar 는 만들 때 선택 신호를 내지 않는다)
-            self.hex_page.visible = False
-            self.note_page.visible = True
-            self.note_area.set_text(self.notes[self.right_tabs.selected - 1].text, emit=False)
+        kinds = self._tab_kinds()
+        if kinds:
+            # TabBar 는 만들 때 선택 신호를 내지 않는다: 저장된 탭 내용을 직접 올린다
+            kind, note_index = kinds[min(self.right_tabs.selected, len(kinds) - 1)]
+            self.hex_page.visible = kind == "hex"
+            self.note_page.visible = kind == "note"
+            if kind == "note":
+                self.note_area.set_text(self.notes[note_index].text, emit=False)
         # 터미널과 HEX 를 좌우로 나눈다 (경계를 끌어 폭 조절, 비율 저장)
         self.terminal_split = HSplit(
             self.frame,
@@ -369,10 +376,12 @@ class BaramTerm:
         )
         # 오른쪽 패널을 HEX / 메모로 나눠서 고른다 (보고 싶은 것을 바로 고르고, 같은 것을 다시 고르면 닫는다)
         self.item_hex = MenuItem(
-            tr("menu.view.hex"), lambda: self._show_right_tab(0), shortcut="Ctrl-A H", key="H", checked=False,
+            tr("menu.view.hex"), lambda: self._apply_hex(self.item_hex.checked),
+            shortcut="Ctrl-A H", key="H", checked=self.config.hex,
         )
         self.item_memo = MenuItem(
-            tr("menu.view.memo"), lambda: self._show_right_tab(1), shortcut="Ctrl-A T", key="T", checked=False,
+            tr("menu.view.memo"), lambda: self._apply_memo(self.item_memo.checked),
+            shortcut="Ctrl-A T", key="T", checked=self.config.memo,
         )
         # 오른쪽 패널은 2단 메뉴로: 항목이 늘어도 보기 메뉴가 길어지지 않는다
         self.item_panel = MenuItem(tr("menu.view.panel"), submenu=[self.item_hex, self.item_memo])
@@ -392,6 +401,10 @@ class BaramTerm:
         chosen = self.config.lang or language()
         self.item_lang_ko = MenuItem(LANGUAGE_NAMES["ko"], lambda: self._choose_language("ko"), checked=chosen == "ko")
         self.item_lang_en = MenuItem(LANGUAGE_NAMES["en"], lambda: self._choose_language("en"), checked=chosen == "en")
+        # 메모 파일 넣고 빼기는 탭이 아니라 파일 메뉴에 둔다: 메모가 하나도 없으면 탭 메뉴가 없다
+        self.item_note_import = MenuItem(tr("menu.file.note_import"), self.import_notes, key="I")
+        self.item_note_export_all = MenuItem(tr("menu.file.note_export_all"), self.export_all_notes, key="E")
+        self.item_note_files = MenuItem(tr("menu.file.note"), submenu=[self.item_note_import, self.item_note_export_all])
         return MenuBar(
             [
                 # 파일을 맨 앞에: 로그 저장·끝은 포트가 아니라 파일 메뉴에 있을 항목이고, 언어 선택도 여기에 둔다
@@ -399,6 +412,8 @@ class BaramTerm:
                     tr("menu.file"),
                     [
                         MenuItem(tr("menu.file.log"), self.toggle_log, shortcut="Ctrl-A L", key="L"),
+                        MenuItem.sep(),
+                        self.item_note_files,
                         MenuItem.sep(),
                         self.item_lang_ko,
                         self.item_lang_en,
@@ -886,16 +901,29 @@ class BaramTerm:
 
     @property
     def hex_active(self) -> bool:
-        """오른쪽 패널이 보이고 HEX 탭일 때만 바이트를 모은다."""
-        return self.right_frame.visible and self.right_tabs.selected == 0
+        """오른쪽 패널이 보이고 HEX 탭을 보고 있을 때만 바이트를 모은다."""
+        kind = self.current_kind
+        return self.right_frame.visible and kind is not None and kind[0] == "hex"
 
     def _sync_panel_menu(self) -> None:
-        showing = self.right_frame.visible
-        self.item_hex.checked = showing and self.right_tabs.selected == 0
-        self.item_memo.checked = showing and self.right_tabs.selected > 0
+        self.item_hex.checked = self.show_hex
+        self.item_memo.checked = self.show_memo
+
+    def _tab_kinds(self) -> list[tuple[str, int]]:
+        """탭 줄에 놓을 것들: ("hex", -1) 과 ("note", 메모 번호)."""
+        kinds: list[tuple[str, int]] = [("hex", -1)] if self.show_hex else []
+        if self.show_memo:
+            kinds += [("note", i) for i in range(len(self.notes))]
+        return kinds
 
     def _tab_titles(self) -> list[str]:
-        return [tr("hex.title"), *(note.title for note in self.notes)]
+        return [tr("hex.title") if kind == "hex" else self.notes[i].title for kind, i in self._tab_kinds()]
+
+    @property
+    def current_kind(self) -> tuple[str, int] | None:
+        kinds = self._tab_kinds()
+        index = self.right_tabs.selected
+        return kinds[index] if 0 <= index < len(kinds) else None
 
     NOTE_ONE_ROW_MIN = 62  # 버튼 둘 + 대기 방식(17) + 간격 칸 + ms 가 눌리지 않고 들어가는 폭
 
@@ -920,10 +948,12 @@ class BaramTerm:
         self.note_page.relayout()
 
     def _select_right_tab(self, index: int) -> None:
-        self.hex_page.visible = index == 0
-        self.note_page.visible = index > 0
-        if index > 0 and index - 1 < len(self.notes):
-            self.note_area.set_text(self.notes[index - 1].text, emit=False)
+        kinds = self._tab_kinds()
+        kind = kinds[index] if 0 <= index < len(kinds) else None
+        self.hex_page.visible = kind is not None and kind[0] == "hex"
+        self.note_page.visible = kind is not None and kind[0] == "note"
+        if kind is not None and kind[0] == "note":
+            self.note_area.set_text(self.notes[kind[1]].text, emit=False)
         self.config.right_tab = index
         self._sync_panel_menu()
         self._save()
@@ -933,8 +963,8 @@ class BaramTerm:
 
     @property
     def current_note(self) -> Note | None:
-        index = self.right_tabs.selected - 1
-        return self.notes[index] if 0 <= index < len(self.notes) else None
+        kind = self.current_kind
+        return self.notes[kind[1]] if kind is not None and kind[0] == "note" else None
 
     def _note_edited(self) -> None:
         note = self.current_note
@@ -955,9 +985,16 @@ class BaramTerm:
         except OSError as e:
             self.notice(tr("notice.notes_save_failed", error=e), error=True)
 
-    def _refresh_tabs(self, selected: int | None = None) -> None:
-        self.right_tabs.set_titles(self._tab_titles(), selected)
+    def _refresh_tabs(self, keep: tuple[str, int] | None = None) -> None:
+        """탭 줄을 다시 만든다. keep 을 주면 그 탭을, 없으면 보던 탭을 이어서 고른다."""
+        kinds = self._tab_kinds()
+        want = keep or self.current_kind
+        index = kinds.index(want) if want in kinds else min(self.right_tabs.selected, len(kinds) - 1)
+        self.right_tabs.show_add = self.show_memo  # HEX 만 켜져 있으면 더할 탭이 없다
+        self.right_tabs.set_titles(self._tab_titles(), max(0, index))
+        self.right_frame.visible = bool(kinds)
         self._select_right_tab(self.right_tabs.selected)
+        self._sync_panel_menu()
 
     def add_note(self) -> Dialog | None:
         if len(self.notes) >= MAX_NOTES:
@@ -966,10 +1003,10 @@ class BaramTerm:
 
         def done(title: str) -> None:
             self.notes.append(Note(notes_store.unique_title(title, [n.title for n in self.notes])))
-            self._refresh_tabs(len(self.notes))
-            self.right_frame.visible = True  # 탭만 바꾸고 패널이 닫힌 채로 남지 않게
-            self._sync_panel_menu()
-            self._save()  # 패널이 열렸다는 것도 설정에 남긴다 (다시 켰을 때 그대로)
+            self.show_memo = True  # 메모를 만들면 메모 탭을 켠다
+            self.config.memo = True
+            self._refresh_tabs(("note", len(self.notes) - 1))
+            self._save()
             self._save_notes()
             self.app.set_focus(self.note_area)
 
@@ -995,11 +1032,13 @@ class BaramTerm:
         return dialog
 
     def open_note_menu(self, index: int, x: int, y: int) -> ListPopup | None:
-        """탭 오른쪽 클릭: 이름 바꾸기 / 내보내기 / 삭제 / 가져오기."""
-        note_index = index - 1
+        """탭 오른쪽 클릭: 그 탭에 대한 것만 (이름 바꾸기 / 내보내기 / 삭제)."""
+        kinds = self._tab_kinds()
+        kind = kinds[index] if 0 <= index < len(kinds) else None
+        note_index = kind[1] if kind is not None and kind[0] == "note" else -1
         if not 0 <= note_index < len(self.notes):
             return None  # HEX 탭: 메모 메뉴가 없다
-        items = [tr("note.menu.rename"), tr("note.menu.export"), tr("note.menu.delete"), tr("note.menu.import")]
+        items = [tr("note.menu.rename"), tr("note.menu.export"), tr("note.menu.delete")]
 
         def chosen(choice: int) -> None:
             action = items[choice]
@@ -1007,10 +1046,8 @@ class BaramTerm:
                 self.ask_note_title(self.notes[note_index].title, lambda title: self._rename_note(note_index, title))
             elif action == tr("note.menu.export"):
                 self.export_note(note_index)
-            elif action == tr("note.menu.delete"):
-                self.delete_note(note_index)
             else:
-                self.import_notes()
+                self.delete_note(note_index)
 
         popup = ListPopup(items, 0, on_choose=chosen)
         popup._app = self.app
@@ -1110,14 +1147,14 @@ class BaramTerm:
     def _rename_note(self, index: int, title: str) -> None:
         others = [n.title for i, n in enumerate(self.notes) if i != index]
         self.notes[index].title = notes_store.unique_title(title, others)
-        self._refresh_tabs()
+        self._refresh_tabs(("note", index))
         self._save_notes()
 
     def delete_note(self, index: int) -> None:
         if not 0 <= index < len(self.notes):
             return
         del self.notes[index]
-        self._refresh_tabs(min(index, len(self.notes)))
+        self._refresh_tabs(("note", min(index, len(self.notes) - 1)) if self.notes else None)
         self._save_notes()
 
     def export_note(self, index: int) -> FileDialog | None:
@@ -1126,11 +1163,28 @@ class BaramTerm:
         note = self.notes[index]
         folder = Path(self.config.log_dir) if self.config.log_dir else default_log_dir()
 
+        suffixes = [".txt", ".json"]
+        combo = ComboBox([tr("dialog.note.format_txt"), tr("dialog.note.format_json")])
+
+        def pick_format(index: int, _text: str) -> None:
+            # 형식을 정하는 것은 파일 이름의 확장자다. 콤보는 그 확장자를 바꿔 주는 손잡이일 뿐이다.
+            # 목록에서 고르면 칸에 경로가 통째로 들어오므로 stem 만 쓰면 폴더를 잃는다
+            try:
+                name = str(Path(dialog.name_edit.text.strip() or note.title).with_suffix(suffixes[index]))
+            except ValueError:  # "." 처럼 이름이라 할 수 없는 글자
+                return
+            dialog.name_edit.set_text(name)
+
+        combo.changed.connect(pick_format)
+
         def done(path: Path | None) -> None:
             if path is None:
                 return
             try:
-                notes_store.export_text(note, path)
+                if path.suffix.lower() == ".json":
+                    notes_store.export_all([note], path)  # 제목까지 남는다
+                else:
+                    notes_store.export_text(note, path)
             except OSError as e:
                 self.notice(tr("notice.notes_save_failed", error=e), error=True)
                 return
@@ -1143,6 +1197,48 @@ class BaramTerm:
             filename=f"{note.title}.txt",
             confirm_existing=tr("dialog.log.exists"),
             text=file_dialog_text(),
+            extra=VBox(
+                HBox(Label(tr("dialog.note.format"), min_size=(4, 1)), combo, Spacer(), spacing=1),
+                HBox(Label("", min_size=(4, 1)), Label(tr("dialog.note.export_hint"), fg="dim"), Spacer(), spacing=1),
+            ),
+            on_result=done,
+        )
+        dialog.format_combo = combo
+        dialog.open(self.app)
+        return dialog
+
+    def export_all_notes(self) -> FileDialog | None:
+        """메모 전체를 .json 하나로. 가져오기가 그대로 되돌린다 (다른 PC 로 옮길 때)."""
+        if not self.notes:
+            self.notice(tr("notice.notes_empty"), error=True)
+            return None
+        folder = Path(self.config.log_dir) if self.config.log_dir else default_log_dir()
+
+        def done(path: Path | None) -> None:
+            if path is None:
+                return
+            if path.suffix.lower() != ".json":
+                path = path.with_suffix(".json")  # 전체 내보내기는 형식이 하나뿐이다
+            try:
+                notes_store.export_all(self.notes, path)
+            except OSError as e:
+                self.notice(tr("notice.notes_save_failed", error=e), error=True)
+                return
+            self.notice(tr("notice.notes_exported", count=len(self.notes), path=path))
+
+        dialog = FileDialog(
+            tr("dialog.note.export_all"),
+            mode="save",
+            directory=folder,
+            filename="baram-memos.json",
+            confirm_existing=tr("dialog.log.exists"),
+            text=file_dialog_text(),
+            extra=HBox(
+                Label("", min_size=(4, 1)),
+                Label(tr("dialog.note.export_all_hint", n=len(self.notes)), fg="dim"),
+                Spacer(),
+                spacing=1,
+            ),
             on_result=done,
         )
         dialog.open(self.app)
@@ -1166,7 +1262,10 @@ class BaramTerm:
             for note in found[:room]:
                 note.title = notes_store.unique_title(note.title, [n.title for n in self.notes])
                 self.notes.append(note)
-            self._refresh_tabs(len(self.notes))
+            self.show_memo = True
+            self.config.memo = True
+            self._refresh_tabs(("note", len(self.notes) - 1))
+            self._save()
             self._save_notes()
             self.notice(tr("notice.notes_imported", count=min(len(found), room)))
 
@@ -1180,22 +1279,23 @@ class BaramTerm:
         dialog.open(self.app)
         return dialog
 
-    def _show_right_tab(self, tab: int) -> None:
-        """메뉴에서 HEX/메모 고르기: 이미 그 탭이 보이는 중이면 패널을 닫는다."""
-        if self.right_frame.visible and (self.right_tabs.selected == 0) == (tab == 0):
-            self._apply_hex(False)
-            return
-        if tab > 0 and not self.notes:
-            self.add_note()  # 메모가 하나도 없으면 먼저 만든다
-        if tab == 0:
-            self.right_tabs.select(0)
-        elif self.notes:
-            self.right_tabs.select(max(1, self.right_tabs.selected))
-        self._apply_hex(True)
-
     def _apply_hex(self, on: bool) -> None:
-        self.right_frame.visible = on
-        self._sync_panel_menu()
+        """HEX 탭을 탭 줄에 둘지. 끄면 HEX 탭만 사라지고 메모 탭은 남는다."""
+        self.show_hex = on
+        self.config.hex = on
+        if not on:
+            self.hex_view.clear()  # 꺼 둔 동안의 바이트는 모으지 않으므로 오프셋이 이어지지 않는다
+        self._refresh_tabs(("hex", -1) if on else None)
+        self._save()
+
+    def _apply_memo(self, on: bool) -> None:
+        self.show_memo = on
+        self.config.memo = on
+        if on and not self.notes:
+            self.add_note()  # 메모가 없으면 하나 만든다
+            return
+        self._refresh_tabs(("note", 0) if on and self.notes else None)
+        self._save()
         if not on:
             self.hex_view.clear()  # 꺼 두는 동안 받은 바이트는 모으지 않으므로 오프셋이 이어지지 않는다
         self._save()
@@ -1398,7 +1498,8 @@ class BaramTerm:
             )
         c.enter, c.backspace, c.rx_lf = s.enter, s.backspace, s.rx_lf
         c.plot = self.plot_frame.visible
-        c.hex = self.right_frame.visible
+        c.hex = self.show_hex
+        c.memo = self.show_memo
         c.right_tab = self.right_tabs.selected
         c.plot_hide_lines = self.plot_hide_lines
         c.local_echo = self.local_echo
@@ -1663,8 +1764,8 @@ class BaramTerm:
                 "l": self.toggle_log,
                 "/": self.open_search,
                 "g": lambda: self._apply_plot(not self.plot_frame.visible),
-                "h": lambda: self._show_right_tab(0),
-                "t": lambda: self._show_right_tab(1),
+                "h": lambda: self._apply_hex(not self.show_hex),
+                "t": lambda: self._apply_memo(not self.show_memo),
                 "m": lambda: self._apply_macro_bar(not self.macro_bar.visible),
                 "f": self.open_search,
             }.get(name)

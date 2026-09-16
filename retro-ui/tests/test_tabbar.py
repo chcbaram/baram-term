@@ -94,3 +94,19 @@ def test_long_titles_are_truncated_but_plus_stays(app):
     assert row.rstrip().endswith("+")
     assert "boot sequence long" not in row  # 좁으면 줄여서 보여준다
     assert bar.tab_at(bar.rect.x + span_of(bar, ADD)[0]) == ADD
+
+
+def test_add_button_can_be_hidden(app):
+    bar, _picked, added, _menus = setup(app)
+    bar.show_add = False
+    app.step()
+    row = app.screen_text()[0]
+    assert not row.rstrip().endswith("+")
+    assert all(i != ADD for _s, _e, i in bar._spans)  # 누를 자리도 사라진다
+    click(app, bar.rect.x + bar.rect.w - 1, bar.rect.y)
+    assert added == []
+
+    bar.show_add = True
+    app.step()
+    assert app.screen_text()[0].rstrip().endswith("+")
+    assert bar.tab_at(bar.rect.x + span_of(bar, ADD)[0]) == ADD

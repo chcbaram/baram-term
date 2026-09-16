@@ -98,3 +98,38 @@ def test_submenu_opens_to_the_left_when_there_is_no_room(app):
     child = popup.open_submenu(0)
     app.step()
     assert child is not None and child.rect.right <= app.cols
+
+
+def test_check_items_keep_the_menu_open(app):
+    picked = []
+    panel = MenuItem(
+        "Right panel",
+        submenu=[
+            MenuItem("HEX", lambda: picked.append("hex"), checked=False),
+            MenuItem("Memo", lambda: picked.append("memo"), checked=True),
+        ],
+    )
+    bar = MenuBar([Menu("View", [MenuItem("Rules...", lambda: picked.append("rules")), panel])])
+    app.set_root(VBox(bar, Label("below")))
+    app.step()
+
+    bar.open_menu(0)
+    popup = app.popups[-1]
+    popup.select(1)
+    child = popup.open_submenu(1)
+    hex_item, memo_item = child.menu.items
+
+    child.select(0)
+    key(app, Key.RETURN)  # 체크 항목: 메뉴가 열린 채로 남는다
+    assert picked == ["hex"] and hex_item.checked and app.popups[-1] is child
+
+    child.select(1)
+    key(app, Key.RETURN)  # 이어서 다른 항목도 끌 수 있다
+    assert picked == ["hex", "memo"] and memo_item.checked is False
+    assert app.popups[-1] is child
+
+    key(app, Key.ESCAPE)  # 2단만 닫고
+    assert app.popups[-1] is popup
+    popup.select(0)
+    key(app, Key.RETURN)  # 동작 항목은 메뉴를 닫는다
+    assert picked[-1] == "rules" and not app.popups

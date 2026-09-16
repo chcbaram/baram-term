@@ -97,7 +97,7 @@ def test_tab_menu_renames_and_deletes(bt):
 
     assert bt.open_note_menu(0, 0, 0) is None  # HEX 탭에는 메모 메뉴가 없다
     popup = bt.open_note_menu(1, 0, 0)  # 첫 메모 탭
-    assert isinstance(popup, ListPopup) and popup.items[:3] == ["Rename", "Export...", "Delete"]
+    assert isinstance(popup, ListPopup) and popup.items == ["Rename", "Export...", "Delete"]
     popup.choose(0)
     rename = bt.app.popups[-1]
     rename.edit.set_text("boot steps")
@@ -146,25 +146,26 @@ def test_hex_collects_only_on_its_tab(bt):
     assert bt.hex_active
 
 
-def test_menu_picks_hex_or_memo_and_toggles_off(bt):
+def test_hex_and_memo_tabs_are_toggled_separately(bt):
+    """HEX 와 메모는 각각 켜고 끈다. HEX 를 꺼도 메모 탭은 남는다."""
+    assert bt.right_tabs.titles == ["HEX"] and bt.item_hex.checked and not bt.item_memo.checked
+
+    add_note(bt, "boot", "reset")
+    assert bt.right_tabs.titles == ["HEX", "boot"]  # HEX 는 늘 맨 앞
+    assert bt.item_hex.checked and bt.item_memo.checked
+
     bt._apply_hex(False)
-    assert not bt.right_frame.visible and not bt.item_hex.checked and not bt.item_memo.checked
+    assert bt.right_tabs.titles == ["boot"] and bt.right_frame.visible
+    assert not bt.item_hex.checked and bt.item_memo.checked
+    assert bt.current_note is bt.notes[0] and not bt.hex_active
 
-    bt._show_right_tab(0)  # 보기 메뉴 > HEX 보기
-    assert bt.right_frame.visible and bt.right_tabs.selected == 0
-    assert bt.item_hex.checked and not bt.item_memo.checked
+    bt._apply_hex(True)
+    assert bt.right_tabs.titles == ["HEX", "boot"] and bt.hex_active
 
-    bt._show_right_tab(0)  # 같은 것을 다시 고르면 닫는다
-    assert not bt.right_frame.visible and not bt.item_hex.checked
-
-    dialog = bt._show_right_tab(1) or bt.app.popups[-1]  # 메모가 없으면 먼저 만든다
-    dialog.edit.set_text("boot")
-    dialog.finish(0)
-    assert bt.right_frame.visible and bt.right_tabs.selected == 1
-    assert bt.item_memo.checked and not bt.item_hex.checked
-
-    bt.right_tabs.select(0)  # 탭을 직접 눌러도 메뉴 표시가 따라간다
-    assert bt.item_hex.checked and not bt.item_memo.checked
+    bt._apply_memo(False)
+    assert bt.right_tabs.titles == ["HEX"] and bt.notes  # 메모 내용은 남는다
+    bt._apply_hex(False)
+    assert not bt.right_frame.visible and bt.right_tabs.titles == []
 
 
 def test_panel_state_and_menu_checks_survive_a_restart(tmp_path):
@@ -181,12 +182,84 @@ def test_panel_state_and_menu_checks_survive_a_restart(tmp_path):
         term.app.close()
 
     saved = store.load(tmp_path / "settings.json")[0]
-    assert saved.hex is True and saved.right_tab == 1  # 패널이 열렸다는 것도 저장된다
+    assert saved.memo is True and saved.hex is False  # 메모만 켠 상태가 저장된다
 
     again = make(tmp_path, config=saved)
     try:
-        assert again.right_frame.visible and again.right_tabs.selected == 1
+        assert again.right_frame.visible and again.right_tabs.titles == ["boot"]
         assert again.item_memo.checked and not again.item_hex.checked  # 메뉴 체크도 그대로
+        assert again.note_area.text == "test"
     finally:
         again.port.close()
         again.app.close()
+
+
+def test_plus_shows_only_while_memo_is_on(bt):
+    """HEX 만 있으면 더할 탭이 없으니 '+' 를 감춘다."""
+    assert bt.right_tabs.titles == ["HEX"] and not bt.right_tabs.show_add
+
+    add_note(bt, "boot")
+    assert bt.right_tabs.show_add
+
+    bt._apply_memo(False)
+    assert bt.right_tabs.titles == ["HEX"] and not bt.right_tabs.show_add
+
+
+def test_format_combo_swaps_the_extension(bt, tmp_path):
+    """형식 콤보는 파일 이름의 확장자를 바꾼다. 저장 형식은 그 확장자가 정한다."""
+    add_note(bt, "boot", "reset\nlog on")
+    dialog = bt.export_note(0)
+    assert dialog.name_edit.text == "boot.txt"
+
+    dialog.format_combo.set_index(1)
+    assert dialog.name_edit.text == "boot.json"
+    dialog.name_edit.set_text(str(tmp_path / "boot.json"))
+    dialog.finish(0)
+    assert notes_store.import_file(tmp_path / "boot.json") == [Note("boot", "reset\nlog on")]
+
+
+def test_export_all_writes_one_json(bt, tmp_path):
+    add_note(bt, "boot", "reset")
+    add_note(bt, "sensor", "start")
+    dialog = bt.export_all_notes()
+    assert dialog.name_edit.text == "baram-memos.json"
+
+    dialog.name_edit.set_text(str(tmp_path / "all"))  # 확장자를 빼먹어도 .json 으로 저장한다
+    dialog.finish(0)
+    assert notes_store.import_file(tmp_path / "all.json") == bt.notes
+    assert "2" in "\n".join(bt.app.screen_text())
+
+
+def test_format_combo_keeps_the_folder(bt, tmp_path):
+    """목록에서 고르면 칸에 경로가 들어온다. 형식을 바꿔도 폴더는 그대로여야 한다."""
+    add_note(bt, "boot", "reset")
+    dialog = bt.export_note(0)
+    dialog.name_edit.set_text(str(tmp_path / "boot.txt"))
+    dialog.format_combo.set_index(1)
+    assert dialog.name_edit.text == str(tmp_path / "boot.json")
+
+    dialog.format_combo.set_index(0)
+    assert dialog.name_edit.text == str(tmp_path / "boot.txt")
+
+
+def test_import_is_reachable_with_no_memos(bt, tmp_path):
+    """메모가 하나도 없으면 탭 메뉴도 '+' 도 없다. 파일 메뉴가 유일한 입구다."""
+    path = tmp_path / "all.json"
+    notes_store.export_all([Note("boot", "reset")], path)
+    assert bt.notes == [] and not bt.right_tabs.show_add
+
+    dialog = bt.item_note_import.action()
+    dialog.name_edit.set_text(str(path))
+    dialog.finish(0)
+    assert [n.title for n in bt.notes] == ["boot"] and bt.notes[0].text == "reset"
+
+
+def test_export_all_from_the_file_menu_needs_a_memo(bt, tmp_path):
+    assert bt.item_note_export_all.action() is None  # 빈 다이얼로그를 띄우지 않는다
+    assert "no memo" in "\n".join(bt.app.screen_text())
+
+    add_note(bt, "boot", "reset")
+    dialog = bt.item_note_export_all.action()
+    dialog.name_edit.set_text(str(tmp_path / "all.json"))
+    dialog.finish(0)
+    assert notes_store.import_file(tmp_path / "all.json") == bt.notes

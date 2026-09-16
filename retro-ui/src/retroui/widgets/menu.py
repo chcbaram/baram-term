@@ -172,12 +172,19 @@ class MenuBar(Widget):
     def activate(self, item: MenuItem) -> None:
         if not item.selectable:
             return
-        # 동작이 대화상자를 여는 경우가 많으므로 메뉴를 먼저 닫는다
-        self.close_menu()
+        # 체크 항목은 메뉴를 열어 둔다: 여러 개를 연달아 켜고 끌 때 매번 다시 열지 않아도 된다.
+        # 그 밖의 항목은 대화상자를 여는 경우가 많아 먼저 닫는다
+        keep_open = item.checked is not None
+        if not keep_open:
+            self.close_menu()
         if item.checked is not None:
             item.checked = not item.checked
         if item.action is not None:
             item.action()
+        if keep_open and self._popup is not None:
+            self._popup.invalidate()
+            if self._popup.child is not None:
+                self._popup.child.invalidate()
         self.triggered.emit(item)
 
     # ---- input ---------------------------------------------------------
