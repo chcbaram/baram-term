@@ -133,9 +133,21 @@ def test_signal_from_worker_thread_updates_label(app):
 
 
 def test_timer_runs_in_step(app):
+    """step() 이 기한이 된 타이머를 실행한다.
+
+    sleep 으로 기다리면 안 된다. 윈도우는 타이머 분해능이 ~15.6ms 라 10ms 를 자고 깨도
+    기한 전인 경우가 있어서 CI py3.12 에서 깨졌다. TimerQueue 는 시계를 주입받으므로
+    시각을 직접 넘겨 기한 전/후를 나눈다.
+    """
     fired = []
+    now = [app.timers.clock()]
+    app.timers.clock = lambda: now[0]
+
     app.set_timeout(1, lambda: fired.append(1))
-    time.sleep(0.01)
+    app.step()
+    assert fired == [], "기한 전에는 실행하지 않는다"
+
+    now[0] += 0.002  # 1ms 기한을 지나 보낸다
     app.step()
     assert fired == [1]
 

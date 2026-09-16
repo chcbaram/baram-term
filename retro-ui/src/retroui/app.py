@@ -118,7 +118,9 @@ class App:
         # 첫 클릭이 "안 먹는" 것처럼 보이므로 클릭도 함께 전달한다
         os.environ.setdefault("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1")
         set_windows_dpi_hints(os.environ, os.name)  # SDL 비디오 초기화 전에 줘야 한다
-        pygame.init()
+        # 필요한 것만 켠다. pygame.init() 은 쓰지도 않는 오디오(mixer)까지 올리는데, 사운드 장치가
+        # 없는 CI 에서 특히 비싸다 (여기서도 143ms -> 1.1ms). freetype 은 FontSet 이 알아서 켠다
+        pygame.display.init()
         self.theme = get_theme(theme)
         self.fps = fps
         self.fonts = FontSet(font, font_size, 1.0)

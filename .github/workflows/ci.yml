@@ -39,11 +39,13 @@ jobs:
 
       # --timeout: 멈추면 6시간 타임아웃까지 로그가 열리지 않는다. 60초면 끊고
       # 스택 트레이스백을 남기므로 어디서 멈췄는지 바로 보인다 (로컬은 스위트 전체가 30초 남짓)
+      # --durations: 윈도우가 다른 OS 보다 10 배 넘게 느린데 원인을 로컬에서 재현할 수 없다.
+      # 어느 테스트가 시간을 먹는지 로그가 직접 말하게 한다 (추측으로 고치다 두 번 헛짚었다)
       - name: retro-ui tests
-        run: python -m pytest retro-ui/tests -q --timeout=60
+        run: python -m pytest retro-ui/tests -q --timeout=60 --durations=15
 
       - name: baram-term tests
-        run: python -m pytest baram-term/tests -q --timeout=60
+        run: python -m pytest baram-term/tests -q --timeout=60 --durations=15
 
   install:
     name: install like pipx
