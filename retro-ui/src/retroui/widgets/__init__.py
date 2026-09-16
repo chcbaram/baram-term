@@ -8,6 +8,7 @@ from retroui.widgets.containers import Box, HBox, Spacer, VBox
 from retroui.widgets.dialog import Dialog, message_box
 from retroui.widgets.filedialog import FileDialog
 from retroui.widgets.frame import Frame, GroupBox
+from retroui.widgets.hexview import HexView
 from retroui.widgets.label import Label
 from retroui.widgets.link import Link
 from retroui.widgets.lineedit import LineEdit
@@ -18,11 +19,11 @@ from retroui.widgets.plot import LivePlot, RingBuffer, Series
 from retroui.widgets.plotlegend import PlotLegend
 from retroui.widgets.popup import Popup
 from retroui.widgets.scrollbar import ScrollBar
-from retroui.widgets.split import VSplit
+from retroui.widgets.split import HSplit, VSplit
 from retroui.widgets.terminal import HighlightRule, Terminal, TerminalScreen
 
 __all__ = [
-    "VSplit",
+    "HSplit", "HexView", "VSplit",
     "PlotLegend",
     "EditableComboBox",
     "Link",

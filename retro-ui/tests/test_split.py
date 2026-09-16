@@ -1,6 +1,6 @@
 import pytest
 
-from retroui import App, Label, VBox, VSplit
+from retroui import App, HSplit, Label, VBox, VSplit
 from retroui.input.events import MouseEvent
 
 
@@ -72,3 +72,48 @@ def test_cursor_on_boundary_rows(app):
     assert app.cursor_name(bottom, 1, 10) == "resize_ns"
     assert app.cursor_name(top, 1, 4) is None
     assert app.cursor_name(bottom, 1, 15) is None
+
+
+def hsetup(app):
+    left, right = Label("left"), Label("right")
+    changes = []
+    split = HSplit(left, right, ratio=0.5, min_left=6, min_right=8, on_change=changes.append)
+    app.set_root(VBox(split))
+    app.step()
+    return split, left, right, changes
+
+
+def hdrag(app, x0, x1, y=1):
+    app.dispatch(MouseEvent("down", 1, x0, y, 0, 0))
+    app.dispatch(MouseEvent("move", 0, x1, y, 0, 0))
+    app.dispatch(MouseEvent("up", 1, x1, y, 0, 0))
+    app.step()
+
+
+def test_hsplit_layout_and_drag(app):
+    split, left, right, changes = hsetup(app)
+    assert (left.rect.w, right.rect.x, right.rect.w) == (15, 15, 15)
+    hdrag(app, 14, 10)  # 왼쪽 위젯의 마지막 칸을 잡고 4칸 왼쪽으로
+    assert left.rect.w == 11 and right.rect.x == 11 and changes == [11 / 30]
+    hdrag(app, 11, 13)  # 오른쪽 위젯의 첫 칸을 잡고 2칸 오른쪽으로
+    assert left.rect.w == 13
+
+
+def test_hsplit_min_widths_and_cursor(app):
+    split, left, right, changes = hsetup(app)
+    hdrag(app, 14, 0)
+    assert left.rect.w == 6
+    hdrag(app, 6, 29)
+    assert right.rect.w == 8
+    assert app.cursor_name(left, split.split_x - 1, 1) == "resize_ew"
+    assert app.cursor_name(right, split.split_x, 1) == "resize_ew"
+    assert app.cursor_name(left, 2, 1) is None
+
+
+def test_hsplit_hidden_right_gives_all_columns(app):
+    split, left, right, changes = hsetup(app)
+    right.visible = False
+    app.step()
+    assert left.rect.w == 30
+    hdrag(app, 14, 8)
+    assert left.rect.w == 30 and changes == []

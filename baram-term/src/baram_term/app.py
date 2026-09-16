@@ -18,6 +18,8 @@ from retroui import (
     Dialog,
     FileDialog,
     GroupBox,
+    HSplit,
+    HexView,
     HBox,
     Label,
     LineEdit,
@@ -205,6 +207,29 @@ class BaramTerm:
             spacing=1,
         )
         self.plot_frame = GroupBox("", VBox(plot_toolbar, self.plot, plot_footer), stretch=1, visible=self.config.plot)
+        # HEX 보기: 받은/보낸 바이트 그대로 (터미널 오른쪽). 줄바꿈 코드나 안 보이는 제어 문자를 확인할 때
+        self.hex_view = HexView(max_rows=5000)
+        hex_run_w = max(str_width(tr("hex.stop")), str_width(tr("hex.start"))) + 4
+        self.hex_run_button = Button(
+            tr("hex.stop"), on_click=self.toggle_hex_pause, style="solid", color="error", min_size=(hex_run_w, 1)
+        )
+        self.hex_clear_button = Button(tr("hex.clear"), on_click=self.clear_hex, style="solid", color="dim")
+        self.hex_run_button.focusable = False
+        self.hex_clear_button.focusable = False
+        hex_toolbar = HBox(
+            Label(tr("hex.title"), fg="accent", bold=True), Spacer(), self.hex_clear_button, self.hex_run_button, spacing=1
+        )
+        self.hex_frame = GroupBox("", VBox(hex_toolbar, self.hex_view), stretch=1, visible=self.config.hex)
+        # 터미널과 HEX 를 좌우로 나눈다 (경계를 끌어 폭 조절, 비율 저장)
+        self.terminal_split = HSplit(
+            self.frame,
+            self.hex_frame,
+            ratio=self.config.hex_split,
+            default_ratio=Settings().hex_split,
+            min_left=20,
+            min_right=30,  # 오프셋 + 4바이트 + ASCII 칸이 들어가는 최소 폭
+            on_change=self._on_hex_split_changed,
+        )
         self._plot_lines = LineCleaner()
         # 한 세션의 그래프 형식 (>name:value 또는 Arduino). 처음 받은 줄로 정하고 지우기로 푼다:
         # 시작 직후 잘린 ">temp:34" 가 "p:34" 로 와도 새 시리즈를 만들지 않게
@@ -243,7 +268,7 @@ class BaramTerm:
         self.menu = self._build_menu()
         # 터미널과 그래프 사이 경계(두 테두리 줄)를 마우스로 끌어 높이를 나눈다. 더블클릭은 기본 비율로
         self.split = VSplit(
-            self.frame,
+            self.terminal_split,
             self.plot_frame,
             ratio=self.config.plot_split,
             default_ratio=Settings().plot_split,
@@ -273,6 +298,10 @@ class BaramTerm:
         self.item_guard = MenuItem(tr("menu.view.guard"), lambda: self._apply_guard(self.item_guard.checked), key="G", checked=self.guard_controls)
         self.item_plot = MenuItem(
             tr("menu.view.plot"), lambda: self._apply_plot(self.item_plot.checked), shortcut="Ctrl-A G", key="P", checked=self.config.plot
+        )
+        self.item_hex = MenuItem(
+            tr("menu.view.hex"), lambda: self._apply_hex(self.item_hex.checked),
+            shortcut="Ctrl-A H", key="H", checked=self.config.hex,
         )
         self.item_plot_hide = MenuItem(
             tr("menu.view.plot_hide"), lambda: self._apply_plot_hide(self.item_plot_hide.checked), checked=self.plot_hide_lines
@@ -335,6 +364,7 @@ class BaramTerm:
                         MenuItem.sep(),
                         self.item_plot,
                         self.item_plot_hide,
+                        self.item_hex,
                         MenuItem(tr("menu.view.clear"), self.clear, shortcut="Ctrl-A C", key="C"),
                         MenuItem.sep(),
                         MenuItem(tr("menu.view.bigger"), lambda: self.zoom(+1), shortcut="Primary+="),
@@ -440,6 +470,8 @@ class BaramTerm:
                 self.notice(tr("notice.not_connected"), error=True)
             return
         self.port.write(data)
+        if self.hex_frame.visible:
+            self.hex_view.append(data, "tx")
         if self.local_echo:
             self.terminal.feed(data.decode("utf-8", errors="replace").replace("\r", "\r\n"))
 
@@ -674,6 +706,31 @@ class BaramTerm:
         self.config.plot_split = round(ratio, 4)
         self._save()
 
+    # ---- hex view ------------------------------------------------------
+
+    def _apply_hex(self, on: bool) -> None:
+        self.item_hex.checked = on
+        self.hex_frame.visible = on
+        if not on:
+            self.hex_view.clear()  # 꺼 두는 동안 받은 바이트는 모으지 않으므로 오프셋이 이어지지 않는다
+        self._save()
+        self._update_status()
+
+    def _on_hex_split_changed(self, ratio: float) -> None:
+        self.config.hex_split = round(ratio, 4)
+        self._save()
+
+    def toggle_hex_pause(self) -> None:
+        paused = not self.hex_view.paused
+        self.hex_view.set_paused(paused)
+        self.hex_run_button.set_text(tr("hex.start") if paused else tr("hex.stop"))
+        self.hex_run_button.set_color("ok" if paused else "error")
+        self.app.set_focus(self.terminal)
+
+    def clear_hex(self) -> None:
+        self.hex_view.clear()
+        self.app.set_focus(self.terminal)
+
     def toggle_plot_pause(self) -> None:
         paused = not self.plot.paused
         self.plot.set_paused(paused)
@@ -841,6 +898,7 @@ class BaramTerm:
             )
         c.enter, c.backspace, c.rx_lf = s.enter, s.backspace, s.rx_lf
         c.plot = self.plot_frame.visible
+        c.hex = self.hex_frame.visible
         c.plot_hide_lines = self.plot_hide_lines
         c.local_echo = self.local_echo
         c.timestamps = self.terminal.show_timestamps
@@ -1104,6 +1162,7 @@ class BaramTerm:
                 "l": self.toggle_log,
                 "/": self.open_search,
                 "g": lambda: self._apply_plot(not self.plot_frame.visible),
+                "h": lambda: self._apply_hex(not self.hex_frame.visible),
                 "m": lambda: self._apply_macro_bar(not self.macro_bar.visible),
                 "f": self.open_search,
             }.get(name)
@@ -1127,6 +1186,8 @@ class BaramTerm:
     def _on_rx(self) -> None:
         data = self.port.take()
         if data:
+            if self.hex_frame.visible:
+                self.hex_view.append(data, "rx")  # 디코딩 전 바이트 그대로
             text = self.decoder.decode(data)
             if self.plot_frame.visible and self.plot_hide_lines:
                 shown, plot_lines = self.plot_filter.feed(text)
@@ -1179,7 +1240,9 @@ class BaramTerm:
         if getattr(self, "log", None) is not None:
             flags.append("LOG")
         if self.plot_frame.visible and self.plot_hide_lines:
-            flags.append("PLOT")  # 그래프 줄이 터미널에서 빠지고 있다는 표시
+            flags.append("PLOT")
+        if self.hex_frame.visible:
+            flags.append("HEX")  # 그래프 줄이 터미널에서 빠지고 있다는 표시
             self._release_plot_partial(force=False)
         if getattr(self, "_reconnect_timer", None) is not None:
             flags.append(tr("status.reconnecting"))

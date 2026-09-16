@@ -28,13 +28,14 @@ baram-term/                 GitHub: https://github.com/chcbaram/baram-term
 | retro-ui 추가 위젯 (Terminal, LivePlot + PlotLegend, ListView, FileDialog, EditableComboBox, Link, VSplit, 기본 문자열 ko/en) | 완료 |
 | baram-term 기본기 (연결/자동 재연결, 설정 저장, 포트 설정 + 상태줄 빠른 전환, 로그 저장, 스크롤백 찾기, Tab 자동완성, 줄끝 코드) | 완료, 실제 보드 확인 |
 | baram-term 그래프 패널 (`>name:value` / Arduino 플로터 형식, 범례, STOP/지우기, 시간 폭, 경계 끌기, 값 줄 숨기기) | 완료, 실제 보드 확인 |
+| baram-term HEX 보기 (`Ctrl-A H`, 오른쪽 패널, RX/TX 바이트, 폭에 맞춘 한 줄 4/8/16 바이트, 좌우 경계 끌기) | 완료, 헤드리스 확인 |
 | baram-term 매크로 막대 (F 키 선택·전송, 오른쪽 클릭 수정/삭제, `+` 등록, 이름 줄임, hover 툴팁) | 완료, macOS 실제 창 확인 |
 | 입력 (터미널 영문 입력 기본 켜짐, Shift+Space 한/영 전환 때 스페이스 안 찍힘, 휠이 OS 방향·속도를 따름) | 완료, macOS 실제 창 확인 |
 | 메뉴·언어 (파일 메뉴 맨 앞, 화면 언어 기본 영어·파일 메뉴에서 선택) | 완료, 헤드리스 확인 |
 | Windows 11 | 실행·스크롤 확인. 글자 선명도(DPI)·파일 메뉴는 푸시했고 **확인 대기** |
 | Linux | 아직 실행해 보지 않음 |
-| 다음 | HEX 분할 보기 → 배포 ([roadmap.md](roadmap.md)) |
-| 테스트 | retro-ui 274개 (1개 skip), baram-term 204개 (+ 로컬 장치 기록이 있으면 재생 테스트) |
+| 다음 | 강조 규칙 사용자 추가 → 전송률 미니 그래프 → 줄 단위 입력창 → 배포 ([roadmap.md](roadmap.md)) |
+| 테스트 | retro-ui 284개, baram-term 209개 (+ 로컬 장치 기록이 있으면 재생 테스트) |
 
 ## 이어서 할 때 먼저 볼 것 (2026-09-16)
 

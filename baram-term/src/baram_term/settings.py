@@ -46,6 +46,9 @@ class Settings:
     plot_hide_lines: bool = False
     plot_window: float = 10.0  # 그래프 가로 폭 (초)
     plot_split: float = 2 / 3  # 터미널 : 그래프 높이 비율 (터미널 몫)
+    # HEX 보기: 받은/보낸 바이트를 16진수로 보여주는 오른쪽 패널
+    hex: bool = False
+    hex_split: float = 0.6  # 터미널 : HEX 폭 비율 (터미널 몫). 0.6 이면 폭 120칸에서 한 줄 8바이트가 들어간다
     # 포트 설정 창에서 고른 포트/직접 입력한 주소 (최근 것이 앞)
     recent_ports: list[str] = field(default_factory=list)
     # F1~F12 매크로 막대: 보이기와 슬롯 12개 ("이름=명령", 빈 문자열이면 빈 칸)

@@ -734,7 +734,7 @@ class App:
         else:
             self._bubble(under, ev)
 
-    _CURSORS = {"hand": "SYSTEM_CURSOR_HAND", "resize_ns": "SYSTEM_CURSOR_SIZENS"}
+    _CURSORS = {"hand": "SYSTEM_CURSOR_HAND", "resize_ns": "SYSTEM_CURSOR_SIZENS", "resize_ew": "SYSTEM_CURSOR_SIZEWE"}
 
     def cursor_name(self, widget: Widget | None, cx: int, cy: int) -> str | None:
         """마우스 위치의 커서 이름. 누른 위젯의 cursor 속성, 또는 조상의 cursor_at(cx, cy) (분할 경계 등)."""
