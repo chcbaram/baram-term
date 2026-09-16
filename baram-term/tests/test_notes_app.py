@@ -95,6 +95,7 @@ def test_tab_menu_renames_and_deletes(bt):
     add_note(bt, "boot", "reset")
     add_note(bt, "sensor", "start")
 
+    assert bt.open_note_menu(0, 0, 0) is None  # HEX 탭에는 메모 메뉴가 없다
     popup = bt.open_note_menu(1, 0, 0)  # 첫 메모 탭
     assert isinstance(popup, ListPopup) and popup.items[:3] == ["Rename", "Export...", "Delete"]
     popup.choose(0)

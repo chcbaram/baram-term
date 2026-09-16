@@ -232,9 +232,7 @@ class BaramTerm:
         self.hex_clear_button = Button(tr("hex.clear"), on_click=self.clear_hex, style="solid", color="dim")
         self.hex_run_button.focusable = False
         self.hex_clear_button.focusable = False
-        hex_toolbar = HBox(
-            Label(tr("hex.title"), fg="accent", bold=True), Spacer(), self.hex_clear_button, self.hex_run_button, spacing=1
-        )
+        hex_toolbar = HBox(Spacer(), self.hex_clear_button, self.hex_run_button, spacing=1)
         # 고른 바이트 설명 줄 (없으면 빈 줄로 둔다: 줄이 생겼다 없어지면 내용이 밀린다)
         self.hex_info = Label("", fg="dim")
         self.hex_copy_button = Button(tr("hex.copy"), on_click=self.copy_hex_selection, style="solid", color="dim", enabled=False)
@@ -261,11 +259,15 @@ class BaramTerm:
             on_change=self._note_delay_typed,
         )
         self.note_delay_combo.chosen.connect(lambda _text: self.app.set_focus(self.note_area))
-        note_buttons = HBox(self.note_send_button, self.note_all_button, self.note_stop_button, Spacer(), spacing=1)
-        note_options = HBox(
+        # 아래 줄: 넓으면 한 줄(버튼 + 옵션), 좁으면 옵션을 둘째 줄로 내린다.
+        # 위젯을 옮겨 다니면 부모가 꼬이므로, 두 벌을 만들어 두고 보이기만 바꾼다
+        self.note_buttons = HBox(self.note_send_button, self.note_all_button, self.note_stop_button, Spacer(), spacing=1)
+        self.note_options = HBox(
             Spacer(), self.note_wait_combo, self.note_delay_combo, Label("ms", fg="dim"), spacing=1
         )
-        self.note_page = VBox(self.note_area, note_buttons, note_options, stretch=1, visible=False)
+        self.note_footer = HBox(self.note_buttons, self.note_options, spacing=1)
+        self.note_second_row = HBox(Spacer(), spacing=1)
+        self.note_page = VBox(self.note_area, self.note_footer, stretch=1, visible=False)
         self._note_queue: list[int] = []
         self._note_timer = None
         self._note_waiting_until = 0.0
@@ -884,6 +886,28 @@ class BaramTerm:
     def _tab_titles(self) -> list[str]:
         return [tr("hex.title"), *(note.title for note in self.notes)]
 
+    NOTE_ONE_ROW_MIN = 52  # 버튼 둘 + 대기 방식 + 간격이 한 줄에 들어가는 최소 폭
+
+    def _fit_note_footer(self) -> None:
+        """넓으면 버튼과 옵션을 한 줄에, 좁으면 옵션을 둘째 줄로."""
+        width = self.note_page.rect.w
+        if width <= 0:
+            return
+        two_rows = width < self.NOTE_ONE_ROW_MIN
+        in_second_row = self.note_options.parent is self.note_second_row
+        if two_rows == in_second_row:
+            return
+        self.note_options.parent.remove(self.note_options)
+        if two_rows:
+            self.note_second_row.add(self.note_options)
+            if self.note_second_row.parent is None:
+                self.note_page.add(self.note_second_row)
+        else:
+            self.note_footer.add(self.note_options)
+            if self.note_second_row.parent is not None:
+                self.note_page.remove(self.note_second_row)
+        self.note_page.relayout()
+
     def _select_right_tab(self, index: int) -> None:
         self.hex_page.visible = index == 0
         self.note_page.visible = index > 0
@@ -955,12 +979,12 @@ class BaramTerm:
         edit.select_all()
         return dialog
 
-    def open_note_menu(self, index: int, x: int, y: int) -> ListPopup:
+    def open_note_menu(self, index: int, x: int, y: int) -> ListPopup | None:
         """탭 오른쪽 클릭: 이름 바꾸기 / 내보내기 / 삭제 / 가져오기."""
         note_index = index - 1
-        items = [tr("note.menu.import")]
-        if 0 <= note_index < len(self.notes):
-            items = [tr("note.menu.rename"), tr("note.menu.export"), tr("note.menu.delete"), *items]
+        if not 0 <= note_index < len(self.notes):
+            return None  # HEX 탭: 메모 메뉴가 없다
+        items = [tr("note.menu.rename"), tr("note.menu.export"), tr("note.menu.delete"), tr("note.menu.import")]
 
         def chosen(choice: int) -> None:
             action = items[choice]
@@ -1697,6 +1721,8 @@ class BaramTerm:
             flags.append(tr("status.reconnecting"))
         self.st_flags.set_text(" ".join(flags))
         self.st_flags.visible = self.st_flags_sep.visible = bool(flags)
+        if getattr(self, "note_page", None) is not None and self.note_page.visible:
+            self._fit_note_footer()
         if getattr(self, "note_all_button", None) is not None and self.note_page.visible:
             picked = self.note_area.selected_rows() is not None
             label = tr("note.send_selection") if picked else tr("note.send_all")
