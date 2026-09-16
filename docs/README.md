@@ -20,7 +20,7 @@ baram-term/                 GitHub: https://github.com/chcbaram/baram-term
 - **retro-ui**: 겉보기는 TUI(글자 격자, 박스 문자)인데 그래프는 실제 픽셀로 그리는 파이썬 GUI 라이브러리. pygame-ce 기반, Qt 없음.
 - **baram-term**: retro-ui 로 만든 펌웨어 CLI 시리얼 터미널 (minicom 대체).
 
-## 현재 상태 (2026-09-16 기준, `abaf3d4`)
+## 현재 상태 (2026-09-16 기준, `0b2e34f`, [v0.1.1](https://github.com/chcbaram/baram-term/releases/tag/v0.1.1))
 
 | 영역 | 상태 |
 |---|---|
@@ -34,17 +34,22 @@ baram-term/                 GitHub: https://github.com/chcbaram/baram-term
 | baram-term 매크로 막대 (F 키 선택·전송, 오른쪽 클릭 수정/삭제, `+` 등록, 이름 줄임, hover 툴팁) | 완료, macOS 실제 창 확인 |
 | 입력 (터미널 영문 입력 기본 켜짐, Shift+Space 한/영 전환 때 스페이스 안 찍힘, 휠이 OS 방향·속도를 따름) | 완료, macOS 실제 창 확인 |
 | 메뉴·언어 (파일 메뉴 맨 앞, 화면 언어 기본 영어·파일 메뉴에서 선택) | 완료, 헤드리스 확인 |
-| Windows 11 | 실행·스크롤 확인. 글자 선명도(DPI)·파일 메뉴는 푸시했고 **확인 대기** |
-| Linux | 아직 실행해 보지 않음 |
-| 다음 | 배포 ([roadmap.md](roadmap.md)). 줄 단위 입력창과 전송률 미니 그래프는 뒤로 미룸 |
-| 테스트 | retro-ui 290개, baram-term 229개 (+ 로컬 장치 기록이 있으면 재생 테스트) |
+| baram-term 포트 설정 (꽂힌 포트만 목록, 목록↔주소 일치, 속도 직접 입력·기억 8개) | 완료, 실제 창 확인 |
+| 배포 (pipx/pip 설치, PyInstaller 3 OS, GitHub Actions CI·릴리스) | 완료. [v0.1.1](https://github.com/chcbaram/baram-term/releases/tag/v0.1.1) 에 macOS `.dmg` / Windows zip / Linux `.tar.gz` |
+| Windows 11 | 실행·스크롤·**파일 메뉴 언어 전환 확인 완료**. 글자 선명도(DPI)는 **확인 대기** |
+| Linux | 직접 실행해 본 적 없음 (CI 에서 테스트만 통과) |
+| 다음 | 줄 단위 입력창 (보조) — [roadmap.md](roadmap.md) 의 마지막 남은 항목. 전송률 미니 그래프는 뒤로 미룸 |
+| 테스트 | retro-ui 323개, baram-term 276개 (+ 로컬 장치 기록이 있으면 재생 테스트) |
 
 ## 이어서 할 때 먼저 볼 것 (2026-09-16)
 
 ### 확인 대기 (사용자가 실제 창에서)
 
+- **게시된 산출물을 아직 아무도 실행해 보지 않았다.** 로컬에서 만든 빌드는 확인했지만,
+  릴리스에 붙은 `.dmg`/zip/`.tar.gz` 는 받아서 열어 본 적이 없다. 서명이 없어 첫 실행은
+  macOS 우클릭>열기 / Windows 추가 정보>실행 이 필요하다.
 - **Windows**: 화면 배율 125%·150% 에서 글자가 선명한지 (DPI 힌트, `03a880a`).
-  메뉴가 영어로 시작하고, File → 한국어를 고른 뒤 다시 켜면 한국어가 되는지.
+  (파일 메뉴 언어 전환은 확인 완료 — 2026-09-16)
 - 오래전부터 남은 것: 실제 창에서 손가락 커서(링크/상태줄 항목)와 ↕ 커서(터미널/그래프 경계) 모양,
   연결된 상태에서 상태줄로 속도만 바꿀 때 실제 보드가 끊기지 않는지.
 
@@ -53,6 +58,12 @@ baram-term/                 GitHub: https://github.com/chcbaram/baram-term
 - **Windows 휠 한 칸의 줄 수**: 지금 3줄 고정 (`Terminal.wheel_lines`). Windows 는 사용자가 줄 수를 바꿀 수
   있으니 시스템 설정값(`SPI_GETWHEELSCROLLLINES`, ctypes 로 읽음)을 쓰는 편이 정확하다.
   사용자는 Windows 에서 스크롤이 괜찮다고 했으니 급하지 않다.
+- **Linux AppImage**: 지금은 onedir 를 `.tar.gz` 로 낸다. AppImage 는 `appimagetool` + AppDir 배치 +
+  `.desktop` 파일이 따로 필요해 미뤘다 ([roadmap.md](roadmap.md) 개선 메모).
+- **커스텀 속도 관리 창**: 지금은 쓰면 자동으로 8개까지 기억만 한다. 목록이 지저분해져 지우고
+  싶어지면 그때 추가/삭제 창을 만든다.
+- **retro-ui 를 PyPI 에 올릴지**: 올리면 baram-term 의 git URL 의존을 버전 의존으로 바꿀 수 있고,
+  그래야 baram-term 도 PyPI 에 올릴 수 있다 (PyPI 는 직접 URL 참조를 거부한다).
 
 ### 알아 둘 것
 

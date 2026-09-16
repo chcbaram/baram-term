@@ -25,6 +25,8 @@
 | baram-term 입력·메뉴 (2026-09) | 매크로 막대, 원본 이미지에서 뽑은 배너 로고, 터미널 영문 입력(기본 켜짐), 파일 메뉴 맨 앞 + 화면 언어 선택(기본 영어, 다음 실행부터), 그래프 값 줄 누출 수정, 로그 줄이 채 간 그래프 형식 되찾기 |
 | retro-ui 입력·표시 (2026-09) | 입력 전환 단축키의 스페이스 버리기(`input/mac_hotkeys.py`), `KeyEvent.scancode`/`caps` + `us_ascii`, `Terminal.ascii_input`, `App.refresh_text_input`, 휠이 OS 방향(`flipped` 재반전 제거)·macOS 속도 그대로, Windows DPI 힌트, 부분 갱신 경계의 한글 유지, Tooltip, Button padding |
 | 배포 (2026-09-16, v0.1.0) | pipx/pip 설치(retro-ui 를 git URL 로 의존), PyInstaller onedir 빌드 → macOS `.dmg` / Windows zip / Linux `.tar.gz`, CI(3 OS × py3.10·3.12 + 설치 경로 회귀), `v*` 태그 push 시 릴리스 자동 첨부, MIT 라이선스(폰트는 OFL 문서 동봉) |
+| baram-term 포트 설정 (2026-09-16, v0.1.1) | 꽂혀 있는 포트만 목록에 (뽑은 장치는 빼고, `socket://` 류 최근 주소는 남김 — 상태줄 메뉴도 같은 목록), 목록과 주소 칸이 늘 같은 포트를 가리킴, 통신 속도는 목록 + `직접 입력...` 창(숫자 순으로 끼우고 8개까지 기억), Refresh 버튼이 포커스를 가져가지 않음 |
+| retro-ui 입력 칸 (2026-09-16) | 선택 중에는 캐럿을 그리지 않음(선택 칸에 반전을 덧칠해 한 칸만 색이 튀던 문제 — LineEdit·TextArea 공통), `LineEdit(padding=…)` 옵션(기본 0, 포트 설정 Address 에만 1) |
 | CI 가 드러낸 라이브러리 결함 (2026-09-16) | `App.close()` 가 프로세스 전역 SDL 을 내려 App 을 닫았다 다시 못 열던 것, 쓰지도 않는 오디오까지 켜던 `pygame.init()`(사운드 장치 없는 러너에서 호출당 8초, App 마다 지불), 폰트 경로를 App 하나당 22번 glob 하던 것, 벽시계 마진에 기대 간헐 실패하던 테스트 2개 → **윈도우 테스트 722초 → 4초, 로컬 28초 → 4.6초** |
 
 ## 다음 할 일 (이 순서로)
@@ -37,7 +39,7 @@
 - [ ] 줄 단위 입력창 모드 (보조)
 - [x] 메모 탭 (오른쪽 패널 탭: 명령을 적어 두고 줄/선택/전체 보내기, `#wait`, 내보내기/가져오기)
 
-### 2. 배포 — 끝 (2026-09-16, [v0.1.0](https://github.com/chcbaram/baram-term/releases/tag/v0.1.0))
+### 2. 배포 — 끝 (2026-09-16, [v0.1.1](https://github.com/chcbaram/baram-term/releases/tag/v0.1.1))
 
 - [x] `pipx install "git+https://github.com/chcbaram/baram-term#subdirectory=baram-term"`
       — retro-ui 가 PyPI 에 없어서 git URL 로 의존한다 (hatchling `allow-direct-references`).
