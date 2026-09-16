@@ -82,6 +82,34 @@ HEX 보기를 만들면서 생기는 좌우 분할(`HSplit`)은 나중에 터미
 > 지금도 프로그램을 두 번 실행하면 창 두 개로 볼 수 있다. 설정이 서로 덮어쓰지 않게 `--config` 로 파일을 나눈다:
 > `baram-term /dev/cu.usbmodem1 --config ~/.baram-a.json`
 
+### 창 여러 개 (File → 새 인스턴스) 와 설정 나누기
+
+지금도 여러 개를 띄울 수는 있다 (터미널에서 두 번 실행, macOS 는 `open -n <번들>`).
+막는 것은 실행이 아니라 **설정**이다: 두 인스턴스가 같은 `settings.json` 을 공유해서
+마지막 포트·속도·창 배치·최근 목록을 서로 덮어쓴다. 그래서 메뉴만 먼저 넣으면
+"누르면 설정이 엉키는 버튼" 이 된다.
+
+VSCode 가 창을 여러 개 두면서도 안 엉키는 이유는 **설정은 공유하고 맥락은 대상별로**
+따로 두기 때문이다. 같은 방식이면:
+
+- `settings.json` 하나를 유지하되 안에 **포트별 구역**을 둔다. `commands` 가 이미 포트별로
+  저장하고 있어 새 개념이 아니다
+- 포트별: `baud` `bytesize` `parity` `stopbits` `flow` `enter` `backspace` `rx_lf`
+  `local_echo` `timestamps` `auto_reconnect` `plot*` `hex*` `memo` `right_tab` (약 20개)
+- 공유: `theme` `font_size` `lang` `ascii_input` `rules` `macros` `log_*` `note_*`
+  `recent_ports` `recent_bauds` (약 15개). `cols`/`rows` 는 애매 — 전역이면 두 창이 같은 크기로 뜬다
+- **구역을 나누는 것만으로는 부족하다.** 지금 저장은 파일 전체를 다시 쓰므로, A 가 읽은 뒤
+  B 가 저장하고 A 가 저장하면 B 의 구역이 통째로 사라진다. 저장할 때 **파일을 다시 읽어 내
+  구역만 갈아끼우는 병합**이 필요하다
+
+그 위에 올리는 File 메뉴 항목은 작다. 다만 이름은 "새 창" 이 아니라 **"새 인스턴스"** 가 맞다
+(App 은 프로세스당 창 하나 전제라 VSCode 의 New Window 와 동작이 다르다). macOS 는
+`open -n`, 동결본은 `sys.executable` 로 갈라야 하는데 **PyInstaller 로 묶은 뒤 실제로 확인해야 한다.**
+
+> 이 설정 분리는 위 "시리얼 포트 여러 개 동시 연결" 이 어차피 요구하는 기반이다. 한 번 해 두면
+> 새 인스턴스가 안전해지고, 나중에 한 창에서 여러 포트를 볼 때 그대로 쓴다.
+> 당장 두 보드를 봐야 하면 `--config` 로 파일을 나누는 현재 방법으로 충분하다.
+
 ## 라이브러리 남은 항목 (필요해질 때)
 
 - SpinBox, Table/Tree(가상화, 칸 편집), ScrollArea, Tabs
