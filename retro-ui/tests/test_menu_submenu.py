@@ -41,7 +41,7 @@ def test_submenu_marker_is_drawn(app):
     app.step()
     rows = app.screen_text()
     line = next(r for r in rows if "Right panel" in r)
-    assert "▸" in line and "Local echo" in "\n".join(rows)
+    assert "▶" in line and "Local echo" in "\n".join(rows)
 
 
 def test_keyboard_opens_and_closes_the_submenu(app):

@@ -353,6 +353,7 @@ class BaramTerm:
             self.app.add_shortcut("Primary+F", self.open_search)
         self.app.set_interval(100, self._update_status)
 
+        self._sync_panel_menu()  # 저장된 패널 상태에 메뉴 체크를 맞춘다 (다시 켰을 때 어긋나지 않게)
         self.terminal.feed(banner(__version__, self._banner_info()))
         self._update_status()
 
@@ -968,6 +969,7 @@ class BaramTerm:
             self._refresh_tabs(len(self.notes))
             self.right_frame.visible = True  # 탭만 바꾸고 패널이 닫힌 채로 남지 않게
             self._sync_panel_menu()
+            self._save()  # 패널이 열렸다는 것도 설정에 남긴다 (다시 켰을 때 그대로)
             self._save_notes()
             self.app.set_focus(self.note_area)
 

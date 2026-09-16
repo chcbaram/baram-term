@@ -165,3 +165,28 @@ def test_menu_picks_hex_or_memo_and_toggles_off(bt):
 
     bt.right_tabs.select(0)  # 탭을 직접 눌러도 메뉴 표시가 따라간다
     assert bt.item_hex.checked and not bt.item_memo.checked
+
+
+def test_panel_state_and_menu_checks_survive_a_restart(tmp_path):
+    term = make(tmp_path)
+    try:
+        dialog = term.add_note()  # + 로 메모를 만들면 패널이 열린다
+        dialog.edit.set_text("boot")
+        dialog.finish(0)
+        term.note_area.set_text("test")
+        term._save_notes()
+        assert term.right_frame.visible and term.item_memo.checked
+    finally:
+        term.port.close()
+        term.app.close()
+
+    saved = store.load(tmp_path / "settings.json")[0]
+    assert saved.hex is True and saved.right_tab == 1  # 패널이 열렸다는 것도 저장된다
+
+    again = make(tmp_path, config=saved)
+    try:
+        assert again.right_frame.visible and again.right_tabs.selected == 1
+        assert again.item_memo.checked and not again.item_hex.checked  # 메뉴 체크도 그대로
+    finally:
+        again.port.close()
+        again.app.close()

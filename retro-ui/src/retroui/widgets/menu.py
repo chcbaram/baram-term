@@ -20,7 +20,7 @@ from retroui.widgets.button import draw_mnemonic, parse_mnemonic
 from retroui.widgets.popup import Popup
 
 CHECK_MARK = "√"
-SUBMENU_MARK = "▸"
+SUBMENU_MARK = "▶"  # ▸ 는 폰트에서 작게 보인다
 
 
 class MenuItem:
@@ -256,7 +256,8 @@ class MenuPopup(Popup):
         x = self.rect.right - 1
         if x + hint.pref_w > app.cols:
             x = max(0, self.rect.x - hint.pref_w + 1)
-        y = min(self.rect.y + row + 1, max(0, app.rows - hint.pref_h))
+        # 테두리 한 줄을 감안해 부모 항목과 같은 줄에서 시작하게 한 줄 위로
+        y = min(self.rect.y + row, max(0, app.rows - hint.pref_h))
         self.child = popup
         app.open_popup(popup, x, y)
         return popup
