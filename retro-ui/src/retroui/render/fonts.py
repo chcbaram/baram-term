@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import glob
 import os
+import sys
 from collections import OrderedDict
 from dataclasses import dataclass
 
@@ -16,7 +17,19 @@ import pygame.freetype
 
 RGB = tuple[int, int, int]
 
-_ASSET_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "fonts")
+def _asset_dir() -> str:
+    """번들한 폰트가 들어 있는 폴더.
+
+    PyInstaller 로 묶으면 데이터 파일이 __file__ 옆이 아니라 sys._MEIPASS 아래에 풀린다.
+    이 경로를 그대로 두면 동결한 실행 파일이 D2Coding 을 못 찾아 시작하지 못한다.
+    """
+    base = getattr(sys, "_MEIPASS", None)
+    if base:
+        return os.path.join(base, "retroui", "assets", "fonts")
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "fonts")
+
+
+_ASSET_DIR = _asset_dir()
 _SEARCH_DIRS = (
     _ASSET_DIR,
     os.path.expanduser("~/Library/Fonts"),

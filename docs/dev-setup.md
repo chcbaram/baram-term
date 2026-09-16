@@ -95,6 +95,50 @@ cd retro-ui
 | `examples/spike_ime.py` | **한글 입력 이벤트 순서 기록** (수동). Windows/Linux 는 아직 기록이 없다. 결과 `_spike_out/ime_log.json` 을 `tests/fixtures/ime_<os>.json` 으로 저장해 재생 테스트를 추가한다 |
 | `examples/spike_plot.py` | 플롯 렌더링 CPU 사용량 |
 
+## 배포 파일 만들기 (PyInstaller)
+
+파이썬을 깔지 않은 사람에게 건네는 단독 실행 파일이다. 빌드 도구는 테스트에 필요 없으므로
+`[dev]` 에 넣지 않았다. 직접 만들 때만 설치한다.
+
+```bash
+uv pip install --python .venv/bin/python pyinstaller
+.venv/bin/pyinstaller --noconfirm --clean baram-term/tools/baram-term.spec
+```
+
+결과는 `dist/` 에 나온다 (`.gitignore` 에 있어 커밋되지 않는다). 약 54MB 이고 대부분이 폰트다.
+
+| OS | 결과물 | 건네는 방법 |
+| --- | --- | --- |
+| macOS | `dist/baram-term.app` | `.dmg` 로 묶어서 (릴리스 워크플로가 한다) |
+| Windows | `dist/baram-term/` 폴더 | zip 으로 묶어서. 폴더째 풀어야 한다 |
+| Linux | `dist/baram-term/` 폴더 | `.tar.gz` 로 묶어서 |
+
+`onefile` 이 아니라 폴더로 묶는다. 한 파일로 만들면 실행할 때마다 8.1MB 폰트를 임시 폴더에
+풀어서 시작이 느려진다.
+
+**콘솔 없이 묶는다** (`console=False`). 자체 창을 띄우는 앱이라 뒤에 검은 콘솔이 따라다니면
+지저분하다. 대신 셸에서 실행하면 `--list` 나 `--version` 출력이 그 셸에 나온다
+(`__main__._attach_console()` 이 윈도우에서 부모 콘솔에 붙는다). 탐색기에서 더블클릭하면
+붙을 콘솔이 없으므로 창만 뜬다. 시작하다 죽으면 콘솔이 없어도 알 수 있게 메시지 상자를 띄운다.
+
+### 서명하지 않은 앱 열기
+
+코드 서명을 하지 않는다 (Apple 계정이 연 $99). 받는 쪽에서 처음 한 번 아래처럼 연다.
+
+- **macOS**: 더블클릭하면 "확인되지 않은 개발자" 라고 막힌다. **우클릭 > 열기** 로 한 번 열면
+  그다음부터는 그냥 열린다. 안 되면 `xattr -dr com.apple.quarantine baram-term.app`.
+- **Windows**: SmartScreen 이 "Windows 의 PC 보호" 를 띄운다. **추가 정보 > 실행** 을 누른다.
+
+### 릴리스
+
+`v` 로 시작하는 태그를 밀면 `.github/workflows/release.yml` 이 3 OS 빌드를 만들어 GitHub
+릴리스에 붙인다. 태그를 만들지 않고 빌드만 시험하려면 Actions 에서 수동 실행한다
+(그때는 릴리스에 올리지 않고 아티팩트로만 남는다).
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
 ## git 계정 (회사 PC 에서 개인 저장소 작업)
 
 회사 PC 는 기본 GitHub 계정/전역 git 이메일이 회사 계정이다. **전역 설정과 `gh` 활성 계정은 바꾸지 않고**, 이 저장소에만 개인 계정을 설정한다.

@@ -1,0 +1,100 @@
+name: Release
+
+# 태그를 밀면 3 OS 빌드를 만들어 릴리스에 붙인다. workflow_dispatch 는 태그를 만들지 않고
+# 빌드만 시험해 보려고 둔다 (그때는 릴리스에 올리지 않고 아티팩트로만 남는다)
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write # 릴리스에 파일을 올리려면 필요하다
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false # 한 OS 가 깨져도 나머지 산출물은 받아 본다
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      SDL_VIDEODRIVER: dummy # PyInstaller 가 분석하며 pygame 을 import 한다 (러너에 화면이 없다)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # 설치 순서가 중요하다 (docs/dev-setup.md). 한 번에 넣으면 pip 이 충돌로 막는다
+      - name: install baram-term (retro-ui comes from git)
+        run: pip install -e "baram-term[dev]"
+
+      - name: override retro-ui with this checkout
+        run: pip install -e "retro-ui[dev]"
+
+      - name: install pyinstaller
+        run: pip install pyinstaller
+
+      - name: build
+        run: pyinstaller --noconfirm --clean baram-term/tools/baram-term.spec
+
+      # 묶인 앱이 자기 폰트를 찾는지까지는 여기서 못 본다 (창을 띄워야 한다).
+      # 적어도 실행 파일이 만들어졌고 CLI 가 도는지는 확인한다
+      - name: smoke test
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            dist/baram-term.app/Contents/MacOS/baram-term --version
+          elif [ "$RUNNER_OS" = "Windows" ]; then
+            # 콘솔 없이 묶어서 bash 단계에서는 출력이 안 잡힌다. 있는지만 본다
+            test -f dist/baram-term/baram-term.exe
+          else
+            dist/baram-term/baram-term --version
+          fi
+
+      - name: name the archive
+        id: name
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          [ "${GITHUB_REF_TYPE}" = "tag" ] || tag="dev-$(git rev-parse --short HEAD)"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          case "$RUNNER_OS" in
+            macOS)   echo "file=baram-term-$tag-macos.dmg" >> "$GITHUB_OUTPUT" ;;
+            Windows) echo "file=baram-term-$tag-windows.zip" >> "$GITHUB_OUTPUT" ;;
+            *)       echo "file=baram-term-$tag-linux.tar.gz" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: package (macOS)
+        if: runner.os == 'macOS'
+        run: hdiutil create -volname baram-term -srcfolder dist/baram-term.app -ov -format UDZO "${{ steps.name.outputs.file }}"
+
+      - name: package (Windows)
+        if: runner.os == 'Windows'
+        run: Compress-Archive -Path dist/baram-term -DestinationPath "${{ steps.name.outputs.file }}"
+
+      - name: package (Linux)
+        if: runner.os == 'Linux'
+        run: tar -czf "${{ steps.name.outputs.file }}" -C dist baram-term
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.name.outputs.file }}
+          path: ${{ steps.name.outputs.file }}
+
+      # 태그로 돌았을 때만 릴리스에 붙인다. 릴리스가 없으면 만들고, 있으면 그대로 올린다
+      - name: attach to the release
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
+          gh release upload "$GITHUB_REF_NAME" "${{ steps.name.outputs.file }}" --clobber

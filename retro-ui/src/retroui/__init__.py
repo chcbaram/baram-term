@@ -1,5 +1,12 @@
 """retroui: TUI-looking desktop GUI with real pixel graphics."""
 
+import os
+
+# pygame 은 import 하면서 버전 배너를 print 한다. 콘솔 없이 묶은 실행 파일에서는 sys.stdout 이
+# None 이라 그 print 가 AttributeError 로 죽는다 - 창이 뜨기도 전에. 아래 import 가 pygame 을
+# 끌어오므로 그보다 먼저 꺼 둔다. 환경변수로 직접 준 값은 건드리지 않는다.
+os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
+
 from retroui.app import App
 from retroui.core.geometry import Rect
 from retroui.core.signal import Signal
