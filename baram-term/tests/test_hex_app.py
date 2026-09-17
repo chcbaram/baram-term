@@ -160,7 +160,8 @@ def test_selection_shows_info_and_copy(bt, monkeypatch):
     bt.app.dispatch(MouseEvent("move", 0, x2, y2, 0, 0))
     bt.app.dispatch(MouseEvent("up", 1, x2, y2, 0, 0))
     info = bt.hex_info.text
-    assert "4 bytes" in info and info.startswith("@00000002") and len(info) <= bt.hex_info.rect.w
+    # 4 바이트까지는 한 덩어리 값이라 16진수와 글자를 끝까지 남긴다 (좁으면 오프셋부터 덜어낸다)
+    assert '69 23 20 68  "i# h"' in info and len(info) <= bt.hex_info.rect.w
 
     click(bt, bt.hex_copy_button)
     assert copied == ["69 23 20 68"] and bt.app.focus is bt.terminal

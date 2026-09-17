@@ -234,11 +234,11 @@ class BaramTerm:
         self.hex_clear_button.focusable = False
         hex_toolbar = HBox(Spacer(), self.hex_clear_button, self.hex_run_button, spacing=1)
         # 고른 바이트 설명 줄 (없으면 빈 줄로 둔다: 줄이 생겼다 없어지면 내용이 밀린다)
-        self.hex_info = Label("", fg="dim")
+        self.hex_info = Label("", fg="dim", stretch=1)  # 남는 폭을 알아야 설명을 그 폭에 맞춘다
         self.hex_copy_button = Button(tr("hex.copy"), on_click=self.copy_hex_selection, style="solid", color="dim", enabled=False)
         self.hex_copy_button.focusable = False
         self.hex_view.selection_changed.connect(self._on_hex_selection)
-        hex_footer = HBox(self.hex_info, Spacer(), self.hex_copy_button, spacing=1)
+        hex_footer = HBox(self.hex_info, self.hex_copy_button, spacing=1)
         self.hex_page = VBox(hex_toolbar, self.hex_view, hex_footer, stretch=1)
         # 메모 탭: CLI 에 순서대로 넣을 명령을 적어 둔다 (오른쪽 패널을 HEX 와 탭으로 나눠 쓴다)
         self.notes_path = (config_path.parent / "notes.json") if config_path is not None else None
@@ -1928,6 +1928,8 @@ class BaramTerm:
         self.st_flags.visible = self.st_flags_sep.visible = bool(flags)
         if getattr(self, "note_page", None) is not None and self.note_page.visible:
             self._fit_note_footer()
+        if self.hex_active and self.hex_view.selection is not None:
+            self._on_hex_selection()  # 폭이 바뀌면 설명을 그 폭에 다시 맞춘다
         if getattr(self, "note_all_button", None) is not None and self.note_page.visible:
             picked = self.note_area.selected_rows() is not None
             label = tr("note.send_selection") if picked else tr("note.send_all")
