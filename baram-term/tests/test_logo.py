@@ -1,11 +1,13 @@
+import io
 import os
+import struct
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 import pygame  # noqa: E402
 from retroui import TerminalScreen  # noqa: E402
 
-from baram_term.icon import make_icon  # noqa: E402
+from baram_term.icon import icns_bytes, ico_bytes, make_icon  # noqa: E402
 from baram_term.logo import (  # noqa: E402
     INK_RGB,
     LOGO,
@@ -126,3 +128,38 @@ def test_icon_is_rounded_terminal_window():
     assert icon.get_size() == (128, 128)
     assert icon.get_at((0, 0)).a == 0  # 둥근 모서리 바깥은 투명
     assert icon.get_at((64, 64)).a == 255
+
+
+def _png_size(png):
+    assert png.startswith(b"\x89PNG")
+    return pygame.image.load(io.BytesIO(png), "icon.png").get_size()
+
+
+def test_icns_holds_a_png_per_size():
+    pygame.display.init()
+    data = icns_bytes()
+    assert data[:4] == b"icns"
+    assert struct.unpack(">I", data[4:8])[0] == len(data)
+    sizes, pos = {}, 8
+    while pos < len(data):
+        kind, length = struct.unpack(">4sI", data[pos : pos + 8])
+        sizes[kind] = _png_size(data[pos + 8 : pos + length])
+        pos += length
+    assert pos == len(data)
+    assert sizes[b"ic07"] == (128, 128)
+    assert sizes[b"ic10"] == (1024, 1024)
+
+
+def test_ico_directory_points_at_each_png():
+    pygame.display.init()
+    data = ico_bytes()
+    reserved, kind, count = struct.unpack("<HHH", data[:6])
+    assert (reserved, kind) == (0, 1)
+    sides = []
+    for i in range(count):
+        w, h, _, _, _, bpp, length, offset = struct.unpack("<BBBBHHII", data[6 + 16 * i : 22 + 16 * i])
+        assert bpp == 32
+        side = w or 256
+        assert _png_size(data[offset : offset + length]) == (side, side)
+        sides.append(side)
+    assert 16 in sides and 256 in sides

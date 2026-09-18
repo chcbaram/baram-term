@@ -12,6 +12,9 @@
 - **데이터 두 가지는 반드시 넣는다.** 런타임에 파일로 읽는 것은 이 둘뿐이다
   (retroui/render/fonts.py 의 _asset_dir, baram_term/i18n.py 의 importlib.resources).
   로고 PNG 는 도트가 logo.py 에 값으로 박혀 있어 넣지 않아도 된다.
+- **아이콘은 빌드할 때 icon.make_icon() 으로 그린다.** 실행 중에는 앱이 창에 같은 그림을
+  붙이지만, 꺼져 있을 때 Dock/탐색기가 보여 주는 것은 파일에 박힌 아이콘이다. 파일을 따로
+  두면 코드와 어긋나므로 매번 새로 만든다 (macOS 는 .icns, 윈도우는 .ico).
 """
 
 import sys
@@ -19,7 +22,16 @@ from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_data_files
 
+from baram_term.icon import icns_bytes, ico_bytes
+
 ROOT = Path(SPECPATH).resolve().parents[1]  # baram-term/tools -> 저장소 루트
+
+ICON_DIR = Path(workpath)
+ICON_DIR.mkdir(parents=True, exist_ok=True)
+ICNS = ICON_DIR / "baram-term.icns"
+ICNS.write_bytes(icns_bytes())
+ICO = ICON_DIR / "baram-term.ico"
+ICO.write_bytes(ico_bytes())
 
 # 번들 폰트: sys._MEIPASS/retroui/assets/fonts 에 풀려야 한다 (fonts._asset_dir 가 그 경로를 본다)
 datas = collect_data_files("retroui", includes=["assets/fonts/*"])
@@ -64,6 +76,7 @@ exe = EXE(
     strip=False,
     upx=False,  # UPX 는 압축 실행 파일을 백신이 자주 오탐한다
     console=False,
+    icon=str(ICO) if sys.platform == "win32" else None,  # 리눅스 실행 파일에는 아이콘 자리가 없다
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
@@ -86,7 +99,7 @@ if sys.platform == "darwin":
     app = BUNDLE(
         coll,
         name="baram-term.app",
-        icon=None,
+        icon=str(ICNS),
         bundle_identifier="com.chcbaram.baram-term",
         info_plist={
             "CFBundleShortVersionString": "0.1.1",
