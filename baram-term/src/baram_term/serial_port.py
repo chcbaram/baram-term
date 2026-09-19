@@ -48,6 +48,28 @@ def list_ports() -> list[str]:
     return sorted(p.device for p in lp.comports())
 
 
+def usb_info(path: str) -> dict[str, Any] | None:
+    """포트의 USB 정보 (외부 제어의 창 고르기용). USB 장치가 아니거나 못 찾으면 None."""
+    try:
+        from serial.tools import list_ports as lp
+    except ImportError:
+        return None
+    for p in lp.comports():
+        if p.device != path:
+            continue
+        if p.vid is None:
+            return None
+        return {
+            "vid_pid": f"{p.vid:04X}:{p.pid:04X}",
+            "serial_number": p.serial_number or "",
+            "description": p.description or "",
+            "manufacturer": p.manufacturer or "",
+            "product": p.product or "",
+            "location": p.location or "",
+        }
+    return None
+
+
 def open_device(settings: PortSettings) -> Any:
     if settings.port.startswith(DEMO_PORT):
         from baram_term.fake_device import FakeCliDevice

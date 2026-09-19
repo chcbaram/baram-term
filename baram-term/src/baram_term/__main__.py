@@ -1,4 +1,4 @@
-"""Command line entry: baram-term [PORT] [-b BAUD] [--demo] [--list] ...
+"""Command line entry: baram-term [PORT] [-b BAUD] [--demo] [--list] ... | baram-term ctl COMMAND ...
 
 실행 인자가 저장된 설정보다 우선하고, 준 값은 다시 저장된다. 인자 없이 실행하면 마지막 포트로 연결한다.
 """
@@ -50,7 +50,17 @@ def _report_fatal(message: str) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     _attach_console()
-    parser = argparse.ArgumentParser(prog="baram-term", description="firmware CLI serial terminal")
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["ctl"]:
+        # 실행 중인 baram-term 에 붙는 제어 명령 (ctl.py). 창을 띄우지 않고 pygame 도 올리지 않는다
+        from baram_term import ctl
+
+        return ctl.main(argv[1:])
+    parser = argparse.ArgumentParser(
+        prog="baram-term",
+        description="firmware CLI serial terminal",
+        epilog="baram-term ctl --help: control a running baram-term from another program",
+    )
     parser.add_argument("port", nargs="?", help="serial port or pyserial URL (loop://, socket://host:port)")
     parser.add_argument("-b", "--baud", type=int)
     parser.add_argument("--demo", action="store_true", help=f"connect to the built-in fake firmware ({DEMO_PORT})")

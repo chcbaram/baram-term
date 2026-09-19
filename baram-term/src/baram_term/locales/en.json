@@ -154,5 +154,12 @@
   "notice.macro_full": "at most {n} macros",
   "macro.add": "Add Macro",
   "menu.view.ascii_input": "English-only terminal input",
-  "notice.lang_next_start": "Language set to {name} · takes effect the next time baram-term starts"
+  "notice.lang_next_start": "Language set to {name} · takes effect the next time baram-term starts",
+  "menu.port.control": "Allow external control (baram-term ctl)",
+  "status.released": "RELEASED",
+  "notice.control_on": "external control on ({address})",
+  "notice.control_off": "external control off",
+  "notice.control_failed": "could not open the control socket: {error}",
+  "notice.control_released": "{port} closed for an external tool (resume, or Ctrl-A R to reconnect)",
+  "notice.control_resumed": "{port} reopened by an external tool ({serial})"
 }

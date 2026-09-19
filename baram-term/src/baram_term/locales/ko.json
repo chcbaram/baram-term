@@ -154,5 +154,12 @@
   "notice.macro_full": "매크로는 최대 {n}개입니다",
   "macro.add": "매크로 추가",
   "menu.view.ascii_input": "터미널은 영문으로 입력",
-  "notice.lang_next_start": "언어를 {name}(으)로 바꿨습니다 · 다음에 실행할 때부터 적용됩니다"
+  "notice.lang_next_start": "언어를 {name}(으)로 바꿨습니다 · 다음에 실행할 때부터 적용됩니다",
+  "menu.port.control": "외부 제어 허용 (baram-term ctl)",
+  "status.released": "포트 놓음",
+  "notice.control_on": "외부 제어를 켰습니다 ({address})",
+  "notice.control_off": "외부 제어를 껐습니다",
+  "notice.control_failed": "외부 제어 소켓을 열지 못했습니다: {error}",
+  "notice.control_released": "외부 제어 요청으로 {port} 를 잠시 닫았습니다 (resume 또는 Ctrl-A R 로 다시 연결)",
+  "notice.control_resumed": "외부 제어 요청으로 {port} 를 다시 열었습니다 ({serial})"
 }

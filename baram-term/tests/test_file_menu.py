@@ -50,7 +50,10 @@ def test_file_menu_holds_log_language_and_quit(bt):
 
 
 def test_port_menu_keeps_only_connection_items(bt):
-    assert [i.text for i in bt.menu.menus[1].items] == ["Connect", "Disconnect", "Port settings..."]
+    # 외부 제어도 포트를 누가 쓰느냐의 문제라 여기에 둔다
+    assert [i.text or "---" for i in bt.menu.menus[1].items] == [
+        "Connect", "Disconnect", "Port settings...", "---", "Allow external control (baram-term ctl)"
+    ]
 
 
 def test_language_names_are_written_in_their_own_language():

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import codecs
 import re
+import threading
 import time
 from dataclasses import replace
 from pathlib import Path
@@ -46,6 +47,7 @@ from retroui.input.events import IS_MAC, Key, KeyEvent
 
 from baram_term import __version__
 from baram_term.completion import Completer, at_prompt
+from baram_term.control import ControlServer, CtlError, RxHistory
 from baram_term.outgoing import outgoing_bytes
 from baram_term.hexinfo import as_hex, describe
 from baram_term.highlight import default_rules
@@ -60,7 +62,7 @@ from baram_term import notes as notes_store
 from baram_term.notes import MAX_NOTES, Note
 from baram_term.macros import SLOTS as MACRO_SLOTS, MacroBar, free_keys, join_entry, split_entry
 from baram_term.search import SearchBar
-from baram_term.serial_port import DEMO_PORT, PortSettings, SerialPort, list_ports, open_device
+from baram_term.serial_port import DEMO_PORT, PortSettings, SerialPort, list_ports, open_device, usb_info
 from baram_term import settings as config_store
 from baram_term.settings import Settings
 
@@ -167,6 +169,10 @@ class BaramTerm:
             opener=opener,
         )
         self.decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+        # 외부 제어 (control.py): 받은 글자 기록은 켜고 끄는 것과 상관없이 모은다 (켜자마자 read 가 되게)
+        self.rx_history = RxHistory()
+        self.control: ControlServer | None = None
+        self._released = False  # 외부 제어가 포트를 잠시 놓은 상태 (자동 재연결도 하지 않는다)
         self.log: SessionLog | None = None
         self.search: SearchBar | None = None
         self.last_search = ""
@@ -396,6 +402,9 @@ class BaramTerm:
             tr("menu.view.macro"), lambda: self._apply_macro_bar(self.item_macro.checked),
             shortcut="Ctrl-A M", key="M", checked=self.config.macro_bar,
         )
+        self.item_control = MenuItem(
+            tr("menu.port.control"), lambda: self._apply_control(self.item_control.checked), key="E", checked=self.config.control
+        )
         self.item_reconnect = MenuItem(tr("menu.view.reconnect"), lambda: self._apply_reconnect(self.item_reconnect.checked), key="A", checked=self.auto_reconnect)
         # 체크는 "다음 실행부터 쓸 언어" (고르면 저장만 하고 화면은 다시 켤 때 바뀐다)
         chosen = self.config.lang or language()
@@ -427,6 +436,8 @@ class BaramTerm:
                         MenuItem(tr("menu.port.connect"), self.connect, shortcut="Ctrl-A R", key="R"),
                         MenuItem(tr("menu.port.disconnect"), self.disconnect, shortcut="Ctrl-A D", key="D"),
                         MenuItem(tr("menu.port.settings"), self.open_port_dialog, shortcut="Ctrl-A O", key="O"),
+                        MenuItem.sep(),
+                        self.item_control,
                     ],
                 ),
                 Menu(
@@ -492,6 +503,7 @@ class BaramTerm:
             self.open_port_dialog()
             return
         self._stop_reconnect()
+        self._released = False
         if not self._open_port():
             # 보드가 아직 안 꽂혔거나 리셋 중이면 기다렸다가 붙는다
             if self.auto_reconnect:
@@ -530,7 +542,7 @@ class BaramTerm:
             self._update_status()
 
     def _try_reconnect(self) -> None:
-        if self.port.is_open or not self.settings.port:
+        if self.port.is_open or not self.settings.port or self._released:
             self._stop_reconnect()
             return
         if self._open_port(quiet=True):
@@ -585,6 +597,7 @@ class BaramTerm:
         self._save()
 
     def quit(self) -> None:
+        self.stop_control()
         self.stop_log(notify=False)
         self._stop_reconnect()
         self._save()
@@ -1481,6 +1494,113 @@ class BaramTerm:
         self.terminal.backspace = BACKSPACE_CODES.get(s.backspace, b"\x08")
         self.terminal.screen.lf_implies_cr = s.rx_lf != "lf"
 
+    # ---- external control (control.py) -----------------------------------
+
+    UI_CALL_TIMEOUT_S = 5.0
+
+    def start_control(self) -> bool:
+        if self.control is None:
+            self.control = ControlServer(
+                self.rx_history,
+                self._ctl_ui,
+                self._run_on_ui,
+                on_change=lambda: self.app.call_soon(self._update_status),
+                describe_port=lambda path: None if path.startswith(DEMO_PORT) else usb_info(path),
+            )
+        try:
+            self.control.start()
+        except OSError as e:
+            self.notice(tr("notice.control_failed", error=e), error=True)
+            return False
+        return True
+
+    def stop_control(self) -> None:
+        if self.control is not None:
+            self.control.stop()
+        self._update_status()
+
+    def _apply_control(self, on: bool) -> None:
+        self.item_control.checked = on
+        if on:
+            if self.start_control():
+                self.notice(tr("notice.control_on", address=self.control.address))
+        else:
+            self.stop_control()
+            self.notice(tr("notice.control_off"))
+        self._save()
+        self._update_status()
+
+    def _run_on_ui(self, fn: Callable[[], Any]) -> Any:
+        """제어 연결 스레드에서 부른다: fn 을 UI 스레드에서 돌리고 결과(또는 예외)를 넘겨받는다."""
+        done = threading.Event()
+        box: dict[str, Any] = {}
+
+        def call() -> None:
+            try:
+                box["value"] = fn()
+            except BaseException as e:  # noqa: BLE001 - 연결 스레드로 넘겨 거기서 올린다
+                box["error"] = e
+            finally:
+                done.set()
+
+        self.app.call_soon(call)
+        if not done.wait(self.UI_CALL_TIMEOUT_S):
+            raise TimeoutError
+        if "error" in box:
+            raise box["error"]
+        return box["value"]
+
+    def _ctl_ui(self, cmd: str, req: dict[str, Any]) -> dict[str, Any]:
+        """외부 제어 요청 중 앱 상태를 만지는 것 (UI 스레드)."""
+        s = self.settings
+        if cmd == "send":
+            if not self.port.is_open:
+                raise CtlError("released" if self._released else "not_connected", s.port or "no port selected")
+            eol = req.get("eol") or s.enter
+            data = req["text"].encode("utf-8", "replace") + (b"" if eol == "none" else ENTER_CODES[eol])
+            mark = self.rx_history.end  # 보내기 직전: 이 뒤에 받은 것이 이 명령의 응답이다
+            self.send(data, raw=True)
+            self._update_status()
+            return {"mark": mark, "sent": data.decode("utf-8", "replace")}
+        if cmd == "release":
+            if self.port.is_open:
+                self._stop_reconnect()
+                self.completer.close()
+                self.port.close()
+                self._released = True
+                self.notice(tr("notice.control_released", port=s.port))
+            elif self._reconnect_timer is not None:
+                self._stop_reconnect()  # 재연결 대기 중이었다면 그것도 멈춘다: 다른 도구가 열 수 있게
+                self._released = True
+            self._update_status()
+        elif cmd == "resume":
+            if not self.port.is_open:
+                if not s.port:
+                    raise CtlError("no_port", "no port selected in baram-term")
+                try:
+                    self.port.open(s)
+                except Exception as e:
+                    raise CtlError("open_failed", f"{s.port}: {e}") from e
+                self.decoder.reset()
+                self._released = False
+                self.notice(tr("notice.control_resumed", port=s.port, serial=s.summary))
+            self._update_status()
+        elif cmd != "status":
+            raise CtlError("bad_request", cmd)
+        return {
+            "port": s.port,
+            "baud": s.baud,
+            "framing": s.framing,
+            "enter": s.enter,
+            "connected": self.port.is_open,
+            "released": self._released,
+            "reconnecting": self._reconnect_timer is not None,
+            "control": self.control is not None and self.control.running,
+            "clients": self.control.clients if self.control is not None else 0,
+            "title": self._window_title(),
+            "version": __version__,
+        }
+
     def _apply_reconnect(self, on: bool) -> None:
         self.item_reconnect.checked = on
         self.auto_reconnect = on
@@ -1507,6 +1627,7 @@ class BaramTerm:
         c.completion = self.completer.enabled
         c.guard_controls = self.guard_controls
         c.auto_reconnect = self.auto_reconnect
+        c.control = self.item_control.checked
         c.macro_bar = self.macro_bar.visible
         c.ascii_input = self.terminal.ascii_input
         c.macros = list(self.macro_bar.macros)
@@ -1867,6 +1988,7 @@ class BaramTerm:
             if self.hex_active:
                 self.hex_view.append(data, "rx")  # 디코딩 전 바이트 그대로
             text = self.decoder.decode(data)
+            self.rx_history.feed(text)
             if self.plot_frame.visible and self.plot_hide_lines:
                 shown, plot_lines = self.plot_filter.feed(text)
                 if shown:
@@ -1888,8 +2010,15 @@ class BaramTerm:
             self._start_reconnect()
         self._update_status()
 
+    def _window_title(self) -> str:
+        """창 제목에 포트를 넣는다: 창을 여러 개 띄웠을 때 (그리고 ctl list 에서) 구별되게."""
+        return f"baram-term - {self.settings.port}" if self.settings.port else "baram-term"
+
     def _update_status(self) -> None:
         now = time.monotonic()
+        window = getattr(self.app, "window", None)
+        if window is not None and window.title != self._window_title():
+            window.title = self._window_title()
         p = self.port
         connected = p.is_open
         self.st_led.set_text("●" if connected else "○")
@@ -1924,6 +2053,11 @@ class BaramTerm:
             flags.append("HEX")
         if getattr(self, "_reconnect_timer", None) is not None:
             flags.append(tr("status.reconnecting"))
+        if getattr(self, "_released", False):
+            flags.append(tr("status.released"))
+        control = getattr(self, "control", None)
+        if control is not None and control.active:
+            flags.append("CTL")  # 외부 도구가 붙어 있다 (보낸 명령과 응답은 터미널에 그대로 보인다)
         self.st_flags.set_text(" ".join(flags))
         self.st_flags.visible = self.st_flags_sep.visible = bool(flags)
         if getattr(self, "note_page", None) is not None and self.note_page.visible:
@@ -1940,10 +2074,13 @@ class BaramTerm:
             search.tick()
 
     def run(self) -> None:
+        if self.config.control:
+            self.start_control()
         if self.settings.port:
             self.connect()
         try:
             self.app.run()
         finally:
+            self.stop_control()
             self.stop_log(notify=False)
             self.port.close()
