@@ -35,11 +35,12 @@ baram-term/                 GitHub: https://github.com/chcbaram/baram-term
 | 입력 (터미널 영문 입력 기본 켜짐, Shift+Space 한/영 전환 때 스페이스 안 찍힘, 휠이 OS 방향·속도를 따름) | 완료, macOS 실제 창 확인 |
 | 메뉴·언어 (파일 메뉴 맨 앞, 화면 언어 기본 영어·파일 메뉴에서 선택) | 완료, 헤드리스 확인 |
 | baram-term 포트 설정 (꽂힌 포트만 목록, 목록↔주소 일치, 속도 직접 입력·기억 8개) | 완료, 실제 창 확인 |
+| baram-term 외부 제어 (`baram-term ctl`, 창마다 제어 소켓, 여러 창 고르기, Claude Code 플러그인·스킬) | 완료, 실제 보드(ST-LINK VCP, macOS)에서 list·status·send·리셋 후 wait/read 확인 |
 | 배포 (pipx/pip 설치, PyInstaller 3 OS, GitHub Actions CI·릴리스) | 완료. [v0.1.1](https://github.com/chcbaram/baram-term/releases/tag/v0.1.1) 에 macOS `.dmg` / Windows zip / Linux `.tar.gz` |
 | Windows 11 | 실행·스크롤·**파일 메뉴 언어 전환 확인 완료**. 글자 선명도(DPI)는 **확인 대기** |
 | Linux | 직접 실행해 본 적 없음 (CI 에서 테스트만 통과) |
 | 다음 | 줄 단위 입력창 (보조) — [roadmap.md](roadmap.md) 의 마지막 남은 항목. 전송률 미니 그래프는 뒤로 미룸 |
-| 테스트 | retro-ui 323개, baram-term 276개 (+ 로컬 장치 기록이 있으면 재생 테스트) |
+| 테스트 | retro-ui 323개, baram-term 295개 (+ 로컬 장치 기록이 있으면 재생 테스트) |
 
 ## 이어서 할 때 먼저 볼 것 (2026-09-16)
 
@@ -102,6 +103,7 @@ Claude 의 메모리는 PC 마다 따로라서, 이어서 작업할 때 지킬 �
 | [decisions.md](decisions.md) | 주요 결정과 이유 (실측값 포함) |
 | [baram-term-spec.md](baram-term-spec.md) | baram-term 기능 명세와 화면 구성 |
 | [firmware-cli.md](firmware-cli.md) | 대상 펌웨어 CLI 프로토콜 (공개 펌웨어 기준) |
+| [external-control.md](external-control.md) | 외부 제어 (`baram-term ctl`, 제어 소켓, 여러 창 고르기) 와 Claude Code 플러그인 |
 | [device-testing.md](device-testing.md) | 실제 장치 CLI 기록과 재생 테스트, **장치 정보 비공개 규칙** |
 
 ## 새 PC 에서 이어서 하기

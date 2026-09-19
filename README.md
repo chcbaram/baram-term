@@ -31,6 +31,8 @@
   올려놓으면 보낼 명령 전체를 보여준다
 - **터미널은 영문 입력** — 한글 입력 상태로 와도 명령은 영문으로 찍힌다. 검색창·대화상자는 그대로 한글
   (보기 메뉴에서 끌 수 있다)
+- **외부 제어** — 다른 프로그램(Claude Code 등)이 `baram-term ctl` 로 이 창을 거쳐 명령을 보내고 응답을 읽는다.
+  포트를 넘겨주지 않고, 오간 내용은 화면에 그대로 보인다 ([아래](#claude-code-와-함께-쓰기))
 - **보드 없이 시험** — `--demo` 로 내장 가짜 펌웨어에 붙는다
 - **멀티 플랫폼** — macOS · Windows · Linux 에서 같은 코드로 돌고 화면도 같다.
   OS 기본 대화상자를 쓰지 않고 파일 열기/저장까지 창 안에 직접 그려서 생기는 차이를 줄였다
@@ -70,6 +72,41 @@ printf("temp=%.1f rpm=%d\r\n", temp, rpm);   // temp=34.0 rpm=1200
 - 보드 없이 보려면 `--demo` 로 띄우고 `plot`, `plot arduino`, `plot off` 를 쳐 본다.
 
 minicom 단축키를 그대로 쓴다 (`Ctrl-A` 다음에 `O` 포트 설정, `L` 로그, `X` 종료, `Z` 도움말 ...).
+
+## Claude Code 와 함께 쓰기
+
+Claude Code 가 baram-term 을 거쳐 보드 CLI 에 명령을 보내고 응답을 읽는다. 포트는 baram-term 이 계속 쥐고
+있어서 창을 닫을 필요가 없고, Claude 가 보낸 명령과 보드의 응답은 이 창에 그대로 보인다 (상태줄에 `CTL`).
+
+**1. 플러그인 설치** — 둘 중 하나
+
+터미널에서 (VS Code 확장을 포함해 어느 환경이든):
+
+```bash
+claude plugin marketplace add chcbaram/baram-term
+claude plugin install baram-term@baram
+```
+
+Claude Code CLI 세션 안에서 (VS Code 확장에서는 `/plugin` 명령을 쓸 수 없다):
+
+```
+/plugin marketplace add chcbaram/baram-term
+/plugin install baram-term@baram
+```
+
+설치하면 `baram-term` 스킬과 `baram-ctl` 명령이 생긴다. 새 세션부터 적용된다.
+
+**2. 외부 제어 켜기** — **포트 메뉴 > 외부 제어 허용 (baram-term ctl)**. 기본으로 켜져 있다.
+
+**3. 연결 확인** — baram-term 으로 보드 포트를 연 뒤:
+
+```bash
+baram-term ctl status        # 플러그인을 설치했다면 baram-ctl status 도 같다
+baram-term ctl send "help" --until 'cli# $'
+```
+
+`status` 에 포트와 `connected: yes` 가 나오면 된다. 창이 여러 개면 `baram-term ctl list` 로 보고
+`--port` / `--match` 로 고른다. 명령과 종료 코드, 프로토콜은 [docs/external-control.md](docs/external-control.md).
 
 ## 설치
 
