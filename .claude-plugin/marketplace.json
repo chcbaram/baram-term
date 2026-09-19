@@ -1,0 +1,14 @@
+{
+  "name": "baram",
+  "owner": { "name": "chcbaram" },
+  "metadata": {
+    "description": "Claude Code plugins for baram-term, the firmware CLI serial terminal"
+  },
+  "plugins": [
+    {
+      "name": "baram-term",
+      "source": "./",
+      "description": "Send firmware CLI commands to a board and read the replies through a running baram-term window"
+    }
+  ]
+}

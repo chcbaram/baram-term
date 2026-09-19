@@ -1,0 +1,13 @@
+#!/bin/sh
+# `baram-term ctl` 과 같다. Claude Code 플러그인으로 설치하면 이 폴더가 PATH 에 들어간다.
+# PATH 의 baram-term 대신 이 저장소의 ctl.py 를 쓴다: ctl.py 는 표준 라이브러리만 써서 baram-term 이 어떻게
+# 설치됐든(.app, pipx, 개발 venv) 돈다. ctl 을 모르는 옛 baram-term 은 "ctl" 을 포트 이름으로 알고 창을 띄운다.
+here=$(cd "$(dirname "$0")/.." && pwd)
+ctl="$here/baram-term/src/baram_term/ctl.py"
+for py in python3 python; do
+  if command -v "$py" >/dev/null 2>&1 && "$py" -c 'import sys; sys.exit(sys.version_info < (3, 8))' 2>/dev/null; then
+    exec "$py" "$ctl" "$@"
+  fi
+done
+echo "baram-ctl: Python 3.8+ not found (python3 / python)" >&2
+exit 1

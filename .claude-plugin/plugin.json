@@ -1,0 +1,9 @@
+{
+  "name": "baram-term",
+  "description": "Send firmware CLI commands to a board and read the replies through a running baram-term window (baram-term ctl)",
+  "version": "0.1.0",
+  "author": { "name": "chcbaram" },
+  "homepage": "https://github.com/chcbaram/baram-term",
+  "repository": "https://github.com/chcbaram/baram-term",
+  "license": "MIT"
+}
