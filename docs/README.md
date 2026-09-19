@@ -20,7 +20,7 @@ baram-term/                 GitHub: https://github.com/chcbaram/baram-term
 - **retro-ui**: 겉보기는 TUI(글자 격자, 박스 문자)인데 그래프는 실제 픽셀로 그리는 파이썬 GUI 라이브러리. pygame-ce 기반, Qt 없음.
 - **baram-term**: retro-ui 로 만든 펌웨어 CLI 시리얼 터미널 (minicom 대체).
 
-## 현재 상태 (2026-09-16 기준, `0b2e34f`, [v0.1.1](https://github.com/chcbaram/baram-term/releases/tag/v0.1.1))
+## 현재 상태 (2026-09-20 기준, [v0.2.0](https://github.com/chcbaram/baram-term/releases/tag/v0.2.0))
 
 | 영역 | 상태 |
 |---|---|
@@ -36,7 +36,7 @@ baram-term/                 GitHub: https://github.com/chcbaram/baram-term
 | 메뉴·언어 (파일 메뉴 맨 앞, 화면 언어 기본 영어·파일 메뉴에서 선택) | 완료, 헤드리스 확인 |
 | baram-term 포트 설정 (꽂힌 포트만 목록, 목록↔주소 일치, 속도 직접 입력·기억 8개) | 완료, 실제 창 확인 |
 | baram-term 외부 제어 (`baram-term ctl`, 창마다 제어 소켓, 여러 창 고르기, Claude Code 플러그인·스킬) | 완료, 실제 보드(ST-LINK VCP, macOS)에서 list·status·send·리셋 후 wait/read 확인 |
-| 배포 (pipx/pip 설치, PyInstaller 3 OS, GitHub Actions CI·릴리스) | 완료. [v0.1.1](https://github.com/chcbaram/baram-term/releases/tag/v0.1.1) 에 macOS `.dmg` / Windows zip / Linux `.tar.gz` |
+| 배포 (pipx/pip 설치, PyInstaller 3 OS, GitHub Actions CI·릴리스) | 완료. [v0.2.0](https://github.com/chcbaram/baram-term/releases/tag/v0.2.0) 에 macOS `.dmg` / Windows zip / Linux `.tar.gz` |
 | Windows 11 | 실행·스크롤·**파일 메뉴 언어 전환 확인 완료**. 글자 선명도(DPI)는 **확인 대기** |
 | Linux | 직접 실행해 본 적 없음 (CI 에서 테스트만 통과) |
 | 다음 | 줄 단위 입력창 (보조) — [roadmap.md](roadmap.md) 의 마지막 남은 항목. 전송률 미니 그래프는 뒤로 미룸 |

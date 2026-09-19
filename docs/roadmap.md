@@ -26,6 +26,7 @@
 | retro-ui 입력·표시 (2026-09) | 입력 전환 단축키의 스페이스 버리기(`input/mac_hotkeys.py`), `KeyEvent.scancode`/`caps` + `us_ascii`, `Terminal.ascii_input`, `App.refresh_text_input`, 휠이 OS 방향(`flipped` 재반전 제거)·macOS 속도 그대로, Windows DPI 힌트, 부분 갱신 경계의 한글 유지, Tooltip, Button padding |
 | 배포 (2026-09-16, v0.1.0) | pipx/pip 설치(retro-ui 를 git URL 로 의존), PyInstaller onedir 빌드 → macOS `.dmg` / Windows zip / Linux `.tar.gz`, CI(3 OS × py3.10·3.12 + 설치 경로 회귀), `v*` 태그 push 시 릴리스 자동 첨부, MIT 라이선스(폰트는 OFL 문서 동봉) |
 | baram-term 포트 설정 (2026-09-16, v0.1.1) | 꽂혀 있는 포트만 목록에 (뽑은 장치는 빼고, `socket://` 류 최근 주소는 남김 — 상태줄 메뉴도 같은 목록), 목록과 주소 칸이 늘 같은 포트를 가리킴, 통신 속도는 목록 + `직접 입력...` 창(숫자 순으로 끼우고 8개까지 기억), Refresh 버튼이 포커스를 가져가지 않음 |
+| baram-term 외부 제어 (2026-09-20, v0.2.0) | `baram-term ctl` (list/status/send/read/wait/release/resume): 창마다 로컬 제어 소켓, `--pid`/`--port`/`--match` 로 창 고르기(모호하면 보내지 않음), 포트 메뉴에서 켜고 끄기·상태줄 CTL·창 제목에 포트, Claude Code 플러그인(`baram-term@baram`, 스킬 + `baram-ctl`). 같이 나간 것: 릴리스 빌드 아이콘, 짧은 HEX 선택의 합친 값 표시 ([external-control.md](external-control.md)) |
 | retro-ui 입력 칸 (2026-09-16) | 선택 중에는 캐럿을 그리지 않음(선택 칸에 반전을 덧칠해 한 칸만 색이 튀던 문제 — LineEdit·TextArea 공통), `LineEdit(padding=…)` 옵션(기본 0, 포트 설정 Address 에만 1) |
 | CI 가 드러낸 라이브러리 결함 (2026-09-16) | `App.close()` 가 프로세스 전역 SDL 을 내려 App 을 닫았다 다시 못 열던 것, 쓰지도 않는 오디오까지 켜던 `pygame.init()`(사운드 장치 없는 러너에서 호출당 8초, App 마다 지불), 폰트 경로를 App 하나당 22번 glob 하던 것, 벽시계 마진에 기대 간헐 실패하던 테스트 2개 → **윈도우 테스트 722초 → 4초, 로컬 28초 → 4.6초** |
 
