@@ -18,7 +18,7 @@ baram-term ctl send "info" --until 'cli# $' --timeout 5   # 보내고, 정규식
 baram-term ctl read --last 20                         # 최근 받은 20줄
 baram-term ctl read --since 18231                     # mark 뒤에 받은 전부
 baram-term ctl wait --until 'cli# $' --timeout 10     # 보내지 않고 기다리기 (--since 로 앞서 받은 것도 포함)
-baram-term ctl release                                # 포트를 잠시 닫기 (자동 재연결도 멈춤)
+baram-term ctl release                                # 포트를 잠시 닫기 (자동 재연결도 멈춤, 업데이트 도구용)
 baram-term ctl resume                                 # 다시 열기
 ```
 

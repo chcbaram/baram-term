@@ -82,6 +82,12 @@ baram-ctl --match STLink resume    # 다시 연다. 끝나면 반드시 resume
 
 ST-LINK 의 SWD 로 굽는 경우는 시리얼 포트와 상관없어 release 가 필요 없다.
 
+**펌웨어 업데이트 도구(mcumgr, smpclient 등)를 쓸 때는 거의 항상 release 가 필요하다.** 요즘 펌웨어는
+업데이트 프로토콜(SMP)을 CLI 와 **같은 포트** 에 얹는 경우가 많고, BLE 도 한 번에 한 중앙만 붙는다.
+release 하지 않으면 baram-term 이 응답 일부를 가져가 업로드가 알 수 없는 이유로 실패한다.
+BLE 는 `resume` 이 연결을 기다리지 않고 바로 답하므로, 이어서 명령을 보내기 전에
+`status` 의 `connected` 를 보거나 `wait --until '<프롬프트>'` 로 링크가 살아나기를 기다린다.
+
 ## 종료 코드와 대처
 
 | 코드 | 뜻 | 할 일 |
