@@ -1660,16 +1660,16 @@ class BaramTerm:
                 self._released = True
             self._update_status()
         elif cmd == "resume":
-            if not self.port.is_open:
+            if not self.port.is_open and not self._opening:
                 if not s.port:
                     raise CtlError("no_port", "no port selected in baram-term")
-                try:
-                    self.port.open(s)
-                except Exception as e:
-                    raise CtlError("open_failed", f"{s.port}: {e}") from e
-                self.decoder.reset()
                 self._released = False
+                self._want_connected = True
                 self.notice(tr("notice.control_resumed", port=s.port, serial=s.summary))
+                # BLE 는 여는 데 몇 초 걸린다. 여기서 기다리면 창이 멈추고 제어 요청도 시간 초과가 난다.
+                # 그래서 시작만 시키고 돌아간다: 부른 쪽은 status 의 connecting/connected 로 확인한다
+                if not self._open_port():
+                    raise CtlError("open_failed", s.port)
             self._update_status()
         elif cmd != "status":
             raise CtlError("bad_request", cmd)
@@ -1683,6 +1683,7 @@ class BaramTerm:
             "mtu": getattr(device, "mtu", 0) if s.is_ble else None,
             "enter": s.enter,
             "connected": self.port.is_open,
+            "connecting": bool(self._opening),
             "released": self._released,
             "reconnecting": self._reconnect_timer is not None,
             "control": self.control is not None and self.control.running,

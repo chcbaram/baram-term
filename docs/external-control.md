@@ -63,7 +63,7 @@ baram-term ctl resume                                 # 다시 열기
 
 | cmd | 요청 필드 | 응답 필드 |
 |---|---|---|
-| `status` | | `pid, port, baud, framing, enter, connected, released, reconnecting, control, clients, title, version, usb, mark` |
+| `status` | | `pid, port, kind, baud, framing, mtu, enter, connected, connecting, released, reconnecting, control, clients, title, version, usb, mark` |
 | `send` | `text`, `until?`, `timeout?`, `eol?`, `raw?` | `sent, output?, start, mark` |
 | `read` | `since?` 또는 `last?` (기본 50줄), `raw?` | `output, mark, truncated?` |
 | `wait` | `until`, `timeout?`, `since?`, `raw?` | `output, start, mark, truncated?` |
@@ -80,6 +80,8 @@ baram-term ctl resume                                 # 다시 열기
 - `baram_term/control.py` — 서버. 수신 기록(`RxHistory`)은 UI 스레드가 `_on_rx` 에서 채우고, 연결 스레드는
   조건 변수로 기다린다. 포트 쓰기·상태·닫고 열기는 `app.call_soon` 으로 UI 스레드에서 한다.
 - `send` 는 보내기 직전의 mark 부터 찾는다. 인자(정규식, 시간)를 먼저 확인하고 보낸다: 보낸 뒤의 오류는 되돌릴 수 없다.
+- BLE 포트는 여는 데 몇 초 걸린다. `resume` 은 열기를 시작만 하고 바로 답한다 (`connecting: true`).
+  연결을 기다리려면 `status` 를 다시 보거나 `wait --until '프롬프트'` 를 쓴다.
 - release 상태에서는 자동 재연결을 하지 않는다. 사용자가 연결(`Ctrl-A R`)하거나 `resume` 하면 풀린다.
 
 ## Claude Code 스킬

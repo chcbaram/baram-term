@@ -344,3 +344,28 @@ class _FakeOpen:
 
     def close(self):
         self.is_open = False
+
+
+def test_ctl_resume_does_not_block_the_window_on_ble(term, monkeypatch):
+    """BLE 는 여는 데 몇 초 걸린다. resume 이 그걸 기다리면 창이 멈추고 제어 요청도 시간 초과가 난다."""
+    monkeypatch.setattr(app_module, "open_device", lambda settings: _slow_open())
+    term.item_ble.checked = True
+    term._apply_ble(True)
+    term.settings = PortSettings(port="ble://CLI-BOARD")
+    term._released = True
+
+    t0 = time.monotonic()
+    status = term._ctl_ui("resume", {})
+    assert time.monotonic() - t0 < 0.5, "resume 이 연결을 기다리고 있다"
+    assert status["connecting"] and not status["connected"] and not status["released"]
+
+    deadline = time.monotonic() + 5
+    while not term.port.is_open and time.monotonic() < deadline:
+        term.app.step()
+        time.sleep(0.01)
+    assert term.port.is_open and not term._ctl_ui("status", {})["connecting"]
+
+
+def _slow_open():
+    time.sleep(0.6)  # 실제 BLE 는 스캔·연결에 몇 초가 걸린다
+    return _FakeOpen()

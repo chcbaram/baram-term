@@ -208,6 +208,8 @@ def describe(instance: Instance) -> str:
     usb = s.get("usb") or {}
     if s.get("connected"):
         state = "connected"
+    elif s.get("connecting"):
+        state = "connecting"  # BLE 는 장치를 찾는 중일 수 있다
     elif s.get("released"):
         state = "released"
     else:
@@ -290,8 +292,8 @@ def _build_request(args: argparse.Namespace) -> tuple[dict[str, Any], float]:
 
 
 STATUS_KEYS = (
-    "pid", "port", "kind", "baud", "framing", "mtu", "enter", "connected", "released", "control", "clients", "title",
-    "mark", "version",
+    "pid", "port", "kind", "baud", "framing", "mtu", "enter", "connected", "connecting", "released", "control",
+    "clients", "title", "mark", "version",
 )
 
 
