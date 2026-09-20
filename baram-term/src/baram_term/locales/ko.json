@@ -162,5 +162,19 @@
   "notice.control_failed": "외부 제어 소켓을 열지 못했습니다: {error}",
   "notice.control_released": "외부 제어 요청으로 {port} 를 잠시 닫았습니다 (resume 또는 Ctrl-A R 로 다시 연결)",
   "notice.control_resumed": "외부 제어 요청으로 {port} 를 다시 열었습니다 ({serial})",
-  "banner.not_connected": "지난번에 끊은 상태입니다 · Ctrl-A R 로 연결"
+  "menu.port.ble": "BLE 장치 사용",
+  "dialog.port.kind": "종류",
+  "dialog.port.kind.serial": "시리얼",
+  "dialog.port.kind.ble": "BLE",
+  "dialog.port.device": "장치",
+  "dialog.port.scan": "검색",
+  "dialog.port.scanning": "검색 중",
+  "dialog.port.ble_none": "(검색을 누르세요)",
+  "notice.ble_missing": "BLE 를 쓰려면 bleak 이 필요합니다: {hint}",
+  "notice.ble_scan_failed": "BLE 검색에 실패했습니다: {error}",
+  "notice.ble_none": "가까이에 BLE CLI 장치(NUS)가 없습니다",
+  "notice.ble_off": "{port} 는 BLE 장치입니다 · 포트 메뉴의 'BLE 장치 사용' 이 꺼져 있어 연결하지 않았습니다",
+  "banner.not_connected": "지난번에 끊은 상태입니다 · Ctrl-A R 로 연결",
+  "status.connecting": "찾는 중",
+  "notice.ble_connecting": "{port} 를 찾는 중입니다"
 }

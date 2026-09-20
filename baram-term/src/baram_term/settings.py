@@ -45,6 +45,8 @@ class Settings:
     connected: bool = True
     # 외부 제어 소켓 (control.py, `baram-term ctl`). 같은 사용자만 붙을 수 있는 로컬 소켓이라 기본으로 켠다
     control: bool = True
+    # BLE 장치 (ble://, Nordic UART Service). 켜야 포트 설정 창에 BLE 가 나오고 스캔한다
+    ble: bool = False
     plot: bool = False
     # 그래프 패널이 켜져 있을 때 그래프 값 줄을 터미널에 넘기지 않기. 기본은 끔: 받은 글자를 빠짐없이 보는 것이 터미널의 기본
     plot_hide_lines: bool = False

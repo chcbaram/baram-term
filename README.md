@@ -33,6 +33,8 @@
   (보기 메뉴에서 끌 수 있다)
 - **외부 제어** — 다른 프로그램(Claude Code 등)이 `baram-term ctl` 로 이 창을 거쳐 명령을 보내고 응답을 읽는다.
   포트를 넘겨주지 않고, 오간 내용은 화면에 그대로 보인다 ([아래](#claude-code-와-함께-쓰기))
+- **BLE 장치** — Nordic UART Service(NUS) 를 쓰는 보드에 `ble://이름` 으로 붙는다. 시리얼과 똑같이 쓴다
+  ([docs/ble.md](docs/ble.md))
 - **보드 없이 시험** — `--demo` 로 내장 가짜 펌웨어에 붙는다
 - **멀티 플랫폼** — macOS · Windows · Linux 에서 같은 코드로 돌고 화면도 같다.
   OS 기본 대화상자를 쓰지 않고 파일 열기/저장까지 창 안에 직접 그려서 생기는 차이를 줄였다
@@ -72,6 +74,18 @@ printf("temp=%.1f rpm=%d\r\n", temp, rpm);   // temp=34.0 rpm=1200
 - 보드 없이 보려면 `--demo` 로 띄우고 `plot`, `plot arduino`, `plot off` 를 쳐 본다.
 
 minicom 단축키를 그대로 쓴다 (`Ctrl-A` 다음에 `O` 포트 설정, `L` 로그, `X` 종료, `Z` 도움말 ...).
+
+### BLE 보드에 붙기
+
+펌웨어가 CLI 를 Nordic UART Service 위에 올려 두었으면 선 없이 같은 방식으로 쓴다.
+
+1. **포트 메뉴 > BLE 장치 사용** 을 켠다 (기본 꺼짐).
+2. **포트 설정**(`Ctrl-A O`) 에서 종류를 `BLE` 로 바꾸고 **검색**. NUS 를 광고하는 장치만 가까운 순으로 나온다.
+3. 고르면 주소가 `ble://이름` 이 된다. 다음부터는 상태줄 포트 메뉴에서 바로 고른다.
+
+속도·패리티 대신 상태줄에 `BLE MTU 247` 이 나오고, 나머지(그래프·HEX·로그·매크로·외부 제어)는 시리얼과 같다.
+소스에서 쓸 때는 `pip install "baram-term[ble]"` 로 BLE 를 함께 설치한다 (릴리스 빌드에는 들어 있다).
+자세한 것은 [docs/ble.md](docs/ble.md).
 
 ## Claude Code 와 함께 쓰기
 

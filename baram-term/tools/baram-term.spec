@@ -20,7 +20,7 @@
 import sys
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 from baram_term.icon import icns_bytes, ico_bytes
 
@@ -49,6 +49,15 @@ hiddenimports = [
     "serial.urlhandler.protocol_socket",
     "serial.urlhandler.protocol_spy",
 ]
+
+# bleak 은 선택 설치다. 빌드 환경에 있으면 BLE 를 함께 묶고, 없으면 BLE 없는 실행 파일이 나온다
+# (플랫폼 백엔드는 이름으로 import 해서 정적 분석이 따라가지 못한다)
+try:
+    import bleak  # noqa: F401
+except ImportError:
+    pass
+else:
+    hiddenimports += collect_submodules("bleak")
 
 a = Analysis(
     [str(ROOT / "baram-term" / "src" / "baram_term" / "__main__.py")],
@@ -104,5 +113,7 @@ if sys.platform == "darwin":
         info_plist={
             "CFBundleShortVersionString": "0.2.0",
             "NSHighResolutionCapable": True,  # 없으면 Retina 에서 2배 확대돼 흐려진다
+            # BLE 장치를 찾을 때 macOS 가 이 문구로 허락을 묻는다. 없으면 스캔이 조용히 실패한다
+            "NSBluetoothAlwaysUsageDescription": "baram-term connects to BLE boards that speak the Nordic UART Service.",
         },
     )

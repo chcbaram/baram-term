@@ -46,6 +46,7 @@ from retroui.widgets.lineedit import clipboard_put
 from retroui.input.events import IS_MAC, Key, KeyEvent
 
 from baram_term import __version__
+from baram_term import ble as ble_transport
 from baram_term.completion import Completer, at_prompt
 from baram_term.control import ControlServer, CtlError, RxHistory
 from baram_term.outgoing import outgoing_bytes
@@ -175,6 +176,7 @@ class BaramTerm:
         self._released = False  # 외부 제어가 포트를 잠시 놓은 상태 (자동 재연결도 하지 않는다)
         # 사용자가 일부러 끊었는지. 장치를 뽑아서 끊긴 것과 구별해 다음 실행의 시작 상태를 정한다
         self._want_connected = self.config.connected
+        self._opening = 0  # 0 이 아니면 BLE 연결이 진행 중 (그때 온 결과만 받아들이는 표)
         self.log: SessionLog | None = None
         self.search: SearchBar | None = None
         self.last_search = ""
@@ -407,6 +409,9 @@ class BaramTerm:
         self.item_control = MenuItem(
             tr("menu.port.control"), lambda: self._apply_control(self.item_control.checked), key="E", checked=self.config.control
         )
+        self.item_ble = MenuItem(
+            tr("menu.port.ble"), lambda: self._apply_ble(self.item_ble.checked), key="B", checked=self.config.ble
+        )
         self.item_reconnect = MenuItem(tr("menu.view.reconnect"), lambda: self._apply_reconnect(self.item_reconnect.checked), key="A", checked=self.auto_reconnect)
         # 체크는 "다음 실행부터 쓸 언어" (고르면 저장만 하고 화면은 다시 켤 때 바뀐다)
         chosen = self.config.lang or language()
@@ -439,6 +444,7 @@ class BaramTerm:
                         MenuItem(tr("menu.port.disconnect"), self.disconnect, shortcut="Ctrl-A D", key="D"),
                         MenuItem(tr("menu.port.settings"), self.open_port_dialog, shortcut="Ctrl-A O", key="O"),
                         MenuItem.sep(),
+                        self.item_ble,
                         self.item_control,
                     ],
                 ),
@@ -510,26 +516,88 @@ class BaramTerm:
         self._stop_reconnect()
         self._released = False
         self._want_connected = True
-        if not self._open_port():
-            # 보드가 아직 안 꽂혔거나 리셋 중이면 기다렸다가 붙는다
-            if self.auto_reconnect:
-                self._start_reconnect()
-            return
-        self.notice(tr("notice.connected", port=self.settings.port, serial=self.settings.summary))
-        self._update_status()
+        self._open_port()  # 시리얼은 여기서 끝나고, BLE 는 스레드에서 이어진다 (_opened / _open_failed)
 
     def _open_port(self, quiet: bool = False) -> bool:
+        """포트를 연다. BLE 는 몇 초 걸려서 다른 스레드에서 열고 여기서는 바로 돌아온다.
+
+        BLE 를 UI 스레드에서 열면 그동안 창이 멈춘다 (자동 재연결 중에는 1초마다 반복된다).
+        """
+        if self.settings.is_ble and not self.config.ble:
+            # 껐는데도 저장된 ble:// 주소로 붙으면 끈 뜻이 없다 (시작할 때 자동 연결도 여기서 막힌다)
+            if not quiet:
+                self.notice(tr("notice.ble_off", port=self.settings.port), error=True)
+            self._update_status()
+            return False
+        if self.settings.is_ble:
+            self._open_in_background(quiet)
+            return True
         try:
             self.port.open(self.settings)
         except Exception as e:
-            if not quiet:
-                self.notice(tr("notice.open_failed", port=self.settings.port, error=e), error=True)
-            self._update_status()
+            self._open_failed(str(e), quiet)
             return False
+        self._opened()
+        return True
+
+    def _open_in_background(self, quiet: bool) -> None:
+        if self._opening:
+            return  # 이미 찾는 중이다 (재연결 타이머가 1초마다 불러도 하나만 돈다)
+        self._opening = token = self._opening_token = getattr(self, "_opening_token", 0) + 1
+        settings = self.settings
+        if not quiet:
+            self.notice(tr("notice.ble_connecting", port=settings.port))
+        self._update_status()
+
+        def work() -> None:
+            try:
+                device = open_device(settings)
+            except Exception as e:
+                self.app.call_soon(self._background_failed, token, str(e), quiet)
+                return
+            self.app.call_soon(self._background_opened, token, settings, device)
+
+        threading.Thread(target=work, name="baram-open", daemon=True).start()
+
+    def _background_opened(self, token: int, settings: PortSettings, device: Any) -> None:
+        """BLE 가 열렸다 (UI 스레드). 기다리는 동안 사용자가 끊거나 포트를 바꿨으면 도로 닫는다."""
+        if token != self._opening or settings.port != self.settings.port or not self._want_connected:
+            try:
+                device.close()
+            except Exception:
+                pass
+            self._opening = 0
+            self._update_status()
+            return
+        self._opening = 0
+        self.port.attach(device, settings)
+        self._opened()
+
+    def _background_failed(self, token: int, error: str, quiet: bool) -> None:
+        if token != self._opening:
+            return
+        self._opening = 0
+        self._open_failed(error, quiet)
+
+    def _opened(self) -> None:
+        """포트가 열렸다 (시리얼은 바로, BLE 는 스레드가 끝난 뒤)."""
         self.decoder.reset()
         self._load_commands()
         self._save()
-        return True
+        if self._reconnect_timer is not None:
+            self._stop_reconnect()
+            self.notice(tr("notice.reconnected", port=self.settings.port, serial=self.settings.summary))
+        else:
+            self.notice(tr("notice.connected", port=self.settings.port, serial=self.settings.summary))
+        self._update_status()
+
+    def _open_failed(self, error: str, quiet: bool) -> None:
+        if not quiet:
+            self.notice(tr("notice.open_failed", port=self.settings.port, error=error), error=True)
+        # 보드가 아직 안 꽂혔거나 리셋 중이면 기다렸다가 붙는다
+        if self.auto_reconnect and self._want_connected and not self._released:
+            self._start_reconnect()
+        self._update_status()
 
     # 재연결 시도 주기. USB CDC 장치가 리셋 후 다시 나타나는 데 보통 1초 안팎이 걸린다
     RECONNECT_INTERVAL_MS = 1000
@@ -551,13 +619,11 @@ class BaramTerm:
         if self.port.is_open or not self.settings.port or self._released:
             self._stop_reconnect()
             return
-        if self._open_port(quiet=True):
-            self._stop_reconnect()
-            self.notice(tr("notice.reconnected", port=self.settings.port, serial=self.settings.summary))
-            self._update_status()
+        self._open_port(quiet=True)  # 열리면 _opened 가 타이머를 멈추고 알린다
 
     def disconnect(self) -> None:
         self._want_connected = False  # 뽑혀서 끊긴 것이 아니라 사용자가 끊었다
+        self._opening = 0  # 찾는 중이던 BLE 결과는 버린다 (도착하면 그 자리에서 닫는다)
         self._stop_reconnect()
         if self.port.is_open:
             self.completer.close()
@@ -1512,7 +1578,7 @@ class BaramTerm:
                 self._ctl_ui,
                 self._run_on_ui,
                 on_change=lambda: self.app.call_soon(self._update_status),
-                describe_port=lambda path: None if path.startswith(DEMO_PORT) else usb_info(path),
+                describe_port=lambda path: None if path.startswith((DEMO_PORT, ble_transport.BLE_SCHEME)) else usb_info(path),
             )
         try:
             self.control.start()
@@ -1536,6 +1602,19 @@ class BaramTerm:
             self.notice(tr("notice.control_off"))
         self._save()
         self._update_status()
+
+    def _apply_ble(self, on: bool) -> None:
+        """BLE 장치 쓰기. 켜야 포트 설정 창에 BLE 가 나오고 스캔한다 (스캔은 macOS 에서 권한을 묻는다)."""
+        if on and not ble_transport.available():
+            self.item_ble.checked = False
+            self.notice(tr("notice.ble_missing", hint=ble_transport.INSTALL_HINT), error=True)
+            return
+        self.item_ble.checked = on
+        self.config.ble = on
+        # 끄면 지금 붙어 있는 BLE 도 끊는다. 안 그러면 껐는데도 계속 붙어 있고, 다음 실행에 또 붙는다
+        if not on and self.settings.is_ble and (self.port.is_open or self._reconnect_timer is not None):
+            self.disconnect()
+        self._save()
 
     def _run_on_ui(self, fn: Callable[[], Any]) -> Any:
         """제어 연결 스레드에서 부른다: fn 을 UI 스레드에서 돌리고 결과(또는 예외)를 넘겨받는다."""
@@ -1594,10 +1673,14 @@ class BaramTerm:
             self._update_status()
         elif cmd != "status":
             raise CtlError("bad_request", cmd)
+        device = self.port.device
         return {
             "port": s.port,
-            "baud": s.baud,
-            "framing": s.framing,
+            # 종류에 따라 뜻이 없는 값은 빼고 그 자리의 것을 준다 (BLE 에는 속도도 8N1 도 없다)
+            "kind": "ble" if s.is_ble else ("demo" if s.port.startswith(DEMO_PORT) else "serial"),
+            "baud": None if s.is_ble else s.baud,
+            "framing": None if s.is_ble else s.framing,
+            "mtu": getattr(device, "mtu", 0) if s.is_ble else None,
             "enter": s.enter,
             "connected": self.port.is_open,
             "released": self._released,
@@ -1636,6 +1719,7 @@ class BaramTerm:
         c.auto_reconnect = self.auto_reconnect
         c.connected = self._want_connected
         c.control = self.item_control.checked
+        c.ble = self.item_ble.checked
         c.macro_bar = self.macro_bar.visible
         c.ascii_input = self.terminal.ascii_input
         c.macros = list(self.macro_bar.macros)
@@ -1666,6 +1750,9 @@ class BaramTerm:
         return self._open_status_popup(self.st_port, self._port_choices(), self.settings.port, self.switch_port)
 
     def open_baud_menu(self) -> ListPopup | None:
+        if self.settings.is_ble:
+            self.open_port_dialog()  # BLE 는 속도가 없다
+            return None
         current = str(self.settings.baud)
         rates = sorted({*BAUD_RATES, *self.config.recent_bauds, current}, key=int)
         items = [*rates, tr("status.custom_baud")]
@@ -1829,6 +1916,51 @@ class BaramTerm:
 
         sync_combo()
 
+        # BLE 줄: 스캔으로 찾은 장치를 고른다. 이름을 주소로 쓴다 (macOS 는 장치 주소가 PC 마다 달라서)
+        ble_urls: dict[str, str] = {}
+
+        def ble_items() -> list[str]:
+            """찾은 장치 + 지금 설정된 BLE 주소 (아직 스캔 전이라도 무엇에 붙는지 보이게)."""
+            items = list(ble_urls)
+            if s.is_ble and ble_transport.display_name(current) not in items:
+                items.insert(0, ble_transport.display_name(current))
+                ble_urls.setdefault(ble_transport.display_name(current), current)
+            return items or [tr("dialog.port.ble_none")]
+
+        device_cb = ComboBox(ble_items(), 0)
+        device_cb.changed.connect(lambda _index, text: address.set_text(ble_urls.get(text, address.text)))
+
+        def scan_done(result: ble_transport.ScanResult) -> None:
+            scan_button.enabled = True
+            scan_button.set_text(tr("dialog.port.scan"))
+            if result.error:
+                self.notice(tr("notice.ble_scan_failed", error=result.error), error=True)
+                return
+            ble_urls.clear()
+            for device in result.devices:
+                ble_urls[device.label()] = device.url()
+            device_cb.set_items(ble_items(), keep_text=False)
+            _refit()  # 장치 이름이 길면 창이 넓어져야 한다
+            if result.devices:
+                address.set_text(ble_urls[device_cb.text])
+            else:
+                self.notice(tr("notice.ble_none"))
+
+        def scan_work() -> None:
+            try:
+                result = ble_transport.ScanResult(devices=ble_transport.scan())
+            except Exception as e:  # 블루투스가 꺼져 있거나 권한이 없을 때
+                result = ble_transport.ScanResult(error=str(e))
+            self.app.call_soon(scan_done, result)
+
+        def start_scan() -> None:
+            # 스캔은 몇 초 걸린다. UI 를 멈추지 않게 다른 스레드에서 돌리고 끝나면 목록을 채운다
+            scan_button.enabled = False
+            scan_button.set_text(tr("dialog.port.scanning"))
+            threading.Thread(target=scan_work, name="baram-ble-scan", daemon=True).start()
+
+        scan_button = Button(tr("dialog.port.scan"), on_click=start_scan, style="fill")
+        scan_button.focusable = False
         # 박스 버튼은 3줄이라 한 줄짜리로: 포트 줄 높이를 늘리지 않는다
         refresh_button = Button(tr("dialog.port.refresh"), on_click=refresh, style="fill")
         refresh_button.focusable = False  # 마우스로만 쓴다. 눌렀을 때 ►◄ 포커스 표시가 뜨지 않게
@@ -1880,18 +2012,54 @@ class BaramTerm:
         def row(label_key: str, widget) -> HBox:
             return HBox(Label(tr(label_key), min_size=(12, 1)), widget, Spacer(), spacing=1)
 
+        # 종류 줄은 BLE 를 켰을 때만 (끄고 쓰는 사람에게는 지금까지의 창 그대로다)
+        kind_cb = ComboBox([tr("dialog.port.kind.serial"), tr("dialog.port.kind.ble")], index=1 if s.is_ble else 0)
+        kind_row = HBox(Label(tr("dialog.port.kind"), min_size=(12, 1)), kind_cb, Spacer(), spacing=1, visible=self.config.ble)
+        serial_row = HBox(Label(tr("dialog.port.port"), min_size=(12, 1)), port_cb, refresh_button, Spacer(), spacing=1)
+        ble_row = HBox(Label(tr("dialog.port.device"), min_size=(12, 1)), device_cb, scan_button, Spacer(), spacing=1)
+        serial_only = [row("dialog.port.baud", baud_cb), row("dialog.port.bytesize", bits_cb),
+                       row("dialog.port.parity", parity_cb), row("dialog.port.stopbits", stop_cb),
+                       row("dialog.port.flow", flow_cb)]
+
+        def apply_kind(index: int, switched: bool = True) -> None:
+            """BLE 에는 속도·패리티·흐름 제어가 없다. 그 줄들을 숨기고 장치 줄로 바꾼다.
+
+            창을 열 때(switched=False)는 주소 칸을 건드리지 않는다. 그 값은 sync_combo 가 이미
+            맞춰 놨고, 여기서 덮으면 뽑힌 포트를 고르던 규칙이 깨진다.
+            """
+            is_ble = index == 1
+            serial_row.visible, ble_row.visible = not is_ble, is_ble
+            for r in serial_only:
+                r.visible = not is_ble
+            address.placeholder = "ble://name" if is_ble else "socket://host:port"
+            # 사용자가 종류를 바꿨으면 주소도 그 종류로: 확인을 눌렀을 때 엉뚱한 포트로 열지 않게
+            if switched:
+                address.set_text(ble_urls.get(device_cb.text, "") if is_ble else port_cb.text)
+            _refit()
+
+        kind_cb.changed.connect(lambda index, _text: apply_kind(index))
+        opened: list[Dialog] = []  # apply_kind 는 창을 만들기 전에도 불린다
+
+        def _refit() -> None:
+            """줄을 감추고 드러냈으니 창 크기를 다시 잡는다 (팝업은 열 때 한 번만 재는 자리다)."""
+            if not opened:
+                return
+            dialog = opened[0]
+            hint = dialog.effective_hint()
+            w, h = min(hint.pref_w, self.app.cols), min(hint.pref_h, self.app.rows)
+            self.app.reposition_popup(dialog, (self.app.cols - w) // 2, (self.app.rows - h) // 2, w, h)
+            self.app.invalidate()  # 창이 줄면 있던 자리에 테두리 조각이 남는다. 드문 일이라 전체를 다시 그린다
         body = VBox(
-            HBox(Label(tr("dialog.port.port"), min_size=(12, 1)), port_cb, refresh_button, Spacer(), spacing=1),
+            kind_row,
+            serial_row,
+            ble_row,
             HBox(Label(tr("dialog.port.address"), min_size=(12, 1)), address, spacing=1),
-            row("dialog.port.baud", baud_cb),
-            row("dialog.port.bytesize", bits_cb),
-            row("dialog.port.parity", parity_cb),
-            row("dialog.port.stopbits", stop_cb),
-            row("dialog.port.flow", flow_cb),
+            *serial_only,
             row("dialog.port.enter", enter_cb),
             row("dialog.port.backspace", backspace_cb),
             row("dialog.port.rx_lf", rx_lf_cb),
         )
+        apply_kind(1 if s.is_ble else 0, switched=False)
 
         def on_result(index: int) -> None:
             if index != 0:
@@ -1919,6 +2087,8 @@ class BaramTerm:
             self.connect()
 
         dialog = Dialog(tr("dialog.port.title"), body, (tr("button.ok"), tr("button.cancel")), on_result=on_result)
+        dialog.kind_cb, dialog.device_cb, dialog.scan_button, dialog.ble_urls = kind_cb, device_cb, scan_button, ble_urls
+        opened.append(dialog)
         dialog.port_combo, dialog.address, dialog.refresh_button = port_cb, address, refresh_button
         dialog.enter_combo, dialog.backspace_combo, dialog.rx_lf_combo = enter_cb, backspace_cb, rx_lf_cb
         dialog.baud_combo = baud_cb
@@ -2035,8 +2205,14 @@ class BaramTerm:
             self.st_led.fg = led_fg
             self.st_led.invalidate()
         self.st_port.set_text(self.settings.port or tr("status.no_port"))
-        self.st_baud.set_text(str(self.settings.baud))
-        self.st_framing.set_text(self.settings.framing)
+        if self.settings.is_ble:
+            # BLE 에는 속도도 8N1 도 없다. 대신 붙은 뒤 정해지는 MTU 를 보여준다
+            mtu = getattr(p.device, "mtu", 0) if connected else 0
+            self.st_baud.set_text("BLE")
+            self.st_framing.set_text(f"MTU {mtu}" if mtu else "")
+        else:
+            self.st_baud.set_text(str(self.settings.baud))
+            self.st_framing.set_text(self.settings.framing)
         tx = "●" if now - p.last_tx < _LED_HOLD_S else "·"
         rx = "●" if now - p.last_rx < _LED_HOLD_S else "·"
         self.st_txrx.set_text(f"TX{tx} RX{rx}")
@@ -2059,7 +2235,9 @@ class BaramTerm:
             self._release_plot_partial(force=False)
         if self.hex_active:
             flags.append("HEX")
-        if getattr(self, "_reconnect_timer", None) is not None:
+        if getattr(self, "_opening", 0):
+            flags.append(tr("status.connecting"))
+        elif getattr(self, "_reconnect_timer", None) is not None:
             flags.append(tr("status.reconnecting"))
         if getattr(self, "_released", False):
             flags.append(tr("status.released"))

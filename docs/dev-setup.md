@@ -15,7 +15,7 @@ D2Coding 폰트는 저장소에 포함돼 있어 따로 설치하지 않아도 �
 git clone https://github.com/chcbaram/baram-term.git
 cd baram-term
 uv venv --python 3.12 .venv
-uv pip install --python .venv/bin/python -e "retro-ui[dev]" -e "baram-term[dev]"
+uv pip install --python .venv/bin/python -e "retro-ui[dev]" -e "baram-term[dev,ble]"
 ```
 
 Windows (PowerShell) 는 `.venv/bin/python` 대신 `.venv\Scripts\python.exe`, `.venv/bin/baram-term` 대신

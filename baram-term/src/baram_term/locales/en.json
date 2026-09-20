@@ -162,5 +162,19 @@
   "notice.control_failed": "could not open the control socket: {error}",
   "notice.control_released": "{port} closed for an external tool (resume, or Ctrl-A R to reconnect)",
   "notice.control_resumed": "{port} reopened by an external tool ({serial})",
-  "banner.not_connected": "disconnected when you left · Ctrl-A R to connect"
+  "menu.port.ble": "Use BLE devices",
+  "dialog.port.kind": "Type",
+  "dialog.port.kind.serial": "Serial",
+  "dialog.port.kind.ble": "BLE",
+  "dialog.port.device": "Device",
+  "dialog.port.scan": "Scan",
+  "dialog.port.scanning": "Scanning",
+  "dialog.port.ble_none": "(press Scan)",
+  "notice.ble_missing": "BLE needs bleak: {hint}",
+  "notice.ble_scan_failed": "BLE scan failed: {error}",
+  "notice.ble_none": "no BLE CLI device (NUS) nearby",
+  "notice.ble_off": "{port} is a BLE device · not connected because Port menu > Use BLE devices is off",
+  "banner.not_connected": "disconnected when you left · Ctrl-A R to connect",
+  "status.connecting": "connecting",
+  "notice.ble_connecting": "looking for {port}"
 }

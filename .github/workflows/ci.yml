@@ -32,7 +32,7 @@ jobs:
       # 이어서 retro-ui 를 editable 로 넣으면 그 사본을 소스 트리로 덮어쓴다.
       # 한 번에 넣으면 pip 이 URL 과 로컬 경로를 충돌로 보고 막는다 (docs/dev-setup.md)
       - name: install baram-term (retro-ui comes from git)
-        run: pip install -e "baram-term[dev]"
+        run: pip install -e "baram-term[dev,ble]"
 
       - name: override retro-ui with this checkout
         run: pip install -e "retro-ui[dev]"

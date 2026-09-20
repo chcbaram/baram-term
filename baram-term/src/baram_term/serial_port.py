@@ -14,6 +14,7 @@ from dataclasses import dataclass, replace
 from typing import Any, Callable
 
 DEMO_PORT = "demo://"
+BLE_SCHEME = "ble://"  # baram_term.ble.BLE_SCHEME 와 같다 (여기서 bleak 을 끌어오지 않으려고 적어 둔다)
 
 
 @dataclass
@@ -30,6 +31,10 @@ class PortSettings:
     rx_lf: str = "crlf"  # crlf: 받은 LF 에 CR 도 적용 (LF 만 보내는 장치) | lf: 줄만 내림
 
     @property
+    def is_ble(self) -> bool:
+        return self.port.startswith(BLE_SCHEME)
+
+    @property
     def framing(self) -> str:
         """8N1 처럼 데이터 비트, 패리티, 정지 비트."""
         stop = str(int(self.stopbits)) if float(self.stopbits).is_integer() else str(self.stopbits)
@@ -37,7 +42,7 @@ class PortSettings:
 
     @property
     def summary(self) -> str:
-        return f"{self.baud} {self.framing}"
+        return "BLE" if self.is_ble else f"{self.baud} {self.framing}"
 
 
 def list_ports() -> list[str]:
@@ -75,6 +80,11 @@ def open_device(settings: PortSettings) -> Any:
         from baram_term.fake_device import FakeCliDevice
 
         return FakeCliDevice()
+    if settings.port.startswith(BLE_SCHEME):
+        # BLE 는 속도/패리티가 없다. 나머지 설정(줄끝 코드 등)은 시리얼과 같게 쓴다
+        from baram_term.ble import open_ble
+
+        return open_ble(settings.port)
     import serial
 
     return serial.serial_for_url(
@@ -120,8 +130,11 @@ class SerialPort:
 
     def open(self, settings: PortSettings) -> None:
         """실패하면 예외를 그대로 올린다 (호출한 UI 가 알림을 띄운다)."""
+        self.attach(self._opener(settings), settings)
+
+    def attach(self, device: Any, settings: PortSettings) -> None:
+        """이미 연 장치를 넘겨받아 수신/송신을 시작한다 (BLE 처럼 여는 데 몇 초 걸리는 장치용)."""
         self.close()
-        device = self._opener(settings)
         self.device = device
         self.settings = settings
         self._stop.clear()

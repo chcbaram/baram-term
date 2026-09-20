@@ -33,7 +33,7 @@ jobs:
 
       # 설치 순서가 중요하다 (docs/dev-setup.md). 한 번에 넣으면 pip 이 충돌로 막는다
       - name: install baram-term (retro-ui comes from git)
-        run: pip install -e "baram-term[dev]"
+        run: pip install -e "baram-term[dev,ble]"
 
       - name: override retro-ui with this checkout
         run: pip install -e "retro-ui[dev]"

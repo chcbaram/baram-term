@@ -15,6 +15,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-timeout>=2.3"]
+# BLE 장치 (ble://, Nordic UART Service). 시리얼만 쓰는 사람에게 지우지 않으려고 선택으로 둔다.
+# 릴리스 빌드에는 포함한다 (받는 사람이 설정에서 켜기만 하면 되게)
+ble = ["bleak>=0.22"]
 
 [project.scripts]
 baram-term = "baram_term.__main__:main"

@@ -213,7 +213,12 @@ def describe(instance: Instance) -> str:
     else:
         state = "closed"
     port = instance.port or "(no port)"
-    line = f"pid {instance.pid}  {port}  {s.get('baud', '')} {s.get('framing', '')}  {state}"
+    # BLE 포트에는 속도도 8N1 도 없다. 그 자리에 붙은 뒤 정해지는 MTU 를 쓴다
+    if s.get("kind") == "ble":
+        link = "BLE" + (f" MTU {s['mtu']}" if s.get("mtu") else "")
+    else:
+        link = f"{s.get('baud', '')} {s.get('framing', '')}".strip()
+    line = f"pid {instance.pid}  {port}  {link}  {state}"
     extra = [usb.get("description"), usb.get("serial_number") and f"SER={usb['serial_number']}", usb.get("vid_pid")]
     extra = [e for e in extra if e]
     return line + (f"  [{' · '.join(extra)}]" if extra else "")
@@ -285,13 +290,14 @@ def _build_request(args: argparse.Namespace) -> tuple[dict[str, Any], float]:
 
 
 STATUS_KEYS = (
-    "pid", "port", "baud", "framing", "enter", "connected", "released", "control", "clients", "title", "mark", "version",
+    "pid", "port", "kind", "baud", "framing", "mtu", "enter", "connected", "released", "control", "clients", "title",
+    "mark", "version",
 )
 
 
 def _print_status(reply: dict[str, Any]) -> None:
     for key in STATUS_KEYS:
-        if key in reply:
+        if reply.get(key) is not None:
             value = reply[key]
             if isinstance(value, bool):
                 value = "yes" if value else "no"
