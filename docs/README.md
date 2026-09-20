@@ -38,7 +38,7 @@ baram-term/                 GitHub: https://github.com/chcbaram/baram-term
 | baram-term 외부 제어 (`baram-term ctl`, 창마다 제어 소켓, 여러 창 고르기, Claude Code 플러그인·스킬) | 완료, 실제 보드(ST-LINK VCP, macOS)에서 list·status·send·리셋 후 wait/read 확인 |
 | baram-term BLE 장치 (`ble://이름`, NUS, 포트 설정 창에서 검색, 선택 설치 `[ble]`) | 완료, 실제 보드(NUS 펌웨어)에서 검색·연결·명령·MTU 247 확인 |
 | 배포 (pipx/pip 설치, PyInstaller 3 OS, GitHub Actions CI·릴리스) | 완료. [v0.2.0](https://github.com/chcbaram/baram-term/releases/tag/v0.2.0) 에 macOS `.dmg` / Windows zip / Linux `.tar.gz` |
-| Windows 11 | 실행·스크롤·**파일 메뉴 언어 전환 확인 완료**. 글자 선명도(DPI)는 **확인 대기** |
+| Windows 11 | 실행·스크롤·파일 메뉴 언어 전환·**BLE 연결 확인 완료** (`.venv` 에 `[ble]` 을 다시 설치해야 했다). 글자 선명도(DPI)는 **확인 대기** |
 | Linux | 직접 실행해 본 적 없음 (CI 에서 테스트만 통과) |
 | 다음 | 줄 단위 입력창 (보조) — [roadmap.md](roadmap.md) 의 마지막 남은 항목. 전송률 미니 그래프는 뒤로 미룸 |
 | 테스트 | retro-ui 323개, baram-term 312개 (+ 로컬 장치 기록이 있으면 재생 테스트) |

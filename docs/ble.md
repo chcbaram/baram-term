@@ -14,6 +14,7 @@ BLE 보드를 시리얼 포트처럼 쓴다. [Nordic UART Service(NUS)](https://
 `baram-term "ble://CLI-BOARD"` 처럼 실행 인자로 바로 열 수도 있다.
 
 설치는 선택이다: `pip install "baram-term[ble]"` (또는 `uv pip install -e "baram-term[dev,ble]"`).
+**이미 만들어 둔 개발 환경에는 bleak 이 없다.** `git pull` 만으로는 들어오지 않으니 설치 명령을 한 번 더 돌린다.
 릴리스 빌드(.dmg/zip/tar.gz)에는 포함돼 있어 설정에서 켜기만 하면 된다. bleak 이 없으면 메뉴를 켤 때 안내가 뜬다.
 
 ## 주소 형태
