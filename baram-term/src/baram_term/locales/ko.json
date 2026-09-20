@@ -161,5 +161,6 @@
   "notice.control_off": "외부 제어를 껐습니다",
   "notice.control_failed": "외부 제어 소켓을 열지 못했습니다: {error}",
   "notice.control_released": "외부 제어 요청으로 {port} 를 잠시 닫았습니다 (resume 또는 Ctrl-A R 로 다시 연결)",
-  "notice.control_resumed": "외부 제어 요청으로 {port} 를 다시 열었습니다 ({serial})"
+  "notice.control_resumed": "외부 제어 요청으로 {port} 를 다시 열었습니다 ({serial})",
+  "banner.not_connected": "지난번에 끊은 상태입니다 · Ctrl-A R 로 연결"
 }

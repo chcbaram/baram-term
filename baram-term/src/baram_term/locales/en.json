@@ -161,5 +161,6 @@
   "notice.control_off": "external control off",
   "notice.control_failed": "could not open the control socket: {error}",
   "notice.control_released": "{port} closed for an external tool (resume, or Ctrl-A R to reconnect)",
-  "notice.control_resumed": "{port} reopened by an external tool ({serial})"
+  "notice.control_resumed": "{port} reopened by an external tool ({serial})",
+  "banner.not_connected": "disconnected when you left · Ctrl-A R to connect"
 }

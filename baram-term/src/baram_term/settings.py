@@ -41,6 +41,8 @@ class Settings:
     completion: bool = True
     guard_controls: bool = True
     auto_reconnect: bool = True
+    # 마지막에 연결된 상태였는지. 사용자가 일부러 끊고 나갔으면 다음 실행도 끊긴 채로 시작한다
+    connected: bool = True
     # 외부 제어 소켓 (control.py, `baram-term ctl`). 같은 사용자만 붙을 수 있는 로컬 소켓이라 기본으로 켠다
     control: bool = True
     plot: bool = False

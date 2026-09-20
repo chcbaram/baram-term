@@ -173,6 +173,8 @@ class BaramTerm:
         self.rx_history = RxHistory()
         self.control: ControlServer | None = None
         self._released = False  # 외부 제어가 포트를 잠시 놓은 상태 (자동 재연결도 하지 않는다)
+        # 사용자가 일부러 끊었는지. 장치를 뽑아서 끊긴 것과 구별해 다음 실행의 시작 상태를 정한다
+        self._want_connected = self.config.connected
         self.log: SessionLog | None = None
         self.search: SearchBar | None = None
         self.last_search = ""
@@ -486,7 +488,10 @@ class BaramTerm:
             first = tr("banner.port", port=self.settings.port, serial=self.settings.summary)
         else:
             first = tr("banner.no_port")
-        return [first + " · " + time.strftime("%H:%M:%S"), tr("banner.keys")]
+        lines = [first + " · " + time.strftime("%H:%M:%S")]
+        if self.settings.port and not self.config.connected:
+            lines.append(tr("banner.not_connected"))
+        return lines + [tr("banner.keys")]
 
     # ---- actions -------------------------------------------------------
 
@@ -504,6 +509,7 @@ class BaramTerm:
             return
         self._stop_reconnect()
         self._released = False
+        self._want_connected = True
         if not self._open_port():
             # 보드가 아직 안 꽂혔거나 리셋 중이면 기다렸다가 붙는다
             if self.auto_reconnect:
@@ -551,6 +557,7 @@ class BaramTerm:
             self._update_status()
 
     def disconnect(self) -> None:
+        self._want_connected = False  # 뽑혀서 끊긴 것이 아니라 사용자가 끊었다
         self._stop_reconnect()
         if self.port.is_open:
             self.completer.close()
@@ -1627,6 +1634,7 @@ class BaramTerm:
         c.completion = self.completer.enabled
         c.guard_controls = self.guard_controls
         c.auto_reconnect = self.auto_reconnect
+        c.connected = self._want_connected
         c.control = self.item_control.checked
         c.macro_bar = self.macro_bar.visible
         c.ascii_input = self.terminal.ascii_input
@@ -2076,7 +2084,8 @@ class BaramTerm:
     def run(self) -> None:
         if self.config.control:
             self.start_control()
-        if self.settings.port:
+        # 마지막에 연결돼 있었을 때만 붙는다. 일부러 끊고 나갔으면 끊긴 채로 시작한다 (Ctrl-A R 로 연결)
+        if self.settings.port and self.config.connected:
             self.connect()
         try:
             self.app.run()
