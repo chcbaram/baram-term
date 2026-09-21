@@ -111,7 +111,7 @@ if sys.platform == "darwin":
         icon=str(ICNS),
         bundle_identifier="com.chcbaram.baram-term",
         info_plist={
-            "CFBundleShortVersionString": "0.2.0",
+            "CFBundleShortVersionString": "0.3.0",
             "NSHighResolutionCapable": True,  # 없으면 Retina 에서 2배 확대돼 흐려진다
             # BLE 장치를 찾을 때 macOS 가 이 문구로 허락을 묻는다. 없으면 스캔이 조용히 실패한다
             "NSBluetoothAlwaysUsageDescription": "baram-term connects to BLE boards that speak the Nordic UART Service.",

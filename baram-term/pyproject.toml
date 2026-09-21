@@ -1,6 +1,6 @@
 [project]
 name = "baram-term"
-version = "0.2.0"
+version = "0.3.0"
 description = "Firmware CLI serial terminal with a retro TUI look"
 requires-python = ">=3.10"
 license = "MIT"
