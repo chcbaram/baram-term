@@ -76,12 +76,22 @@ class Settings:
     rules: list[str] = field(default_factory=list)
     # 포트별로 help 출력에서 배운 명령 목록 (Tab 자동완성)
     commands: dict[str, list[str]] = field(default_factory=dict)
+    # 이름 없이 실행했을 때 열 워크스페이스 (마지막으로 연 것). 전역에만 둔다
+    workspace: str = ""
 
     def port_settings(self) -> PortSettings:
         return PortSettings(
             self.port, self.baud, self.bytesize, self.parity, self.stopbits, self.flow,
             enter=self.enter, backspace=self.backspace, rx_lf=self.rx_lf,
         )
+
+
+# 창(워크스페이스)마다 따로 두지 않고 앱 전체에 한 벌만 두는 값. 나머지는 모두 워크스페이스별이다.
+# 보이는 모양·언어·입력 방식처럼 "사람" 에 딸린 것은 여기, 포트·배치·매크로·규칙처럼 "보드" 에 딸린 것은
+# 워크스페이스에 둔다 (매크로와 강조 규칙은 보드마다 CLI 가 달라서 워크스페이스 쪽이다).
+GLOBAL_FIELDS = frozenset(
+    {"theme", "font_size", "lang", "ascii_input", "log_dir", "log_timestamps", "control", "ble", "workspace"}
+)
 
 
 def config_dir() -> Path:
@@ -115,17 +125,27 @@ def _valid(default: object, value: object) -> bool:
     return False
 
 
-def load(path: Path | str) -> tuple[Settings, str | None]:
-    """(설정, 오류 메시지). 파일이 없으면 오류 없이 기본값."""
+def read_raw(path: Path | str) -> tuple[dict, str | None]:
+    """(JSON 객체, 오류 메시지). 파일이 없으면 오류 없이 빈 dict."""
     try:
         raw = json.loads(Path(path).read_text(encoding="utf-8"))
     except FileNotFoundError:
-        return Settings(), None
+        return {}, None
     except (OSError, ValueError) as e:
-        return Settings(), str(e)
+        return {}, str(e)
     if not isinstance(raw, dict):
-        return Settings(), "settings file is not a JSON object"
+        return {}, "settings file is not a JSON object"
+    return raw, None
 
+
+def load(path: Path | str) -> tuple[Settings, str | None]:
+    """(설정, 오류 메시지). 파일이 없으면 오류 없이 기본값."""
+    raw, error = read_raw(path)
+    return from_dict(raw), error
+
+
+def from_dict(raw: dict) -> Settings:
+    """형식이 맞는 값만 받고, 틀린 값은 그 값만 기본값으로 둔다."""
     defaults = Settings()
     values = {}
     for f in fields(Settings):
@@ -138,14 +158,18 @@ def load(path: Path | str) -> tuple[Settings, str | None]:
         if isinstance(default, (int, float)) and not isinstance(default, bool):
             value = type(default)(value)
         values[f.name] = value
-    return Settings(**values), None
+    return Settings(**values)
 
 
 def save(settings: Settings, path: Path | str) -> None:
+    write_raw(asdict(settings), path)
+
+
+def write_raw(values: dict, path: Path | str) -> None:
     """임시 파일에 쓰고 바꿔 끼운다: 저장 중에 꺼져도 기존 파일이 깨지지 않는다."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = {"version": FORMAT_VERSION, **asdict(settings)}
+    data = {"version": FORMAT_VERSION, **{k: v for k, v in values.items() if k != "version"}}
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".settings-", suffix=".json")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fp:

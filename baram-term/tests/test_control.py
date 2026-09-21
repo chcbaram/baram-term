@@ -320,3 +320,37 @@ def test_cli_exit_codes(term, capsys):
     assert code == ctl.EXIT_OK and "info" in out and "[mark " in err
     code, out, _ = run_cli([term], ["--json", "wait", "--until", "NEVER", "--timeout", "0.2"], capsys)
     assert code == ctl.EXIT_TIMEOUT and '"error": "timeout"' in out
+
+
+class FakeWindow:
+    def __init__(self):
+        self.title = ""
+        self.calls = []
+
+    def restore(self):
+        self.calls.append("restore")
+
+    def focus(self):
+        self.calls.append("focus")
+
+
+def test_raise_brings_the_window_forward(term):
+    """다른 창의 워크스페이스 메뉴가 이 창을 앞으로 부탁한다 (Windows/Linux 경로)."""
+    assert term._ctl_ui("raise", {}) == {"raised": False}  # 창 없는 헤드리스: 올릴 것이 없다
+    term.app.window = FakeWindow()
+    try:
+        assert term._ctl_ui("raise", {}) == {"raised": True}
+        assert term.app.window.calls == ["restore", "focus"]
+    finally:
+        term.app.window = None
+
+
+def test_workspace_asks_the_window_by_pid_over_ctl(term):
+    from baram_term import workspaces
+
+    asked = []
+    real = term._ctl_ui
+    term._ctl_ui = lambda cmd, r: (asked.append(cmd) or {"raised": True}) if cmd == "raise" else real(cmd, r)
+    term.start_control()
+    assert call(term, workspaces._ask_to_raise, os.getpid()) is True and asked == ["raise"]
+    assert call(term, workspaces._ask_to_raise, os.getpid() + 1_000_000) is False  # 그런 창은 없다

@@ -84,33 +84,43 @@ HEX 보기를 만들면서 생기는 좌우 분할(`HSplit`)은 나중에 터미
 > 지금도 프로그램을 두 번 실행하면 창 두 개로 볼 수 있다. 설정이 서로 덮어쓰지 않게 `--config` 로 파일을 나눈다:
 > `baram-term /dev/cu.usbmodem1 --config ~/.baram-a.json`
 
-### 창 여러 개 (File → 새 인스턴스) 와 설정 나누기
+### 창 여러 개: 워크스페이스 — 구현 중 (`workspaces` 브랜치)
 
-지금도 여러 개를 띄울 수는 있다 (터미널에서 두 번 실행, macOS 는 `open -n <번들>`).
-막는 것은 실행이 아니라 **설정**이다: 두 인스턴스가 같은 `settings.json` 을 공유해서
-마지막 포트·속도·창 배치·최근 목록을 서로 덮어쓴다. 그래서 메뉴만 먼저 넣으면
-"누르면 설정이 엉키는 버튼" 이 된다.
+처음엔 `settings.json` 하나 안에 포트별 구역을 두고 저장할 때 병합하려 했다. **워크스페이스를
+폴더 하나씩** 두는 쪽으로 바꿨다: 창마다 자기 폴더만 쓰니 병합이 필요 없고, 포트 이름(꽂을 때마다
+바뀌는 usbmodem 번호, BLE 주소)보다 "모터보드" 같은 이름이 오래간다.
 
-VSCode 가 창을 여러 개 두면서도 안 엉키는 이유는 **설정은 공유하고 맥락은 대상별로**
-따로 두기 때문이다. 같은 방식이면:
+```
+<설정 폴더>/settings.json                    전역: theme font_size lang ascii_input log_* control ble workspace
+<설정 폴더>/workspaces/<이름>/settings.json   나머지 전부 (포트, 배치, 매크로, 강조 규칙 ...)
+<설정 폴더>/workspaces/<이름>/notes.json      메모
+<설정 폴더>/workspaces/<이름>/.lock           열려 있는 동안 잡는 OS 파일 잠금
+```
 
-- `settings.json` 하나를 유지하되 안에 **포트별 구역**을 둔다. `commands` 가 이미 포트별로
-  저장하고 있어 새 개념이 아니다
-- 포트별: `baud` `bytesize` `parity` `stopbits` `flow` `enter` `backspace` `rx_lf`
-  `local_echo` `timestamps` `auto_reconnect` `plot*` `hex*` `memo` `right_tab` (약 20개)
-- 공유: `theme` `font_size` `lang` `ascii_input` `rules` `macros` `log_*` `note_*`
-  `recent_ports` `recent_bauds` (약 15개). `cols`/`rows` 는 애매 — 전역이면 두 창이 같은 크기로 뜬다
-- **구역을 나누는 것만으로는 부족하다.** 지금 저장은 파일 전체를 다시 쓰므로, A 가 읽은 뒤
-  B 가 저장하고 A 가 저장하면 B 의 구역이 통째로 사라진다. 저장할 때 **파일을 다시 읽어 내
-  구역만 갈아끼우는 병합**이 필요하다
+- 메뉴: `File → Workspace ▶` 2단 목록. 체크는 "열려 있음" (어느 창이든), 이 창은 `(this window)`.
+  누르면 **새 인스턴스**로 열고 메뉴를 닫는다. 이미 다른 창에 열려 있으면 **그 창을 앞으로** 가져온다.
+  새로 만들면 바로 새 창으로 연다. 이름 바꾸기·복제·삭제는 목록 아래 `Manage...` 창.
+  3단 메뉴는 마우스로 따라가기 어려워 쓰지 않는다
+- 창 제목: `baram-term - <워크스페이스> - <포트>`. ctl 은 제목 일부로도 창을 고르므로 워크스페이스 이름으로 고를 수 있다
+- 매크로와 강조 규칙은 워크스페이스별 (보드마다 CLI 가 다르다)
+- 전역 파일은 여러 창이 같이 쓰므로 **이 창이 바꾼 전역 값만** 다시 읽어 갈아끼운다
+- 잠금은 pid 가 아니라 OS 파일 잠금 (flock / msvcrt): 프로세스가 죽으면 풀리고, Windows 는 pid 로 생존 확인이 안 된다
+- 실행: `--workspace 이름` (없으면 만든다). 이름 없이 켜면 마지막 워크스페이스, 열려 있으면 비어 있는 다음 것,
+  전부 열려 있으면 `default 2` 를 만든다. `--config` 를 주면 예전처럼 파일 하나만 쓴다
+- 첫 실행 때 기존 `settings.json`·`notes.json` 을 `default` 로 **복사**한다 (원본은 예전 버전용으로 남김)
 
-그 위에 올리는 File 메뉴 항목은 작다. 다만 이름은 "새 창" 이 아니라 **"새 인스턴스"** 가 맞다
-(App 은 프로세스당 창 하나 전제라 VSCode 의 New Window 와 동작이 다르다). macOS 는
-`open -n`, 동결본은 `sys.executable` 로 갈라야 하는데 **PyInstaller 로 묶은 뒤 실제로 확인해야 한다.**
+- 새 인스턴스: macOS 는 `open -n` (릴리스는 번들 경로, Dock 에서 띄운 개발용 번들은 `__CFBundleIdentifier`
+  로 `-b`). 실행 파일을 직접 부르면 다른 창 뒤에 깔리고 Dock 에 Python 으로 떠서 열렸는지 알기 어렵다.
+  `open` 은 환경 변수를 넘기지 않아 `BARAM_TERM_CONFIG_DIR` 은 `--env` 로 넘긴다. 그 밖은 실행 파일 직접
+- 앞으로 가져오기: macOS 는 이 창이 대상 앱을 활성화 (NSRunningApplication, ctypes). Windows/Linux 는
+  ctl `raise` 로 부탁하고 대상 창이 스스로 올라온다 (Windows 는 먼저 `AllowSetForegroundWindow`).
+  대상 창의 외부 제어가 꺼져 있으면 알림만. Windows 잠금은 pid 를 읽을 수 있게 파일 끝 너머 바이트를 잠근다
 
-> 이 설정 분리는 위 "시리얼 포트 여러 개 동시 연결" 이 어차피 요구하는 기반이다. 한 번 해 두면
-> 새 인스턴스가 안전해지고, 나중에 한 창에서 여러 포트를 볼 때 그대로 쓴다.
-> 당장 두 보드를 봐야 하면 `--config` 로 파일을 나누는 현재 방법으로 충분하다.
+남은 것:
+- macOS 개발 실행으로 확인함 (2026-09-21). **Windows PC 에서 확인 대기**: 새 창, 두 번 열기 막기, 앞으로 가져오기
+- **PyInstaller 빌드**에서 새 인스턴스 (`open -n <번들>` / exe 직접) 확인
+- Dock 오른쪽 클릭 메뉴에 워크스페이스 목록 (VSCode 처럼)은 하지 않았다. 창마다 프로세스라 창 목록이 모이지 않고,
+  Dock 메뉴를 붙이려면 SDL 이 쥔 앱 델리게이트에 끼어들어야 한다 (macOS 전용, SDL 버전에 약함)
 
 ## 라이브러리 남은 항목 (필요해질 때)
 

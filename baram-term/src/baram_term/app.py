@@ -7,6 +7,7 @@ import re
 import threading
 import time
 from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from typing import Any, Callable
 
@@ -65,6 +66,8 @@ from baram_term.macros import SLOTS as MACRO_SLOTS, MacroBar, free_keys, join_en
 from baram_term.search import SearchBar
 from baram_term.serial_port import DEMO_PORT, PortSettings, SerialPort, list_ports, open_device, usb_info
 from baram_term import settings as config_store
+from baram_term import workspaces
+from baram_term.workspaces import Workspace
 from baram_term.settings import Settings
 
 BAUD_RATES = ("9600", "19200", "38400", "57600", "115200", "230400", "460800", "921600", "1000000", "2000000")
@@ -93,6 +96,7 @@ def _parse_baud(text: str) -> int | None:
 PLOT_WINDOWS = ("1", "5", "10", "30", "60", "300")
 NOTE_DELAYS = ("0", "20", "50", "100", "200", "500")
 NOTE_WAIT_PREFIX = "#wait"
+DEFAULT_WORKSPACE = workspaces.DEFAULT
 NOTE_PROMPT_TIMEOUT_S = 2.0
 PLOT_WINDOW_MAX_S = 3600.0
 
@@ -149,8 +153,13 @@ class BaramTerm:
         opener: Callable[[PortSettings], Any] = open_device,
         config: Settings | None = None,
         config_path: Path | None = None,
+        workspace: Workspace | None = None,
     ):
         self.settings = settings
+        # 워크스페이스로 열면 설정 파일(과 그 옆의 메모)이 그 폴더에 있다. 없으면 --config 한 파일 방식
+        self.ws = workspace
+        if workspace is not None:
+            config_path = workspace.settings_path
         # config_path 가 없으면 설정을 파일에 쓰지 않는다 (테스트, 일회성 실행)
         self.config = config if config is not None else Settings()
         self.config_path = config_path
@@ -350,6 +359,7 @@ class BaramTerm:
             on_menu=self.open_macro_menu, visible=self.config.macro_bar,
         )
         self.menu = self._build_menu()
+        self.menu.menus[0].about_to_show.connect(self._refresh_workspace_menu)
         # 터미널과 그래프 사이 경계(두 테두리 줄)를 마우스로 끌어 높이를 나눈다. 더블클릭은 기본 비율로
         self.split = VSplit(
             self.terminal_split,
@@ -421,12 +431,18 @@ class BaramTerm:
         self.item_note_import = MenuItem(tr("menu.file.note_import"), self.import_notes, key="I")
         self.item_note_export_all = MenuItem(tr("menu.file.note_export_all"), self.export_all_notes, key="E")
         self.item_note_files = MenuItem(tr("menu.file.note"), submenu=[self.item_note_import, self.item_note_export_all])
+        # 목록은 2단까지만: 누르면 바로 열고, 이름 바꾸기·복제·삭제는 관리 창에서 (3단 연쇄 메뉴는 마우스로 따라가기 어렵다)
+        self.item_workspace = MenuItem(
+            tr("menu.file.workspace"), submenu=self._workspace_menu_items(), enabled=self.ws is not None
+        )
         return MenuBar(
             [
                 # 파일을 맨 앞에: 로그 저장·끝은 포트가 아니라 파일 메뉴에 있을 항목이고, 언어 선택도 여기에 둔다
                 Menu(
                     tr("menu.file"),
                     [
+                        self.item_workspace,
+                        MenuItem.sep(),
                         MenuItem(tr("menu.file.log"), self.toggle_log, shortcut="Ctrl-A L", key="L"),
                         MenuItem.sep(),
                         self.item_note_files,
@@ -882,6 +898,234 @@ class BaramTerm:
         self._save()
 
     # ---- hex view ------------------------------------------------------
+
+    # ---- workspaces ----------------------------------------------------
+
+    @property
+    def workspace(self) -> str:
+        return self.ws.name if self.ws is not None else DEFAULT_WORKSPACE
+
+    def workspace_names(self) -> list[str]:
+        return workspaces.names(self.ws.config_dir) if self.ws is not None else []
+
+    def _open_elsewhere(self, name: str) -> bool:
+        return name != self.workspace and self.ws is not None and workspaces.in_use(self.ws.config_dir, name)
+
+    def _workspace_label(self, name: str) -> str:
+        if name == self.workspace:
+            return tr("dialog.workspace.this_window", name=name)
+        if self._open_elsewhere(name):
+            return tr("dialog.workspace.open_elsewhere", name=name)
+        return name
+
+    def _workspace_menu_items(self) -> list[MenuItem]:
+        items = [
+            MenuItem(
+                # 체크는 "열려 있음" (어느 창이든). 그중 이 창은 이름 옆에 적는다
+                (tr("dialog.workspace.this_window", name=name) if name == self.workspace else name).replace("&", "&&"),
+                partial(self.open_workspace, name),
+                checked=name == self.workspace or self._open_elsewhere(name),
+            )
+            for name in self.workspace_names()
+        ]
+        return [
+            *items,
+            *([MenuItem.sep()] if items else []),
+            MenuItem(tr("menu.file.workspace_new"), self.new_workspace, key="N"),
+            MenuItem(tr("menu.file.workspace_manage"), self.open_workspace_dialog, key="M"),
+        ]
+
+    def _refresh_workspace_menu(self) -> None:
+        # 체크 항목은 누르는 순간 뒤집히므로, 무엇을 골랐든 목록을 다시 만들어 "지금 창" 표시를 되살린다
+        self.item_workspace.submenu = self._workspace_menu_items()
+
+    def open_workspace(self, name: str) -> None:
+        """다른 워크스페이스는 새 인스턴스로. 이미 다른 창에서 열려 있으면 띄우지 않는다."""
+        self._refresh_workspace_menu()
+        if self.ws is None or name == self.workspace:
+            return
+        # 체크 항목은 retro-ui 가 메뉴를 열어 둔다 (보기 메뉴처럼 연달아 켜고 끄라고).
+        # 여기서는 고르는 순간 새 창이 뜨니 메뉴를 남겨 둘 이유가 없다
+        self.menu.close_menu()
+        if workspaces.in_use(self.ws.config_dir, name):
+            # 이미 열려 있으면 두 번 띄우지 않고 그 창을 앞으로. 못 가져오면 (Windows/Linux) 어디 있는지만 알린다
+            if not workspaces.bring_to_front(self.ws.config_dir, name):
+                self.notice(tr("notice.workspace_already_open", name=name), error=True)
+            return
+        self._save()  # 새 창이 읽을 전역 값(언어, 글자 크기 ...)을 먼저 내려 둔다
+        try:
+            workspaces.launch(name)
+        except OSError as e:
+            self.notice(tr("notice.workspace_launch_failed", name=name, error=e), error=True)
+            return
+        self.notice(tr("notice.workspace_launched", name=name))
+
+    def workspace_name_problem(self, name: str, allow: str | None = None) -> str:
+        """비어 있으면 안 되고, 폴더 이름으로 쓸 수 있어야 하며, 겹치면 안 된다 (allow 는 자기 이름)."""
+        if not name:
+            return tr("dialog.workspace.empty")
+        if not workspaces.valid_name(name):
+            return tr("dialog.workspace.bad_name", chars=workspaces.BAD_CHARS)
+        taken = [n.casefold() for n in self.workspace_names() if n != allow]
+        if name.casefold() in taken:
+            return tr("dialog.workspace.exists", name=name)
+        return ""
+
+    def ask_workspace_name(self, title: str, current: str, on_done: Callable[[str], None], allow: str | None = None) -> Dialog:
+        edit = LineEdit(current, min_size=(workspaces.NAME_MAX, 1), on_change=lambda _text: validate())
+        error = Label("", fg="error")
+
+        def validate() -> None:
+            error.set_text(self.workspace_name_problem(edit.text.strip(), allow) if edit.text else "")
+
+        def done(index: int) -> None:
+            if index != 0:
+                return
+            name = edit.text.strip()
+            problem = self.workspace_name_problem(name, allow)
+            if problem:
+                self.notice(problem, error=True)
+                return
+            on_done(name)
+
+        dialog = Dialog(
+            title,
+            VBox(HBox(Label(tr("dialog.workspace.name")), edit, spacing=1), error, spacing=1),
+            (tr("button.ok"), tr("button.cancel")),
+            on_result=done,
+        )
+        dialog.edit, dialog.error = edit, error
+        dialog.open(self.app)
+        self.app.set_focus(edit)
+        edit.select_all()
+        return dialog
+
+    def _workspace_op(self, action: Callable[[], None]) -> bool:
+        """폴더 작업. 실패하면 이유를 알리고 False (권한, 다른 프로그램이 파일을 잡고 있음 ...)."""
+        try:
+            action()
+        except OSError as e:
+            self.notice(tr("notice.workspace_failed", error=e), error=True)
+            return False
+        return True
+
+    def new_workspace(self) -> Dialog | None:
+        if self.ws is None:
+            return None
+        root = self.ws.config_dir
+
+        def done(name: str) -> None:
+            if self._workspace_op(lambda: workspaces.create(root, name)):
+                self._refresh_workspace_menu()
+                self.open_workspace(name)  # 만들었으면 쓰려는 것이다: 바로 새 창으로
+
+        return self.ask_workspace_name(tr("dialog.workspace.new_title"), "", done)
+
+    def open_workspace_dialog(self) -> Dialog | None:
+        """열기·이름 바꾸기·복제·삭제. 폴더 작업이라 누르는 즉시 반영하고, 삭제만 한 번 더 묻는다."""
+        if self.ws is None:
+            return None
+        root = self.ws.config_dir
+        names: list[str] = []
+        listing = ListView(min_size=(workspaces.NAME_MAX + 14, 8), on_activate=lambda _i: open_picked())
+        open_button = Button(tr("dialog.workspace.open"), on_click=lambda: open_picked(), style="solid", color="dim")
+        rename_button = Button(tr("dialog.workspace.rename"), on_click=lambda: rename(), style="solid", color="dim")
+        copy_button = Button(tr("dialog.workspace.duplicate"), on_click=lambda: duplicate(), style="solid", color="dim")
+        delete_button = Button(tr("dialog.workspace.delete"), on_click=lambda: delete(), style="solid", color="dim")
+
+        def picked() -> str | None:
+            return names[listing.selected] if 0 <= listing.selected < len(names) else None
+
+        def sync_buttons(_index: int = 0) -> None:
+            name = picked()
+            busy = name is None or name == self.workspace or self._open_elsewhere(name)
+            open_button.enabled = not busy
+            # 열려 있는 워크스페이스는 지우지 못한다: 쓰고 있는 설정 파일이 사라진다.
+            # 이름 바꾸기는 이 창 것만 된다 (다른 창이 연 폴더는 그 창이 쥐고 있다)
+            delete_button.enabled = not busy
+            rename_button.enabled = name is not None and not self._open_elsewhere(name)
+
+        def refresh(select: str | None = None) -> None:
+            keep = select or picked()
+            names[:] = self.workspace_names()
+            index = names.index(keep) if keep in names else max(0, min(listing.selected, len(names) - 1))
+            listing.set_items([self._workspace_label(n) for n in names], selected=index)
+            sync_buttons()
+            self._refresh_workspace_menu()
+
+        def open_picked() -> None:
+            name = picked()
+            if name is not None and name != self.workspace:
+                self.open_workspace(name)
+                refresh()
+
+        def rename() -> None:
+            old = picked()
+            if old is None:
+                return
+
+            def done(new: str) -> None:
+                if new == old:
+                    return
+                if old == self.workspace:
+                    ok = self._workspace_op(lambda: self.ws.rename(new))
+                    if ok:
+                        self.config_path = self.ws.settings_path
+                        self.notes_path = self.ws.folder / "notes.json"
+                        self._update_status()  # 창 제목
+                else:
+                    ok = self._workspace_op(lambda: workspaces.rename(root, old, new))
+                if ok:
+                    refresh(new)
+
+            self.ask_workspace_name(tr("dialog.workspace.rename_title"), old, done, allow=old)
+
+        def duplicate() -> None:
+            source = picked()
+            if source is None:
+                return
+
+            def done(new: str) -> None:
+                if source == self.workspace:
+                    self._save()  # 복사본이 지금 화면 그대로이도록
+                if self._workspace_op(lambda: workspaces.duplicate(root, source, new)):
+                    refresh(new)
+
+            self.ask_workspace_name(tr("dialog.workspace.duplicate_title"), workspaces.unique_name(root, source), done)
+
+        def delete() -> None:
+            name = picked()
+            if name is None or name == self.workspace or self._open_elsewhere(name):
+                return
+
+            def done(index: int) -> None:
+                if index != 0 or self._open_elsewhere(name):  # 묻는 사이 다른 창에서 열었을 수 있다
+                    return
+                if self._workspace_op(lambda: workspaces.delete(root, name)):
+                    refresh()
+
+            message_box(
+                self.app,
+                tr("dialog.workspace.delete_title"),
+                tr("dialog.workspace.delete_confirm", name=name),
+                (tr("dialog.workspace.delete"), tr("button.cancel")),
+                on_result=done,
+                default=1,  # Enter 한 번에 지워지지 않게
+            )
+
+        listing.selection_changed.connect(sync_buttons)
+        body = VBox(
+            listing,
+            HBox(open_button, rename_button, copy_button, delete_button, Spacer(), spacing=1),
+            spacing=1,
+        )
+        dialog = Dialog(tr("dialog.workspace.title"), body, (tr("button.close"),))
+        dialog.listing = listing
+        dialog.open_button, dialog.rename_button = open_button, rename_button
+        dialog.copy_button, dialog.delete_button = copy_button, delete_button
+        refresh(self.workspace)
+        dialog.open(self.app)
+        return dialog
 
     # ---- highlight rules -----------------------------------------------
 
@@ -1648,6 +1892,14 @@ class BaramTerm:
             self.send(data, raw=True)
             self._update_status()
             return {"mark": mark, "sent": data.decode("utf-8", "replace")}
+        if cmd == "raise":
+            # 다른 창의 워크스페이스 메뉴가 "이미 열린 이 창을 앞으로" 부탁할 때 (workspaces.bring_to_front)
+            window = self.app.window
+            if window is None:
+                return {"raised": False}
+            window.restore()  # 내려 둔(최소화) 창도 다시 보이게
+            window.focus()  # SDL_RaiseWindow: 앞으로 올리고 입력을 받는다
+            return {"raised": True}
         if cmd == "release":
             if self.port.is_open:
                 self._stop_reconnect()
@@ -1726,10 +1978,13 @@ class BaramTerm:
         c.macros = list(self.macro_bar.macros)
         c.font_size = self.app.fonts.size
         c.cols, c.rows = self.app.cols, self.app.rows
-        if self.config_path is None:
+        if self.ws is None and self.config_path is None:
             return
         try:
-            config_store.save(c, self.config_path)
+            if self.ws is not None:
+                self.ws.save(c)
+            else:
+                config_store.save(c, self.config_path)
         except OSError as e:
             if not self._save_error_shown:
                 self._save_error_shown = True
@@ -2190,8 +2445,16 @@ class BaramTerm:
         self._update_status()
 
     def _window_title(self) -> str:
-        """창 제목에 포트를 넣는다: 창을 여러 개 띄웠을 때 (그리고 ctl list 에서) 구별되게."""
-        return f"baram-term - {self.settings.port}" if self.settings.port else "baram-term"
+        """창 제목에 워크스페이스와 포트를 넣는다: 창을 여러 개 띄웠을 때 (그리고 ctl list 에서) 구별되게.
+
+        ctl 은 제목의 일부로도 대상을 고르므로, 워크스페이스 이름으로 창을 고를 수 있다.
+        """
+        parts = ["baram-term"]
+        if self.ws is not None:
+            parts.append(self.ws.name)
+        if self.settings.port:
+            parts.append(self.settings.port)
+        return " - ".join(parts)
 
     def _update_status(self) -> None:
         now = time.monotonic()
@@ -2272,3 +2535,5 @@ class BaramTerm:
             self.stop_control()
             self.stop_log(notify=False)
             self.port.close()
+            if self.ws is not None:
+                self.ws.release()

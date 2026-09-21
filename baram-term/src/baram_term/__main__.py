@@ -1,6 +1,8 @@
 """Command line entry: baram-term [PORT] [-b BAUD] [--demo] [--list] ... | baram-term ctl COMMAND ...
 
 실행 인자가 저장된 설정보다 우선하고, 준 값은 다시 저장된다. 인자 없이 실행하면 마지막 포트로 연결한다.
+설정은 워크스페이스별로 둔다 (workspaces.py). --workspace 없이 실행하면 마지막에 연 워크스페이스를,
+그게 이미 다른 창에 열려 있으면 비어 있는 다음 것을 연다. --config 를 주면 예전처럼 파일 하나만 쓴다.
 """
 
 from __future__ import annotations
@@ -12,6 +14,7 @@ from pathlib import Path
 
 from baram_term import __version__
 from baram_term import settings as config_store
+from baram_term import workspaces
 from baram_term.i18n import LANGUAGES, set_language, tr
 from baram_term.serial_port import DEMO_PORT, list_ports
 
@@ -48,6 +51,33 @@ def _report_fatal(message: str) -> None:
         pass
 
 
+def _pick_workspace(config_dir: Path, requested: str | None, last: object) -> tuple[workspaces.Workspace | None, str]:
+    """(연 워크스페이스, 못 열었을 때의 이유). 연 것은 잠겨 있다."""
+    try:
+        workspaces.ensure(config_dir)
+        existing = workspaces.names(config_dir)
+        if requested:
+            # 창 메뉴가 띄운 것이든 사람이 친 것이든: 없으면 만들고, 다른 창이 열고 있으면 두 번 열지 않는다
+            if not workspaces.valid_name(requested):
+                return None, tr("fatal.workspace_name", name=requested, chars=workspaces.BAD_CHARS)
+            name = next((n for n in existing if n.casefold() == requested.casefold()), requested)
+            if name not in existing:
+                workspaces.create(config_dir, name)
+            ws = workspaces.Workspace(config_dir, name)
+            return (ws, "") if ws.acquire() else (None, tr("fatal.workspace_open", name=name))
+        candidates = [last] if isinstance(last, str) and last in existing else []
+        candidates += [n for n in existing if n not in candidates]
+        for name in candidates:
+            ws = workspaces.Workspace(config_dir, name)
+            if ws.acquire():
+                return ws, ""
+        # 전부 다른 창에 열려 있다: 빈 워크스페이스를 하나 만든다 (실행을 거절하는 것보다 낫다)
+        ws = workspaces.create(config_dir, workspaces.unique_name(config_dir, workspaces.DEFAULT))
+        return (ws, "") if ws.acquire() else (None, tr("fatal.workspace_open", name=ws.name))
+    except OSError as e:
+        return None, tr("fatal.workspace_failed", error=e)
+
+
 def main(argv: list[str] | None = None) -> int:
     _attach_console()
     argv = sys.argv[1:] if argv is None else argv
@@ -69,20 +99,36 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--font-size", type=int)
     parser.add_argument("--size", help="window size in cells, COLSxROWS")
     parser.add_argument("--lang", choices=LANGUAGES)
-    parser.add_argument("--config", type=Path, help=f"settings file (default: {config_store.default_path()})")
+    parser.add_argument("-w", "--workspace", help="workspace to open (created if it does not exist)")
+    parser.add_argument("--config", type=Path, help="use this one settings file instead of workspaces")
     parser.add_argument("--version", action="version", version=f"baram-term {__version__}")
     args = parser.parse_args(argv)
-
-    config_path = args.config or config_store.default_path()
-    config, load_error = config_store.load(config_path)
-    if args.lang:
-        config.lang = args.lang
-    set_language(config.lang or None)
 
     if args.list:
         for port in list_ports():
             print(port)
         return 0
+
+    workspace = None
+    if args.config:
+        config_path = args.config
+        config, load_error = config_store.load(config_path)
+        set_language(args.lang or config.lang or None)
+    else:
+        config_path = None
+        config_dir = config_store.config_dir()
+        global_raw = config_store.read_raw(config_dir / "settings.json")[0]
+        lang = global_raw.get("lang")
+        set_language(args.lang or (lang if isinstance(lang, str) and lang else None))
+        workspace, problem = _pick_workspace(config_dir, args.workspace, global_raw.get("workspace"))
+        if workspace is None:
+            _report_fatal(problem)
+            print(problem, file=sys.stderr)
+            return 1
+        config, load_error = workspace.load()
+        config.workspace = workspace.name  # 다음에 이름 없이 실행하면 이것을 연다
+    if args.lang:
+        config.lang = args.lang
 
     if args.demo:
         config.port = DEMO_PORT
@@ -108,6 +154,7 @@ def main(argv: list[str] | None = None) -> int:
             size=(config.cols, config.rows),
             config=config,
             config_path=config_path,
+            workspace=workspace,
         )
         if load_error:
             term.notice(tr("notice.settings_load_failed", error=load_error), error=True)

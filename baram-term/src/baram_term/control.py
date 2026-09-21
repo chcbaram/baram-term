@@ -328,7 +328,7 @@ class ControlServer:
         cmd = req.get("cmd")
         with self._lock:
             self._last_activity = time.monotonic()
-        if cmd in ("status", "release", "resume"):
+        if cmd in ("status", "release", "resume", "raise"):
             result = self._run_on_ui(lambda: self._ui(cmd, req))
             return {"ok": True, "pid": os.getpid(), **result, "usb": self._usb_info(result.get("port", ""))}
         if cmd == "send":

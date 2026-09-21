@@ -44,8 +44,8 @@ def test_file_menu_comes_first(bt):
 
 def test_file_menu_holds_log_language_and_quit(bt):
     items = [i.text or "---" for i in bt.menu.menus[0].items]
-    assert items == ["Start/stop log...", "---", "Memo", "---", "한국어", "English", "---", "Quit"]
-    memo = bt.menu.menus[0].items[2]  # 메모 파일 넣고 빼기는 한 단 아래로 묶는다
+    assert items == ["Workspace", "---", "Start/stop log...", "---", "Memo", "---", "한국어", "English", "---", "Quit"]
+    memo = bt.menu.menus[0].items[4]  # 메모 파일 넣고 빼기는 한 단 아래로 묶는다
     assert [i.text for i in memo.submenu] == ["Import...", "Export..."]
 
 
