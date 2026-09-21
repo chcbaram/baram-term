@@ -529,10 +529,22 @@ class BaramTerm:
         if not self.settings.port:
             self.open_port_dialog()
             return
+        if self.port.is_open:
+            # 이미 붙어 있는 포트를 또 열면 실패한다 (BLE 는 연결되면 광고를 멈춰서 스캔에 안 잡힌다)
+            self.notice(tr("notice.already_connected", port=self.settings.port, serial=self.settings.summary))
+            return
         self._stop_reconnect()
         self._released = False
         self._want_connected = True
         self._open_port()  # 시리얼은 여기서 끝나고, BLE 는 스레드에서 이어진다 (_opened / _open_failed)
+
+    def reconnect(self) -> None:
+        """새 설정으로 다시 연다 (포트 설정을 바꿨을 때). 열려 있으면 먼저 닫는다."""
+        if self.port.is_open:
+            self._stop_reconnect()
+            self.completer.close()
+            self.port.close()
+        self.connect()
 
     def _open_port(self, quiet: bool = False) -> bool:
         """포트를 연다. BLE 는 몇 초 걸려서 다른 스레드에서 열고 여기서는 바로 돌아온다.
@@ -558,7 +570,10 @@ class BaramTerm:
 
     def _open_in_background(self, quiet: bool) -> None:
         if self._opening:
-            return  # 이미 찾는 중이다 (재연결 타이머가 1초마다 불러도 하나만 돈다)
+            # 이미 찾는 중이다 (재연결 타이머가 1초마다 불러도 하나만 돈다). 사람이 누른 것이면 어디까지 왔는지 알린다
+            if not quiet:
+                self.notice(tr("notice.ble_connecting", port=self.settings.port))
+            return
         self._opening = token = self._opening_token = getattr(self, "_opening_token", 0) + 1
         settings = self.settings
         if not quiet:
@@ -2340,7 +2355,7 @@ class BaramTerm:
             )
             self._apply_line_codes()
             self._save()
-            self.connect()
+            self.reconnect()
 
         dialog = Dialog(tr("dialog.port.title"), body, (tr("button.ok"), tr("button.cancel")), on_result=on_result)
         dialog.kind_cb, dialog.device_cb, dialog.scan_button, dialog.ble_urls = kind_cb, device_cb, scan_button, ble_urls

@@ -77,6 +77,7 @@
   "banner.no_port": "포트가 없습니다 · Ctrl-A O 로 포트를 고르세요",
   "banner.keys": "Ctrl-A Z 도움말 · F10 메뉴",
   "notice.connected": "{port} 연결됨 ({serial})",
+  "notice.already_connected": "{port} 는 이미 연결돼 있습니다 ({serial})",
   "notice.disconnected": "연결을 끊었습니다",
   "notice.open_failed": "{port} 열기 실패: {error}",
   "notice.port_error": "포트 오류로 연결이 끊겼습니다: {error}",

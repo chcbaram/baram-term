@@ -369,3 +369,47 @@ def test_ctl_resume_does_not_block_the_window_on_ble(term, monkeypatch):
 def _slow_open():
     time.sleep(0.6)  # 실제 BLE 는 스캔·연결에 몇 초가 걸린다
     return _FakeOpen()
+
+
+def test_connecting_again_says_it_is_already_connected(term, monkeypatch):
+    """붙어 있는 BLE 장치는 광고를 멈춘다: 또 열면 스캔에 안 잡혀 '못 찾음' 으로 끝난다."""
+    opened = []
+    monkeypatch.setattr(app_module, "open_device", lambda settings: opened.append(settings.port) or _FakeOpen())
+    term.item_ble.checked = True
+    term._apply_ble(True)
+    term.settings = PortSettings(port="ble://CLI-BOARD")
+    term.connect()
+    deadline = time.monotonic() + 5
+    while not term.port.is_open and time.monotonic() < deadline:
+        term.app.step()
+        time.sleep(0.01)
+    assert term.port.is_open and opened == ["ble://CLI-BOARD"]
+
+    term.connect()  # 메뉴의 '연결' 을 한 번 더
+    for _ in range(20):
+        term.app.step()
+        time.sleep(0.01)
+    assert term.port.is_open and opened == ["ble://CLI-BOARD"]  # 다시 열지 않았다
+    assert any("already connected" in line for line in term.app.screen_text())
+
+
+def test_connecting_while_still_looking_repeats_the_notice(term, monkeypatch):
+    """찾는 중에 또 누르면 아무 말이 없었다: 찾기는 하나만 돌리되 어디까지 왔는지는 알린다."""
+    monkeypatch.setattr(app_module, "open_device", lambda settings: _slow_open())
+    term.item_ble.checked = True
+    term._apply_ble(True)
+    term.settings = PortSettings(port="ble://CLI-BOARD")
+    term.connect()
+    assert term._opening
+
+    token = term._opening
+    term.connect()
+    assert term._opening == token  # 찾기는 그대로 하나
+    term.app.step()
+    assert sum("looking for" in line for line in term.app.screen_text()) == 2
+
+    deadline = time.monotonic() + 5
+    while not term.port.is_open and time.monotonic() < deadline:
+        term.app.step()
+        time.sleep(0.01)
+    assert term.port.is_open

@@ -77,6 +77,7 @@
   "banner.no_port": "no port · press Ctrl-A O to choose one",
   "banner.keys": "Ctrl-A Z help · F10 menu",
   "notice.connected": "connected to {port} ({serial})",
+  "notice.already_connected": "{port} is already connected ({serial})",
   "notice.disconnected": "disconnected",
   "notice.open_failed": "failed to open {port}: {error}",
   "notice.port_error": "port error, disconnected: {error}",
