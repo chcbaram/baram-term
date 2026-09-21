@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -165,9 +166,9 @@ def test_launch_command_reopens_the_mac_bundle(monkeypatch):
     monkeypatch.setattr(sys, "platform", "darwin")
     monkeypatch.setattr(sys, "executable", "/Applications/baram-term.app/Contents/MacOS/baram-term")
     monkeypatch.delenv("BARAM_TERM_CONFIG_DIR", raising=False)
-    assert workspaces.launch_command("motor") == [
-        "open", "-n", "/Applications/baram-term.app", "--args", "--workspace", "motor"
-    ]
+    # Path 로 만든다: 이 테스트를 Windows 에서 돌리면 경로가 \ 로 바뀐다 (실제 macOS 에서는 / 그대로)
+    bundle = str(Path("/Applications/baram-term.app"))
+    assert workspaces.launch_command("motor") == ["open", "-n", bundle, "--args", "--workspace", "motor"]
 
 
 # ---- 실행할 때 고르기 --------------------------------------------------------
