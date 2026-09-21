@@ -76,6 +76,8 @@ class Menu:
     def __init__(self, title: str, items: Sequence[MenuItem]):
         self.title, self.mnemonic = parse_mnemonic(title)
         self.items = list(items)
+        # 펼치기 직전. 열 때마다 바뀌는 항목(최근 파일, 다른 창의 상태 등)을 여기서 채운다
+        self.about_to_show = Signal()
 
     @property
     def mnemonic_key(self) -> str | None:
@@ -141,6 +143,7 @@ class MenuBar(Widget):
             self._popup = None
             old.close()
         x, _ = self._spans()[index]
+        self.menus[index].about_to_show.emit()
         popup = MenuPopup(self, self.menus[index])
         popup.owner = self
         self.open_index = index

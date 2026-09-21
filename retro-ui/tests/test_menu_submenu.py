@@ -133,3 +133,24 @@ def test_check_items_keep_the_menu_open(app):
     popup.select(0)
     key(app, Key.RETURN)  # 동작 항목은 메뉴를 닫는다
     assert picked[-1] == "rules" and not app.popups
+
+
+def test_about_to_show_lets_the_owner_rebuild_a_submenu(app):
+    """열 때마다 바뀌는 목록: 펼치기 직전에 채운 항목이 그대로 보인다."""
+    bar, panel, _ = setup(app)
+    shown = []
+
+    def rebuild():
+        shown.append(True)
+        panel.submenu = [MenuItem(f"Item {len(shown)}")]
+
+    bar.menus[0].about_to_show.connect(rebuild)
+    bar.open_menu(0)
+    app.popups[-1].open_submenu(1)
+    app.step()
+    assert shown == [True] and "Item 1" in "\n".join(app.screen_text())
+    bar.close_menu()
+    bar.open_menu(0)
+    app.popups[-1].open_submenu(1)
+    app.step()
+    assert "Item 2" in "\n".join(app.screen_text())
